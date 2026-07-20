@@ -430,6 +430,16 @@ function paymentBadgeServer($status)
         const id = isEdit ? orderData.id : '';
         const customerId = isEdit ? orderData.customer_id : '';
         const warehouseId = isEdit ? orderData.warehouse_id : '';
+        const orderDate = isEdit ? orderData.order_date : '<?= date('Y-m-d') ?>';
+        const deliveryDate = isEdit ? (orderData.delivery_date || '') : '';
+        const orderStatus = isEdit ? orderData.order_status : 'Draft';
+        const paymentStatus = isEdit ? orderData.payment_status : 'Pending';
+        const subtotal = isEdit ? orderData.subtotal : 0;
+        const discount = isEdit ? orderData.discount : 0;
+        const tax = isEdit ? orderData.tax : 0;
+        const shipping = isEdit ? orderData.shipping : 0;
+        const grandTotal = isEdit ? orderData.grand_total : 0;
+        const notes = isEdit ? (orderData.notes || '') : '';
 
         let customerOptions = '<option value="">Walk-in Customer</option>';
         window.saleOrderViewData.customers.forEach(c => {
@@ -441,9 +451,21 @@ function paymentBadgeServer($status)
             warehouseOptions += `<option value="${w.id}" ${w.id==warehouseId?'selected':''}>${w.warehouse_name}</option>`;
         });
 
+        const statusList = ['Draft', 'Confirmed', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'];
+        let statusOptions = '';
+        statusList.forEach(s => {
+            statusOptions += `<option value="${s}" ${s==orderStatus?'selected':''}>${s}</option>`;
+        });
+
+        const paymentStatusList = ['Pending', 'Partial', 'Paid'];
+        let paymentStatusOptions = '';
+        paymentStatusList.forEach(s => {
+            paymentStatusOptions += `<option value="${s}" ${s==paymentStatus?'selected':''}>${s}</option>`;
+        });
+
         Swal.fire({
             title: isEdit ? 'Edit Sale Order' : 'New Sale Order',
-            width: '1200px',
+            width: '1300px',
             customClass: { popup: 'swal-wide-popup' },
             html: `
                 <form id="saleOrderForm">
@@ -464,13 +486,40 @@ function paymentBadgeServer($status)
                 </select>
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-md-2">
                 <label>Order Date</label>
-                <input type="date" id="swal_order_date" class="form-control" value="${isEdit ? orderData.order_date : '<?= date('Y-m-d') ?>'}">
+                <input type="date" id="swal_order_date" class="form-control" value="${orderDate}">
                 </div>
 
-                <div class="col-md-2">
-                <button type="button" id="btnAddItem" class="btn btn-primary" style="margin-top:23px;">Add Item</button>
+                <div class="col-md-3">
+                <label>Delivery Date</label>
+                <input type="date" id="swal_delivery_date" class="form-control" value="${deliveryDate}">
+                </div>
+                </div>
+
+                <div class="row" style="margin-top:10px;">
+                <div class="col-md-3">
+                <label>Order Status</label>
+                <select id="swal_order_status" class="form-control">
+                ${statusOptions}
+                </select>
+                </div>
+                <div class="col-md-3">
+                <label>Payment Status</label>
+                <select id="swal_payment_status" class="form-control">
+                ${paymentStatusOptions}
+                </select>
+                </div>
+                <div class="col-md-6">
+                <label>Notes</label>
+                <input type="text" id="swal_notes" class="form-control" placeholder="Add notes or remarks" value="${notes}">
+                </div>
+                </div>
+
+                <div class="row" style="margin-top:10px;">
+                <div class="col-md-11"></div>
+                <div class="col-md-1">
+                <button type="button" id="btnAddItem" class="btn btn-primary" style="width:100%;">Add Item</button>
                 </div>
                 </div>
 
@@ -524,19 +573,23 @@ function paymentBadgeServer($status)
                 </table>
 
                 <div class="row" style="margin-top:15px;">
-                <div class="col-md-3">
+                <div class="col-md-2">
                 <label>Subtotal</label>
                 <input type="number" id="swal_subtotal" class="form-control" readonly value="0" style="background:#f5f5f5;">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                 <label>Discount</label>
-                <input type="number" id="swal_discount" class="form-control" value="0" step="0.01">
+                <input type="number" id="swal_discount" class="form-control" value="${discount}" step="0.01">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                 <label>Tax</label>
-                <input type="number" id="swal_tax" class="form-control" value="0" step="0.01">
+                <input type="number" id="swal_tax" class="form-control" value="${tax}" step="0.01">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                <label>Shipping</label>
+                <input type="number" id="swal_shipping" class="form-control" value="${shipping}" step="0.01">
+                </div>
+                <div class="col-md-4">
                 <label><strong>Grand Total</strong></label>
                 <input type="number" id="swal_grand_total" class="form-control" readonly value="0" style="background:#fff3cd; font-weight:bold;">
                 </div>
@@ -614,7 +667,7 @@ function paymentBadgeServer($status)
             calculateSaleOrderTotals();
         });
 
-        $(document).on('input', '#swal_discount, #swal_tax', calculateSaleOrderTotals);
+        $(document).on('input', '#swal_discount, #swal_tax, #swal_shipping', calculateSaleOrderTotals);
 
         // Delete row
         $(document).on('click', '#saleItemTable .remove-item', function() {
@@ -715,7 +768,8 @@ function paymentBadgeServer($status)
 
         let discount = parseFloat($('#swal_discount').val()) || 0;
         let tax = parseFloat($('#swal_tax').val()) || 0;
-        let grand = subtotal + tax - discount;
+        let shipping = parseFloat($('#swal_shipping').val()) || 0;
+        let grand = subtotal + tax + shipping - discount;
 
         $('#swal_subtotal').val(Math.max(0, subtotal).toFixed(2));
         $('#swal_grand_total').val(Math.max(0, grand).toFixed(2));
@@ -785,9 +839,14 @@ function paymentBadgeServer($status)
             customer_reference: $('#swal_customer_reference').val(),
             warehouse_id: warehouseId,
             order_date: orderDate,
+            delivery_date: $('#swal_delivery_date').val(),
+            order_status: $('#swal_order_status').val(),
+            payment_status: $('#swal_payment_status').val(),
             discount: $('#swal_discount').val(),
             tax: $('#swal_tax').val(),
+            shipping: $('#swal_shipping').val(),
             grand_total: $('#swal_grand_total').val(),
+            notes: $('#swal_notes').val(),
             items: JSON.stringify(items),
             flag: isEdit ? 'update' : 'create'
         };

@@ -1445,9 +1445,14 @@ class SaleController extends Controller
                 $customerRef = $postData['customer_reference'] ?? '';
                 $warehouseId = $postData['warehouse_id'] ?? '';
                 $orderDate = $postData['order_date'] ?? date('Y-m-d');
+                $deliveryDate = $postData['delivery_date'] ?? '';
+                $orderStatus = $postData['order_status'] ?? 'Draft';
+                $paymentStatus = $postData['payment_status'] ?? 'Pending';
                 $discount = (float)($postData['discount'] ?? 0);
                 $tax = (float)($postData['tax'] ?? 0);
+                $shipping = (float)($postData['shipping'] ?? 0);
                 $grandTotal = (float)($postData['grand_total'] ?? 0);
+                $notes = $postData['notes'] ?? '';
                 $items = json_decode($postData['items'] ?? '[]', true);
 
                 if (!$warehouseId || !$orderDate) {
@@ -1476,9 +1481,14 @@ class SaleController extends Controller
                         'customer_id' => $customerId ?: null,
                         'warehouse_id' => $warehouseId,
                         'order_date' => $orderDate,
+                        'delivery_date' => $deliveryDate ?: null,
+                        'order_status' => $orderStatus,
+                        'payment_status' => $paymentStatus,
                         'discount' => $discount,
                         'tax' => $tax,
+                        'shipping' => $shipping,
                         'grand_total' => $grandTotal,
+                        'notes' => $notes,
                         'updated_at' => date('Y-m-d H:i:s'),
                         'updated_by' => $userId
                     ], ['id' => $id])->execute();
@@ -1511,15 +1521,17 @@ class SaleController extends Controller
                         'customer_id' => $customerId ?: null,
                         'warehouse_id' => $warehouseId,
                         'order_date' => $orderDate,
-                        'order_status' => 'Draft',
-                        'payment_status' => 'Pending',
-                        'subtotal' => $grandTotal - $tax + $discount,
+                        'delivery_date' => $deliveryDate ?: null,
+                        'order_status' => $orderStatus,
+                        'payment_status' => $paymentStatus,
+                        'subtotal' => $grandTotal - $tax - $shipping + $discount,
                         'discount' => $discount,
                         'tax' => $tax,
-                        'shipping' => 0,
+                        'shipping' => $shipping,
                         'grand_total' => $grandTotal,
                         'paid_amount' => 0,
                         'remaining_balance' => $grandTotal,
+                        'notes' => $notes,
                         'created_at' => date('Y-m-d H:i:s'),
                         'created_by' => $userId,
                         'is_deleted' => 0
