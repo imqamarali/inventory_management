@@ -1,0 +1,32 @@
+# Yii 2 Framework Temporary Files
+/runtime
+/web/assets/
+
+# Composer
+vendor/
+composer.lock
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+config/db.php
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*~
