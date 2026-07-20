@@ -1,0 +1,46 @@
+
+.class-card {
+    background: #fff;
+    border: 1px solid #E3E9ED;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: all 0.2s;
+}
+
+.class-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #87B87F;
+}
+
+.class-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.class-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #87B87F;
+}
+
+.class-stats {
+    display: flex;
+    gap: 15px;
+    margin-top: 10px;
+    font-size: 11px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #666;
+}
+
+.stat-item i {
+    color: #87B87F;
+}

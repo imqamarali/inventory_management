@@ -1,0 +1,12 @@
+[06-Apr-2025 17:54:08 UTC] PHP Fatal error:  Uncaught Error: Class 'yii\web\AssetBundle' not found in /home4/webixpkc/public_html/my_school/assets/AppAsset.php:16
+Stack trace:
+#0 {main}
+  thrown in /home4/webixpkc/public_html/my_school/assets/AppAsset.php on line 16
+[06-Apr-2025 17:54:12 UTC] PHP Fatal error:  Uncaught Error: Class 'yii\web\AssetBundle' not found in /home4/webixpkc/public_html/my_school/assets/AppAsset.php:16
+Stack trace:
+#0 {main}
+  thrown in /home4/webixpkc/public_html/my_school/assets/AppAsset.php on line 16
+[06-Apr-2025 17:54:20 UTC] PHP Fatal error:  Uncaught Error: Class 'yii\web\AssetBundle' not found in /home4/webixpkc/public_html/my_school/assets/AppAsset.php:16
+Stack trace:
+#0 {main}
+  thrown in /home4/webixpkc/public_html/my_school/assets/AppAsset.php on line 16

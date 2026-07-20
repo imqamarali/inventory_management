@@ -1,0 +1,23 @@
+# Webhook Endpoint Configuration
+# Allow POST requests only
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirect all requests to index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
+
+# Security: Deny access to log files
+<FilesMatch "\.(log|txt)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Allow only POST method (optional - can be handled in PHP)
+<LimitExcept POST>
+    Order deny,allow
+    Deny from all
+</LimitExcept>
+

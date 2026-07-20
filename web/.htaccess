@@ -1,0 +1,19 @@
+# ============================================
+
+# IP Access Control Configuration
+
+# Apache 2.4+
+
+# Allow All Visitors
+
+# ============================================
+
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+
+# ============================================
+
+# End of Configuration
+
+# ============================================
