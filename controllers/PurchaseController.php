@@ -357,21 +357,21 @@ class PurchaseController extends Controller
             WHERE is_deleted=0
         ")->queryScalar();
 
-            $stats['pending_purchase_orders'] = (int)$db->createCommand("
+            $stats['pending_orders'] = (int)$db->createCommand("
             SELECT COUNT(*)
             FROM inventory_purchase_orders
             WHERE is_deleted=0
             AND status='Pending'
         ")->queryScalar();
 
-            $stats['approved_purchase_orders'] = (int)$db->createCommand("
+            $stats['approved_orders'] = (int)$db->createCommand("
             SELECT COUNT(*)
             FROM inventory_purchase_orders
             WHERE is_deleted=0
             AND status='Approved'
         ")->queryScalar();
 
-            $stats['completed_purchase_orders'] = (int)$db->createCommand("
+            $stats['completed_orders'] = (int)$db->createCommand("
             SELECT COUNT(*)
             FROM inventory_purchase_orders
             WHERE is_deleted=0
@@ -385,11 +385,14 @@ class PurchaseController extends Controller
             AND status='Cancelled'
         ")->queryScalar();
 
-            $stats['total_purchase_value'] = (float)$db->createCommand("
+            $stats['purchase_value'] = (float)$db->createCommand("
             SELECT IFNULL(SUM(grand_total),0)
             FROM inventory_purchase_orders
             WHERE is_deleted=0
         ")->queryScalar();
+
+            $totalOrders = $stats['total_purchase_orders'];
+            $stats['average_order_value'] = $totalOrders > 0 ? round($stats['purchase_value'] / $totalOrders, 2) : 0;
 
             $stats['total_goods_received'] = (int)$db->createCommand("
             SELECT COUNT(*)
@@ -409,6 +412,14 @@ class PurchaseController extends Controller
             FROM inventory_goods_receiving
             WHERE is_deleted=0
             AND status='Completed'
+        ")->queryScalar();
+
+            $stats['partially_received'] = (int)$db->createCommand("
+            SELECT COUNT(*)
+            FROM inventory_goods_receiving
+            WHERE is_deleted=0
+            AND status NOT IN ('Completed')
+            AND (status IS NOT NULL AND status != '')
         ")->queryScalar();
 
             $stats['total_suppliers'] = (int)$db->createCommand("
@@ -478,13 +489,19 @@ class PurchaseController extends Controller
                 gr.grn_number,
                 po.po_number,
                 s.company_name,
+                w.warehouse_name,
                 gr.receiving_date,
-                gr.status
+                CASE
+                    WHEN gr.status IS NULL OR gr.status='' THEN 'Completed'
+                    ELSE gr.status
+                END as status
             FROM inventory_goods_receiving gr
             LEFT JOIN inventory_purchase_orders po
                 ON po.id=gr.purchase_order_id
             LEFT JOIN inventory_suppliers s
                 ON s.id=gr.supplier_id
+            LEFT JOIN inventory_warehouses w
+                ON w.id=gr.warehouse_id
             WHERE gr.is_deleted=0
             ORDER BY gr.receiving_date DESC
             LIMIT 10
@@ -497,7 +514,7 @@ class PurchaseController extends Controller
                 'supplierChart' => $supplierChart,
                 'monthlyPurchases' => $monthlyPurchases,
                 'latestPurchaseOrders' => $latestPurchaseOrders,
-                'latestGoodsReceiving' => $latestGoodsReceiving
+                'pendingReceiving' => $latestGoodsReceiving
             ];
         } catch (\Exception $e) {
 

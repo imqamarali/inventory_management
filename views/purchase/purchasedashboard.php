@@ -761,7 +761,7 @@ FINANCE INTEGRATION:
 
                 html += "<td>" + row.status + "</td>";
 
-                html += "<td class='text-right'>PKR " + Number(row.total_amount).toLocaleString() + "</td>";
+                html += "<td class='text-right'>PKR " + Number(row.grand_total).toLocaleString() + "</td>";
 
                 html += "</tr>";
 
