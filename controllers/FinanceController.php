@@ -320,14 +320,14 @@ class FinanceController extends Controller
     {
         if (Yii::$app->request->isGet) {
             $accounts = Yii::$app->db->createCommand("
-                SELECT a.*, p.account_name parent_name
+                SELECT a.*
                 FROM inventory_accounts a
-                LEFT JOIN inventory_accounts p ON p.id=a.parent_id
                 WHERE a.is_deleted=0
-                ORDER BY a.account_type,a.account_code
+                ORDER BY a.account_type, a.account_code
             ")->queryAll();
             return $this->renderPartial('chartofaccounts', ['accounts' => $accounts]);
         }
+
         Yii::$app->response->format = Response::FORMAT_JSON;
         try {
             $post = Yii::$app->request->post();
@@ -346,11 +346,10 @@ class FinanceController extends Controller
                     $params[':kw'] = "%{$keyword}%";
                 }
                 $accounts = Yii::$app->db->createCommand("
-                    SELECT a.*, p.account_name parent_name
+                    SELECT a.*
                     FROM inventory_accounts a
-                    LEFT JOIN inventory_accounts p ON p.id=a.parent_id
                     $where
-                    ORDER BY a.account_type,a.account_code
+                    ORDER BY a.account_type, a.account_code
                 ", $params)->queryAll();
                 return $this->jsonResponse(true, 'Data loaded successfully!', ['accounts' => $accounts]);
             }
@@ -370,10 +369,12 @@ class FinanceController extends Controller
             if (empty($post['account_type'])) {
                 return $this->jsonResponse(false, 'Account type is required.');
             }
+            if (empty($post['account_code'])) {
+                return $this->jsonResponse(false, 'Account code is required.');
+            }
 
             $data = [
-                'parent_id' => !empty($post['parent_id']) ? $post['parent_id'] : null,
-                'account_code' => $post['account_code'] ?? $this->generateDocNo('ACC'),
+                'account_code' => $post['account_code'],
                 'account_name' => $post['account_name'],
                 'account_type' => $post['account_type'],
                 'remarks' => $post['remarks'] ?? null,
@@ -388,6 +389,8 @@ class FinanceController extends Controller
 
             $data['opening_balance'] = (float)($post['opening_balance'] ?? 0);
             $data['current_balance'] = (float)($post['opening_balance'] ?? 0);
+            $data['parent_id'] = null;
+            $data['is_active'] = 1;
             $data['created_at'] = date('Y-m-d H:i:s');
             $data['created_by'] = $this->currentUserId();
             $data['is_deleted'] = 0;
@@ -1730,6 +1733,73 @@ class FinanceController extends Controller
         }
 
         return $this->jsonResponse(false, 'Invalid request');
+    }
+
+    public function actionInitaccounts()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        try {
+            $db = Yii::$app->db;
+
+            $accounts = [
+                // INCOME
+                ['code' => 'INC-001', 'name' => 'Sales Revenue', 'type' => 'Income'],
+                ['code' => 'INC-002', 'name' => 'POS Sales', 'type' => 'Income'],
+                // EXPENSES
+                ['code' => 'EXP-COGS', 'name' => 'Purchase Expense (COGS)', 'type' => 'Expense'],
+                ['code' => 'EXP-RENT', 'name' => 'Shop Rent', 'type' => 'Expense'],
+                ['code' => 'EXP-ELEC', 'name' => 'Electricity Bill', 'type' => 'Expense'],
+                ['code' => 'EXP-SALA', 'name' => 'Employee Salary', 'type' => 'Expense'],
+                ['code' => 'EXP-OTHER', 'name' => 'Other Expenses', 'type' => 'Expense'],
+                // ASSETS
+                ['code' => 'AST-CASH', 'name' => 'Cash on Hand', 'type' => 'Asset'],
+                ['code' => 'AST-BANK', 'name' => 'Bank Account', 'type' => 'Asset'],
+                ['code' => 'AST-AR', 'name' => 'Accounts Receivable', 'type' => 'Asset'],
+                // LIABILITY
+                ['code' => 'LIB-AP', 'name' => 'Accounts Payable', 'type' => 'Liability'],
+                // EQUITY
+                ['code' => 'EQT-CAP', 'name' => 'Owner Capital', 'type' => 'Equity'],
+            ];
+
+            $inserted = 0;
+            $skipped = 0;
+
+            foreach ($accounts as $account) {
+                $exists = $db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_accounts WHERE account_code = :code AND is_deleted = 0"
+                )->bindValue(':code', $account['code'])->queryScalar();
+
+                if ($exists) {
+                    $skipped++;
+                    continue;
+                }
+
+                $db->createCommand()->insert('inventory_accounts', [
+                    'parent_id' => null,
+                    'account_code' => $account['code'],
+                    'account_name' => $account['name'],
+                    'account_type' => $account['type'],
+                    'opening_balance' => 0,
+                    'current_balance' => 0,
+                    'is_active' => 1,
+                    'is_deleted' => 0,
+                    'created_by' => $this->currentUserId(),
+                    'created_at' => date('Y-m-d H:i:s'),
+                ])->execute();
+
+                $inserted++;
+            }
+
+            return $this->jsonResponse(true, "Default accounts initialized! Inserted: {$inserted}, Skipped: {$skipped}", [
+                'inserted' => $inserted,
+                'skipped' => $skipped,
+                'total' => count($accounts)
+            ]);
+
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, 'Error: ' . $e->getMessage());
+        }
     }
 
     public function actionExpenserecords()
