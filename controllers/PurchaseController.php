@@ -1271,17 +1271,37 @@ class PurchaseController extends Controller
                             if (isset($post['paid_amount'])) {
                                 $paidAmount = floatval($post['paid_amount'] ?? 0);
                                 $previousPaidAmount = floatval($invoice['paid_amount'] ?? 0);
+                                $grandTotal = floatval($invoice['grand_total']);
+                                $existingRemainingBalance = floatval($invoice['balance_amount'] ?? 0);
 
                                 // Process if paid amount has changed
                                 if ($paidAmount != $previousPaidAmount) {
-                                    $paymentAmount = $paidAmount - $previousPaidAmount;
-                                    $remainingBalance = floatval($invoice['grand_total']) - $paidAmount;
 
-                                    // Ensure remaining balance doesn't go negative
-                                    if ($remainingBalance < 0) {
-                                        $remainingBalance = 0;
-                                        $paidAmount = floatval($invoice['grand_total']);
+                                    // VALIDATION 1: Previously paid amount cannot decrease
+                                    if ($paidAmount < $previousPaidAmount) {
+                                        throw new \Exception('Error: Previously paid amount cannot be decreased. Current paid: ' . number_format($previousPaidAmount, 2) . '. You cannot reduce it to ' . number_format($paidAmount, 2));
                                     }
+
+                                    // VALIDATION 2: Paid amount cannot exceed grand total
+                                    if ($paidAmount > $grandTotal) {
+                                        throw new \Exception('Error: Paid amount (' . number_format($paidAmount, 2) . ') cannot exceed invoice total (' . number_format($grandTotal, 2) . ')');
+                                    }
+
+                                    // Calculate new remaining balance
+                                    $newRemainingBalance = $grandTotal - $paidAmount;
+
+                                    // VALIDATION 3: Remaining balance cannot be negative
+                                    if ($newRemainingBalance < 0) {
+                                        throw new \Exception('Error: Remaining balance cannot be negative. Balance cannot go below 0');
+                                    }
+
+                                    // VALIDATION 4: Remaining balance must not be greater than existing balance
+                                    if ($newRemainingBalance > $existingRemainingBalance) {
+                                        throw new \Exception('Error: Remaining balance cannot increase. Current remaining: ' . number_format($existingRemainingBalance, 2) . '. New remaining: ' . number_format($newRemainingBalance, 2) . '. The total paid must only increase or stay the same');
+                                    }
+
+                                    $paymentAmount = $paidAmount - $previousPaidAmount;
+                                    $remainingBalance = $newRemainingBalance;
 
                                     $data['paid_amount'] = $paidAmount;
                                     $data['balance_amount'] = $remainingBalance;

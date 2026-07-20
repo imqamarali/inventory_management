@@ -56,7 +56,8 @@ $suppliersList = $suppliers ?? [];
                     <a href="index.php?r=purchase/purchasedashboard">Home</a>
                 </li>
                 <li class="active">Purchase Invoices</li>
-                <li style="float:right;">
+                <!-- Add Purchase Invoice button hidden - invoices auto-created from Purchase Orders only -->
+                <!-- <li style="float:right;">
                     <div class="nav-search" id="nav-search">
                         <div class="exam-quick-actions-group">
                             <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openInvoiceModal()">
@@ -65,7 +66,7 @@ $suppliersList = $suppliers ?? [];
                             </a>
                         </div>
                     </div>
-                </li>
+                </li> -->
             </ul>
         </div>
 

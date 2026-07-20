@@ -1914,12 +1914,33 @@ class SaleController extends Controller
 
                         if ($id > 0) {
 
-                            // Get the old paid amount to track payment changes
+                            // Get the old invoice data for validation
                             $oldInvoice = $db->createCommand(
-                                "SELECT paid_amount FROM inventory_sale_invoices WHERE id = :id"
+                                "SELECT paid_amount, remaining_balance FROM inventory_sale_invoices WHERE id = :id"
                             )->bindValue(':id', $id)->queryOne();
 
                             $oldPaidAmount = (float)($oldInvoice['paid_amount'] ?? 0);
+                            $existingRemainingBalance = (float)($oldInvoice['remaining_balance'] ?? 0);
+
+                            // VALIDATION 1: Previously paid amount cannot decrease
+                            if ($paidAmount < $oldPaidAmount) {
+                                throw new \Exception('Error: Previously paid amount cannot be decreased. Current paid: ' . number_format($oldPaidAmount, 2) . '. You cannot reduce it to ' . number_format($paidAmount, 2));
+                            }
+
+                            // VALIDATION 2: Paid amount cannot exceed grand total
+                            if ($paidAmount > $grandTotal) {
+                                throw new \Exception('Error: Paid amount (' . number_format($paidAmount, 2) . ') cannot exceed invoice total (' . number_format($grandTotal, 2) . ')');
+                            }
+
+                            // VALIDATION 3: Remaining balance cannot be negative
+                            if ($remainingBalance < 0) {
+                                throw new \Exception('Error: Remaining balance cannot be negative. Balance cannot go below 0');
+                            }
+
+                            // VALIDATION 4: Remaining balance must not be greater than existing balance
+                            if ($remainingBalance > $existingRemainingBalance) {
+                                throw new \Exception('Error: Remaining balance cannot increase. Current remaining: ' . number_format($existingRemainingBalance, 2) . '. New remaining: ' . number_format($remainingBalance, 2) . '. The total paid must only increase or stay the same');
+                            }
 
                             $db->createCommand()->update(
                                 'inventory_sale_invoices',

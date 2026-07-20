@@ -49,7 +49,8 @@ if (!isset($customers)) $customers = [];
                     <a href="index.php?r=sale/salesdashboard">Home</a>
                 </li>
                 <li class="active">Sales Invoices</li>
-                <li style="float:right;">
+                <!-- Add Sales Invoice button hidden - invoices auto-created from Sales Orders only -->
+                <!-- <li style="float:right;">
                     <div class="nav-search" id="nav-search">
                         <div class="exam-quick-actions-group">
                             <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openInvoiceModal()">
@@ -58,7 +59,7 @@ if (!isset($customers)) $customers = [];
                             </a>
                         </div>
                     </div>
-                </li>
+                </li> -->
             </ul>
         </div>
 
