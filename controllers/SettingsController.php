@@ -77,6 +77,7 @@ class SettingsController extends Controller
         $modules = [
             ['name' => 'General Settings', 'controller' => 'settings/generalsettings', 'icon' => 'fa fa-cogs'],
             ['name' => 'Company Profile', 'controller' => 'settings/companyprofile', 'icon' => 'fa fa-building'],
+            ['name' => 'Account Settings', 'controller' => 'settings/accountsettings', 'icon' => 'fa fa-sitemap'],
             ['name' => 'Email Configuration', 'controller' => 'settings/email', 'icon' => 'fa fa-envelope'],
             ['name' => 'SMS Configuration', 'controller' => 'settings/sms', 'icon' => 'fa fa-mobile'],
             ['name' => 'Users', 'controller' => 'settings/users', 'icon' => 'fa fa-user'],
@@ -609,6 +610,46 @@ class SettingsController extends Controller
         ")->queryAll();
 
         return $this->render('calendar', ['events' => $events]);
+    }
+
+    /* -------------------------------------------------------------
+     * Account Settings (Financial Accounts)
+     * ----------------------------------------------------------- */
+    public function actionAccountsettings()
+    {
+        $fields = ['default_sales_account', 'default_purchase_account', 'default_expense_account', 'default_refund_account'];
+
+        if (Yii::$app->request->isGet) {
+            // Get all active accounts for dropdown
+            $accounts = Yii::$app->db->createCommand("
+                SELECT id, account_code, account_name, account_type
+                FROM inventory_accounts
+                WHERE is_deleted=0 AND is_active=1
+                ORDER BY account_type, account_name
+            ")->queryAll();
+
+            $settings = [];
+            foreach ($fields as $field) {
+                $settings[$field] = $this->getSetting($field, '');
+            }
+
+            return $this->renderPartial('accountsettings', ['settings' => $settings, 'accounts' => $accounts]);
+        }
+
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
+            $post = Yii::$app->request->post();
+
+            foreach ($fields as $field) {
+                if (isset($post[$field])) {
+                    $this->saveSetting($field, $post[$field]);
+                }
+            }
+
+            return $this->jsonResponse(true, 'Account settings updated successfully.');
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, $e->getMessage());
+        }
     }
 
     /* -------------------------------------------------------------
