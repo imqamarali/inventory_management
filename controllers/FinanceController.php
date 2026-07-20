@@ -1900,4 +1900,89 @@ class FinanceController extends Controller
         }
     }
 
+    /* ===================================================================
+     * TRUNCATE FINANCE RECORDS
+     * =================================================================== */
+    public function actionTruncateFinance()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        if (!Yii::$app->request->isPost) {
+            return $this->jsonResponse(false, 'Invalid request method');
+        }
+
+        $password = Yii::$app->request->post('password', '');
+        $user_id = $this->currentUserId();
+
+        // Verify password against admin user
+        $admin = Yii::$app->db->createCommand(
+            "SELECT password FROM system_users WHERE id = :id AND is_active = 1",
+            [':id' => $user_id]
+        )->queryOne();
+
+        if (!$admin) {
+            return $this->jsonResponse(false, 'User not found');
+        }
+
+        // Verify password using bcrypt
+        if (!password_verify($password, $admin['password'])) {
+            return $this->jsonResponse(false, 'Invalid password');
+        }
+
+        try {
+            $db = Yii::$app->db;
+            $db->createCommand('SET FOREIGN_KEY_CHECKS=0')->execute();
+
+            // Finance tables to truncate
+            $tables = [
+                'inventory_transactions',
+                'inventory_payments'
+            ];
+
+            foreach ($tables as $table) {
+                try {
+                    $db->createCommand("TRUNCATE TABLE $table")->execute();
+                } catch (\Exception $e) {
+                    // Table might not exist
+                }
+            }
+
+            // Reset all account balances to opening balance
+            $db->createCommand("
+                UPDATE inventory_accounts
+                SET current_balance = opening_balance,
+                    updated_at = NOW(),
+                    updated_by = :user_id
+                WHERE is_deleted = 0
+            ")->bindValue(':user_id', $user_id)->execute();
+
+            $db->createCommand('SET FOREIGN_KEY_CHECKS=1')->execute();
+
+            // Log the action
+            try {
+                Yii::$app->db->createCommand()->insert(
+                    'activitylogs',
+                    [
+                        'activity' => 'Truncate Finance Records - Deleted all GL transactions and payments, reset account balances to opening balance',
+                        'activitytype' => 'Truncate',
+                        'module' => 'Finance',
+                        'uid' => $user_id,
+                        'ip_address' => Yii::$app->request->userIP,
+                        'date' => date('Y-m-d'),
+                        'datetime' => date('Y-m-d H:i:s')
+                    ]
+                )->execute();
+            } catch (\Exception $e) {
+                // Log table might not exist, continue anyway
+            }
+
+            return $this->jsonResponse(
+                true,
+                'All finance records have been successfully deleted and account balances have been reset!'
+            );
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, 'Error: ' . $e->getMessage());
+        }
+    }
+
 }
