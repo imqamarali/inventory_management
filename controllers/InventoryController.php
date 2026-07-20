@@ -698,14 +698,11 @@ class InventoryController extends Controller
     {
         $modules = [
             ['name' => 'Sales Dashboard', 'controller' => 'sale/salesdashboard', 'icon' => 'fa fa-dashboard'],
-            // ['name' => 'Create Sale', 'controller' => 'sale/salesorders', 'icon' => 'fa fa-shopping-bag'],
-            ['name' => 'Sales Orders', 'controller' => 'sale/createsale', 'icon' => 'fa fa-plus'],
-            ['name' => 'POS Sales', 'controller' => 'sale/possales', 'icon' => 'fa fa-desktop'],
+            ['name' => 'Sale Order', 'controller' => 'sale/salesorders', 'icon' => 'fa fa-shopping-bag'],
             ['name' => 'Sales Invoices', 'controller' => 'sale/salesinvoices', 'icon' => 'fa fa-file-text'],
             ['name' => 'Pending Orders', 'controller' => 'sale/pendingorders', 'icon' => 'fa fa-clock-o'],
             ['name' => 'Delivered Orders', 'controller' => 'sale/deliveredorders', 'icon' => 'fa fa-check-circle'],
             ['name' => 'Cancelled Orders', 'controller' => 'sale/cancelledorders', 'icon' => 'fa fa-ban'],
-            // ['name' => 'Sales Returns', 'controller' => 'sale/salesreturns', 'icon' => 'fa fa-reply'],
             ['name' => 'Customer Payments', 'controller' => 'customers/customerpayments', 'icon' => 'fa fa-money'],
             ['name' => 'Sales Reports', 'controller' => 'sale/salesreports', 'icon' => 'fa fa-line-chart'],
         ];
