@@ -804,11 +804,11 @@ function statusBadgeServer($status)
 
         </div>
 
-        <div class="col-md-2">
+        <div class="col-md-2" style="margin-top: 28px;">
 
         <label>&nbsp;</label>
 
-        <button type="button" class="btn btn-success btn-block" id="btnAddItem">
+        <button type="button" id="btnAddItem" style="padding:5px">
 
         <i class="fa fa-plus"></i>
 

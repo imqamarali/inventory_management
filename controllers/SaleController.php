@@ -1385,6 +1385,174 @@ class SaleController extends Controller
         ]);
     }
 
+    public function actionSaleorder()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $post = Yii::$app->request->getQueryParam('flag') ?? Yii::$app->request->post('flag') ?? '';
+        $db = Yii::$app->db;
+
+        try {
+            if ($post == 'get_products') {
+                $warehouseId = Yii::$app->request->getQueryParam('warehouse_id');
+                $products = $db->createCommand("
+                    SELECT
+                        p.id,
+                        p.product_name,
+                        p.sku,
+                        p.selling_price,
+                        s.available_quantity
+                    FROM inventory_products p
+                    LEFT JOIN inventory_stock s ON s.product_id=p.id AND s.warehouse_id=:warehouse_id
+                    WHERE p.is_deleted=0 AND p.is_active=1
+                    ORDER BY p.product_name ASC
+                ")->bindValue(':warehouse_id', $warehouseId)->queryAll();
+
+                return ['success' => true, 'products' => $products];
+            }
+
+            if ($post == 'get_items') {
+                $id = Yii::$app->request->getQueryParam('id');
+                $items = $db->createCommand("
+                    SELECT
+                        i.product_id,
+                        i.quantity,
+                        i.unit_price,
+                        i.discount,
+                        i.tax,
+                        i.total,
+                        p.product_name,
+                        p.sku,
+                        s.available_quantity
+                    FROM inventory_sales_order_items i
+                    INNER JOIN inventory_products p ON p.id=i.product_id
+                    LEFT JOIN inventory_stock s ON s.product_id=p.id
+                    WHERE i.sales_order_id=:id AND i.is_deleted=0
+                ")->bindValue(':id', $id)->queryAll();
+
+                return ['success' => true, 'items' => $items];
+            }
+
+            if ($post == 'create' || $post == 'update') {
+                $postData = Yii::$app->request->post();
+                $id = $postData['id'] ?? '';
+                $isEdit = !empty($id);
+                $userId = $this->currentUserId();
+
+                $customerId = $postData['customer_id'] ?? '';
+                $customerName = $postData['customer_name'] ?? '';
+                $customerEmail = $postData['customer_email'] ?? '';
+                $customerPhone = $postData['customer_phone'] ?? '';
+                $customerRef = $postData['customer_reference'] ?? '';
+                $warehouseId = $postData['warehouse_id'] ?? '';
+                $orderDate = $postData['order_date'] ?? date('Y-m-d');
+                $discount = (float)($postData['discount'] ?? 0);
+                $tax = (float)($postData['tax'] ?? 0);
+                $grandTotal = (float)($postData['grand_total'] ?? 0);
+                $items = json_decode($postData['items'] ?? '[]', true);
+
+                if (!$warehouseId || !$orderDate) {
+                    return ['success' => false, 'message' => 'Warehouse and Order Date required'];
+                }
+
+                if (empty($items)) {
+                    return ['success' => false, 'message' => 'Add at least one product'];
+                }
+
+                // Validate quantities against available stock
+                foreach ($items as $item) {
+                    $stock = $db->createCommand("
+                        SELECT available_quantity FROM inventory_stock
+                        WHERE product_id=:product_id AND warehouse_id=:warehouse_id
+                    ")->bindValues([':product_id' => $item['product_id'], ':warehouse_id' => $warehouseId])->queryScalar();
+
+                    if ($item['quantity'] > $stock) {
+                        return ['success' => false, 'message' => "Insufficient stock for product ID {$item['product_id']}. Available: {$stock}"];
+                    }
+                }
+
+                if ($isEdit) {
+                    // Update existing order
+                    $db->createCommand()->update('inventory_sales_orders', [
+                        'customer_id' => $customerId ?: null,
+                        'warehouse_id' => $warehouseId,
+                        'order_date' => $orderDate,
+                        'discount' => $discount,
+                        'tax' => $tax,
+                        'grand_total' => $grandTotal,
+                        'updated_at' => date('Y-m-d H:i:s'),
+                        'updated_by' => $userId
+                    ], ['id' => $id])->execute();
+
+                    // Delete and re-add items
+                    $db->createCommand()->update('inventory_sales_order_items', ['is_deleted' => 1], ['sales_order_id' => $id])->execute();
+
+                    foreach ($items as $item) {
+                        $db->createCommand()->insert('inventory_sales_order_items', [
+                            'sales_order_id' => $id,
+                            'product_id' => $item['product_id'],
+                            'quantity' => $item['quantity'],
+                            'unit_price' => $item['unit_price'],
+                            'discount' => $item['discount'],
+                            'tax' => $item['tax'],
+                            'total' => $item['total'],
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'created_by' => $userId,
+                            'is_deleted' => 0
+                        ])->execute();
+                    }
+
+                    return ['success' => true, 'message' => 'Sale Order updated successfully'];
+                } else {
+                    // Create new order
+                    $orderNumber = 'SO-' . date('YmdHis') . '-' . rand(100, 999);
+
+                    $db->createCommand()->insert('inventory_sales_orders', [
+                        'order_number' => $orderNumber,
+                        'customer_id' => $customerId ?: null,
+                        'warehouse_id' => $warehouseId,
+                        'order_date' => $orderDate,
+                        'order_status' => 'Draft',
+                        'payment_status' => 'Pending',
+                        'subtotal' => $grandTotal - $tax + $discount,
+                        'discount' => $discount,
+                        'tax' => $tax,
+                        'shipping' => 0,
+                        'grand_total' => $grandTotal,
+                        'paid_amount' => 0,
+                        'remaining_balance' => $grandTotal,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'created_by' => $userId,
+                        'is_deleted' => 0
+                    ])->execute();
+
+                    $orderId = $db->lastInsertID;
+
+                    foreach ($items as $item) {
+                        $db->createCommand()->insert('inventory_sales_order_items', [
+                            'sales_order_id' => $orderId,
+                            'product_id' => $item['product_id'],
+                            'quantity' => $item['quantity'],
+                            'unit_price' => $item['unit_price'],
+                            'discount' => $item['discount'],
+                            'tax' => $item['tax'],
+                            'total' => $item['total'],
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'created_by' => $userId,
+                            'is_deleted' => 0
+                        ])->execute();
+                    }
+
+                    return ['success' => true, 'message' => 'Sale Order created successfully', 'order_id' => $orderId];
+                }
+            }
+
+            return ['success' => false, 'message' => 'Invalid request'];
+
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
     public function actionCreatesale()
     {
         if (Yii::$app->request->isPost) {

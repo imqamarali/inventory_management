@@ -15,11 +15,11 @@ foreach ($accounts as $account) {
 ?>
 
 <div class="widget-box">
-    <div class="widget-header" style="background-color: #0f4c29; color: white; padding: 12px 15px;">
+    <!-- <div class="widget-header" style="background-color: #0f4c29; color: white; padding: 12px 15px;">
         <h4 class="widget-title" style="color: white; margin: 0;">
             <i class="ace-icon fa fa-sitemap"></i> Account Settings
         </h4>
-    </div>
+    </div> -->
 
     <div class="widget-body" style="padding: 20px;">
         <form id="accountsettings_form" method="POST" onsubmit="return saveAccountSettings()">

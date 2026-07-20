@@ -234,7 +234,7 @@ function deleteAccount(id) {
         }, 'json');
     }
 }
-
+searchAccounts() ;
 function searchAccounts() {
     const keyword = document.getElementById('keyword').value;
     const account_type = document.getElementById('account_type').value;
@@ -264,10 +264,10 @@ function searchAccounts() {
                         <td class="text-right"><strong>${parseFloat(item.current_balance).toFixed(2)}</strong></td>
                         <td><span class="label label-${statusClass}" style="font-size:11px;">${statusText}</span></td>
                         <td>
-                            <button onclick='showAccountModal(${JSON.stringify(item)})' class="btn btn-xs btn-info" title="Edit">
+                            <button onclick='showAccountModal(${JSON.stringify(item)})'   title="Edit">
                                 <i class="fa fa-pencil"></i>
                             </button>
-                            <button onclick="deleteAccount(${item.id})" class="btn btn-xs btn-danger" title="Delete">
+                            <button onclick="deleteAccount(${item.id})"  title="Delete">
                                 <i class="fa fa-trash"></i>
                             </button>
                         </td>

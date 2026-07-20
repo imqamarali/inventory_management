@@ -25,88 +25,34 @@ class Permissions extends Component
         $moduleList = [];
         foreach ($modules as $module) {
             $submenus = [];
-            $moduleFeatures = Yii::$app->db->createCommand("SELECT * FROM modules_features WHERE  is_active = 1 AND module_id = :module_id ORDER BY order_by ASC")
-                ->bindValue(':module_id', $module['id'])->queryAll();
 
-            // If module has features, process them
-            if (!empty($moduleFeatures)) {
-                foreach ($moduleFeatures as $feature) {
-                    $permissions = Yii::$app->db->createCommand("
-                                SELECT * FROM permissions
-                                WHERE module_id = :module_id
-                                AND feature_id = :feature_id
-                                AND role_id = :role_id")
-                        ->bindValue(':module_id', $module['id'])
-                        ->bindValue(':feature_id', $feature['id'])
-                        ->bindValue(':role_id', $role_id)
-                        ->queryOne();
-
-                    if ($permissions && $permissions['can_view']) {
-                        $submenus[] = [
-                            'id' => $feature['id'],
-                            'feature_id' => $feature['id'],
-                            'link' => $feature['link'],
-                            'icon' => $module['icon'],
-                            'active' => false,
-                            'title' => $feature['name'],
-                            'can_view' => $permissions['can_view'],
-                            'can_add' => $permissions['can_add'],
-                            'can_edit' => $permissions['can_edit'],
-                            'can_delete' => $permissions['can_delete'],
-                        ];
-                    }
-                }
-                if (!empty($submenus)) {
-                    $link = "#";
-                    // if ($module['id'] == 2 || $module['id'] == 7 || $module['id'] == 126 || $module['id'] == 123 || $module['id'] == 116 || $module['id'] == 18) {
-                    $submenus = [];
-                    $link = $module['link'];
-                    // }
-                    $moduleList[] = [
-                        'id' => $module['id'],
-                        'module_id' => $module['id'],
-                        'title' => $module['name'],
-                        'name' => $module['name'],
-                        'is_active' => $module['active'],
-                        'link' => $link,
-                        'icon' => $module['icon'],
-                        'active' => false,
-                        'submenus' => $submenus,
-                        'can_view' => 1,
-                        'can_add' => 1,
-                        'can_edit' => 1,
-                        'can_delete' => 1,
-                    ];
-                }
-            } else {
-                // Module has no features - get direct module permissions
-                $permissions = Yii::$app->db->createCommand("
+            // Module has no features - get direct module permissions
+            $permissions = Yii::$app->db->createCommand("
                         SELECT * FROM permissions
                         WHERE module_id = :module_id
                         AND feature_id IS NULL
                         AND role_id = :role_id")
-                    ->bindValue(':module_id', $module['id'])
-                    ->bindValue(':role_id', $role_id)
-                    ->queryOne();
+                ->bindValue(':module_id', $module['id'])
+                ->bindValue(':role_id', $role_id)
+                ->queryOne();
 
-                if ($permissions && $permissions['can_view']) {
-                    $moduleList[] = [
-                        'id' => $module['id'],
-                        'module_id' => $module['id'],
-                        'name' => $module['name'],
-                        'title' => $module['name'],
-                        'link' => $module['link'],
-                        'icon' => $module['icon'],
-                        'is_active' => (int) $module['active'],
-                        'active' => false,
-                        'submenus' => [],
-                        'permission_id' => $permissions['id'],
-                        'can_view' => (int) $permissions['can_view'],
-                        'can_add' => (int) $permissions['can_add'],
-                        'can_edit' => (int) $permissions['can_edit'],
-                        'can_delete' => (int) $permissions['can_delete'],
-                    ];
-                }
+            if ($permissions && $permissions['can_view']) {
+                $moduleList[] = [
+                    'id' => $module['id'],
+                    'module_id' => $module['id'],
+                    'name' => $module['name'],
+                    'title' => $module['name'],
+                    'link' => $module['link'],
+                    'icon' => $module['icon'],
+                    'is_active' => (int) $module['active'],
+                    'active' => false,
+                    'submenus' => [],
+                    'permission_id' => $permissions['id'],
+                    'can_view' => (int) $permissions['can_view'],
+                    'can_add' => (int) $permissions['can_add'],
+                    'can_edit' => (int) $permissions['can_edit'],
+                    'can_delete' => (int) $permissions['can_delete'],
+                ];
             }
         }
 
