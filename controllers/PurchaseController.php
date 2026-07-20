@@ -39,6 +39,11 @@ class PurchaseController extends Controller
         }
     }
 
+    private function generateGoodsReceivingReference() {
+        // Generate unique reference number: GR-[TIMESTAMP]-[RANDOM 6 DIGITS]
+        return 'GR-' . date('YmdHis') . '-' . str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+    }
+
     private function postPurchaseToGL($purchase_order_id, $invoice_no, $grand_total, $user_id)
     {
         $db = Yii::$app->db;
@@ -986,12 +991,15 @@ class PurchaseController extends Controller
 
                         $id = (int)($post['id'] ?? 0);
 
+                        // Generate random reference number
+                        $referenceNo = $this->generateGoodsReceivingReference();
+
                         $data = [
                             'purchase_order_id' => $post['purchase_order_id'],
                             'supplier_id' => $post['supplier_id'],
                             'warehouse_id' => $post['warehouse_id'],
                             'receiving_date' => $post['receiving_date'],
-                            'reference_no' => $post['reference_no'],
+                            'reference_no' => $referenceNo,
                             'invoice_no' => $post['invoice_no'],
                             'status' => $post['status'],
                             'remarks' => $post['remarks'],
@@ -1000,6 +1008,7 @@ class PurchaseController extends Controller
 
                         if ($id > 0) {
 
+                            // On edit: Also update reference_no with new random value
                             $db->createCommand()->update(
                                 'inventory_goods_receiving',
                                 $data,
