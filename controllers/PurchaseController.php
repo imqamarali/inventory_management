@@ -510,9 +510,9 @@ class PurchaseController extends Controller
             return [
                 'success' => true,
                 'stats' => $stats,
-                'statusChart' => $statusChart,
+                'purchaseStatusChart' => $statusChart,
                 'supplierChart' => $supplierChart,
-                'monthlyPurchases' => $monthlyPurchases,
+                'monthlyPurchaseChart' => $monthlyPurchases,
                 'latestPurchaseOrders' => $latestPurchaseOrders,
                 'pendingReceiving' => $latestGoodsReceiving
             ];
