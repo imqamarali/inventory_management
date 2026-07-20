@@ -77,9 +77,7 @@ class SaleController extends Controller
     {
         $modules = [
             ['name' => 'Sales Dashboard', 'controller' => 'sale/salesdashboard', 'icon' => 'fa fa-dashboard'],
-            ['name' => 'Sales Orders', 'controller' => 'sale/salesorders', 'icon' => 'fa fa-shopping-bag'],
-            ['name' => 'POS Sales', 'controller' => 'sale/possales', 'icon' => 'fa fa-desktop'],
-            ['name' => 'Create Sale', 'controller' => 'sale/createsale', 'icon' => 'fa fa-plus'],
+            ['name' => 'Sale Order', 'controller' => 'sale/salesorders', 'icon' => 'fa fa-shopping-bag', 'badge' => 'Unified Order & POS'],
             ['name' => 'Sales Invoices', 'controller' => 'sale/salesinvoices', 'icon' => 'fa fa-file-text'],
             ['name' => 'Pending Orders', 'controller' => 'sale/pendingorders', 'icon' => 'fa fa-clock-o'],
             ['name' => 'Delivered Orders', 'controller' => 'sale/deliveredorders', 'icon' => 'fa fa-check-circle'],
