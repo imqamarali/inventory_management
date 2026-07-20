@@ -1079,12 +1079,34 @@ class PurchaseController extends Controller
             }
         }
 
-        $purchaseOrders = Yii::$app->db->createCommand("
+        // Get purchase orders with their items
+        $poList = Yii::$app->db->createCommand("
             SELECT id,po_number
             FROM inventory_purchase_orders
             WHERE is_deleted=0
             ORDER BY po_number
         ")->queryAll();
+
+        $purchaseOrders = [];
+        foreach ($poList as $po) {
+            // Get items for this PO
+            $items = Yii::$app->db->createCommand("
+                SELECT
+                    poi.product_id,
+                    p.product_name,
+                    p.sku,
+                    poi.quantity,
+                    poi.unit_price,
+                    poi.line_total
+                FROM inventory_purchase_order_items poi
+                INNER JOIN inventory_products p ON p.id = poi.product_id
+                WHERE poi.purchase_order_id = :po_id AND poi.is_deleted = 0
+                ORDER BY poi.id
+            ")->bindValue(':po_id', $po['id'])->queryAll();
+
+            $po['items'] = $items;
+            $purchaseOrders[] = $po;
+        }
 
         $suppliers = Yii::$app->db->createCommand("
             SELECT id,company_name

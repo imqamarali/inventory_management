@@ -55,7 +55,8 @@ if(!isset($warehouses))$warehouses=[];
                     <a href="index.php?r=purchase/purchasedashboard">Home</a>
                 </li>
                 <li class="active">Goods Receiving</li>
-                <li style="float:right;">
+                <!-- Add Goods Receiving button hidden - GRN auto-created from Purchase Orders only -->
+                <!-- <li style="float:right;">
                     <div class="nav-search" id="nav-search">
                         <div class="exam-quick-actions-group">
                             <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openGrnModal()">
@@ -64,7 +65,7 @@ if(!isset($warehouses))$warehouses=[];
                             </a>
                         </div>
                     </div>
-                </li>
+                </li> -->
             </ul>
         </div>
 
@@ -333,15 +334,37 @@ function grnStatusBadgeServer($status)
         const supplierId = isEdit ? grnData.supplier_id : '';
         const warehouseId = isEdit ? grnData.warehouse_id : '';
         const receivingDate = isEdit ? grnData.receiving_date : '';
-        // Reference number will be auto-generated on save
         const referenceNo = isEdit ? (grnData.reference_no ?? '(auto-generated)') : '(auto-generated)';
         const invoiceNo = isEdit ? (grnData.invoice_no ?? '') : '';
         const status = isEdit ? grnData.status : 'Pending';
         const remarks = isEdit ? (grnData.remarks ?? '') : '';
 
         let poOptions = '<option value="">Select Purchase Order</option>';
+        let poItemsHtml = '';
+
         purchaseOrders.forEach(function(item) {
-            poOptions += `<option value="${item.id}" ${item.id==poId?'selected':''}>${item.po_number}</option>`;
+            const selected = item.id == poId;
+            poOptions += `<option value="${item.id}" ${selected?'selected':''}>${item.po_number}</option>`;
+
+            // If editing, show items for the current PO
+            if (isEdit && selected && item.items) {
+                poItemsHtml = '<div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">';
+                poItemsHtml += '<strong>Purchased Items:</strong>';
+                poItemsHtml += '<table class="table table-striped table-sm" style="margin-top: 10px; font-size: 12px;">';
+                poItemsHtml += '<thead><tr><th>Product</th><th>SKU</th><th>Qty Ordered</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>';
+
+                item.items.forEach(function(pItem) {
+                    poItemsHtml += `<tr>
+                        <td>${pItem.product_name}</td>
+                        <td>${pItem.sku}</td>
+                        <td>${parseFloat(pItem.quantity).toFixed(2)}</td>
+                        <td>${parseFloat(pItem.unit_price).toFixed(2)}</td>
+                        <td>${parseFloat(pItem.line_total).toFixed(2)}</td>
+                    </tr>`;
+                });
+
+                poItemsHtml += '</tbody></table></div>';
+            }
         });
 
         let supplierOptions = '<option value="">Select Supplier</option>';
@@ -360,25 +383,35 @@ function grnStatusBadgeServer($status)
             statusOptions += `<option value="${s}" ${s==status?'selected':''}>${s}</option>`;
         });
 
+        // Build readonly attributes for edit mode
+        const poDisabled = isEdit ? 'disabled' : '';
+        const supplierDisabled = isEdit ? 'disabled' : '';
+        const warehouseDisabled = isEdit ? 'disabled' : '';
+        const dateDisabled = isEdit ? 'disabled' : '';
+        const invoiceReadonly = isEdit ? 'readonly' : '';
+        const invoiceBgColor = isEdit ? '#f5f5f5' : '#fff';
+
         Swal.fire({
             title: isEdit ? 'Update Goods Receiving' : 'Add Goods Receiving',
-            width: '900px',
+            width: '1000px',
             customClass: {
                 popup: 'swal-wide-popup'
             },
             didOpen: () => {
-                $('#swal_po').chosen({
-                    width: '100%',
-                    search_contains: true
-                });
-                $('#swal_supplier').chosen({
-                    width: '100%',
-                    search_contains: true
-                });
-                $('#swal_warehouse').chosen({
-                    width: '100%',
-                    search_contains: true
-                });
+                if (!isEdit) {
+                    $('#swal_po').chosen({
+                        width: '100%',
+                        search_contains: true
+                    });
+                    $('#swal_supplier').chosen({
+                        width: '100%',
+                        search_contains: true
+                    });
+                    $('#swal_warehouse').chosen({
+                        width: '100%',
+                        search_contains: true
+                    });
+                }
             },
             html: `
                 <form id="grnForm">
@@ -387,31 +420,34 @@ function grnStatusBadgeServer($status)
 
                 <div class="row">
                 <div class="col-md-4">
-                <label>Purchase Order</label>
-                <select id="swal_po" class="form-control chzn-select-modal">
+                <label>Purchase Order ${isEdit ? '<span style="color: #999;">(Read-only)</span>' : ''}</label>
+                <select id="swal_po" class="form-control chzn-select-modal" ${poDisabled}>
                 ${poOptions}
                 </select>
+                ${isEdit ? `<input type="hidden" id="swal_po_hidden" value="${poId}">` : ''}
                 </div>
 
                 <div class="col-md-4">
-                <label>Supplier</label>
-                <select id="swal_supplier" class="form-control chzn-select-modal">
+                <label>Supplier ${isEdit ? '<span style="color: #999;">(Read-only)</span>' : ''}</label>
+                <select id="swal_supplier" class="form-control chzn-select-modal" ${supplierDisabled}>
                 ${supplierOptions}
                 </select>
+                ${isEdit ? `<input type="hidden" id="swal_supplier_hidden" value="${supplierId}">` : ''}
                 </div>
 
                 <div class="col-md-4">
-                <label>Warehouse</label>
-                <select id="swal_warehouse" class="form-control chzn-select-modal">
+                <label>Warehouse ${isEdit ? '<span style="color: #999;">(Read-only)</span>' : ''}</label>
+                <select id="swal_warehouse" class="form-control chzn-select-modal" ${warehouseDisabled}>
                 ${warehouseOptions}
                 </select>
+                ${isEdit ? `<input type="hidden" id="swal_warehouse_hidden" value="${warehouseId}">` : ''}
                 </div>
                 </div>
 
                 <div class="row">
                 <div class="col-md-4">
-                <label>Receiving Date</label>
-                <input type="date" id="swal_receiving_date" class="form-control" value="${receivingDate}">
+                <label>Receiving Date ${isEdit ? '<span style="color: #999;">(Read-only)</span>' : ''}</label>
+                <input type="date" id="swal_receiving_date" class="form-control" value="${receivingDate}" ${dateDisabled} style="${isEdit ? 'background-color: #f5f5f5; cursor: not-allowed;' : ''}">
                 </div>
 
                 <div class="col-md-4">
@@ -420,8 +456,8 @@ function grnStatusBadgeServer($status)
                 </div>
 
                 <div class="col-md-4">
-                <label>Invoice No</label>
-                <input type="text" id="swal_invoice_no" class="form-control" value="${invoiceNo}">
+                <label>Invoice No ${isEdit ? '<span style="color: #999;">(Read-only)</span>' : ''}</label>
+                <input type="text" id="swal_invoice_no" class="form-control" value="${invoiceNo}" ${invoiceReadonly} style="background-color: ${invoiceBgColor}; ${isEdit ? 'cursor: not-allowed;' : ''}">
                 </div>
                 </div>
 
@@ -435,9 +471,11 @@ function grnStatusBadgeServer($status)
 
                 <div class="col-md-8">
                 <label>Remarks</label>
-                <input type="text" id="swal_remarks" class="form-control" value="${remarks}">
+                <input type="text" id="swal_remarks" class="form-control" value="${remarks}" placeholder="Add any remarks or notes">
                 </div>
                 </div>
+
+                ${poItemsHtml}
 
                 </form>
                 `,
@@ -448,19 +486,18 @@ function grnStatusBadgeServer($status)
 
             preConfirm: () => {
 
-                if ($('#swal_po').val() == '' || $('#swal_supplier').val() == '' || $('#swal_warehouse').val() == '' || $('#swal_receiving_date').val() == '') {
+                if (!isEdit && ($('#swal_po').val() == '' || $('#swal_supplier').val() == '' || $('#swal_warehouse').val() == '' || $('#swal_receiving_date').val() == '')) {
                     Swal.showValidationMessage('Purchase Order, Supplier, Warehouse and Receiving Date are required');
                     return false;
                 }
 
                 return {
                     id: $('#swal_id').val(),
-                    purchase_order_id: $('#swal_po').val(),
-                    supplier_id: $('#swal_supplier').val(),
-                    warehouse_id: $('#swal_warehouse').val(),
-                    receiving_date: $('#swal_receiving_date').val(),
-                    // reference_no is auto-generated by server
-                    invoice_no: $('#swal_invoice_no').val(),
+                    purchase_order_id: isEdit ? $('#swal_po_hidden').val() : $('#swal_po').val(),
+                    supplier_id: isEdit ? $('#swal_supplier_hidden').val() : $('#swal_supplier').val(),
+                    warehouse_id: isEdit ? $('#swal_warehouse_hidden').val() : $('#swal_warehouse').val(),
+                    receiving_date: isEdit ? receivingDate : $('#swal_receiving_date').val(),
+                    invoice_no: isEdit ? invoiceNo : $('#swal_invoice_no').val(),
                     status: $('#swal_status').val(),
                     remarks: $('#swal_remarks').val(),
                     flag: 'save'
