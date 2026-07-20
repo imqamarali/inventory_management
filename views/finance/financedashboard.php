@@ -15,11 +15,11 @@ use yii\helpers\Url;
         </div>
 
         <div style="display: flex; gap: 10px;">
-            <button id="refreshDashboard" class="btn btn-info">
+            <button id="refreshDashboard" >
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
-            <button id="truncateFinance" class="btn btn-danger" style="background-color: #c9302c; border-color: #ac2925;">
+            <button id="truncateFinance" >
                 <i class="fa fa-trash"></i>
                 Truncate Finance
             </button>
@@ -654,57 +654,61 @@ use yii\helpers\Url;
     }
 
     function truncateFinanceRecords() {
-        swal({
+        Swal.fire({
             title: 'Truncate Finance Records?',
-            text: 'This will permanently delete ALL GL transactions, payments, and reset account balances to opening balance. This action CANNOT be undone!',
-            type: 'warning',
+            html: 'This will permanently delete ALL GL transactions, payments, and reset account balances to opening balance.<br><strong>This action CANNOT be undone!</strong>',
+            icon: 'warning',
             showCancelButton: true,
             confirmButtonText: 'Yes, Delete All',
             confirmButtonColor: '#c9302c',
-            cancelButtonText: 'Cancel',
-            html: true
-        }, function(isConfirm) {
-            if (isConfirm) {
-                swal({
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
                     title: 'Enter Your Password',
                     text: 'Please confirm by entering your password',
-                    type: 'input',
-                    showCancelButton: true,
-                    closeOnConfirm: false,
+                    input: 'password',
                     inputPlaceholder: 'Enter your password...',
-                    inputType: 'password',
-                    confirmButtonColor: '#c9302c'
-                }, function(inputValue) {
-                    if (inputValue === false) return false;
-
-                    if (inputValue === '') {
-                        swal('Error!', 'Password is required', 'error');
-                        return false;
+                    showCancelButton: true,
+                    confirmButtonColor: '#c9302c',
+                    confirmButtonText: 'Confirm',
+                    inputAttributes: {
+                        autocapitalize: 'off',
+                        autocorrect: 'off'
                     }
+                }).then((passwordResult) => {
+                    if (passwordResult.isConfirmed) {
+                        const password = passwordResult.value;
 
-                    $.ajax({
-                        url: '<?= Yii::$app->urlManager->createUrl("finance/truncate-finance") ?>',
-                        type: 'POST',
-                        dataType: 'json',
-                        data: { password: inputValue },
-                        success: function(response) {
-                            if (response.success) {
-                                swal({
-                                    title: 'Deleted!',
-                                    text: response.message,
-                                    type: 'success',
-                                    confirmButtonColor: '#0f4c29'
-                                }, function() {
-                                    location.reload();
-                                });
-                            } else {
-                                swal('Error!', response.message, 'error');
-                            }
-                        },
-                        error: function() {
-                            swal('Error!', 'Failed to truncate finance records', 'error');
+                        if (!password || password === '') {
+                            Swal.fire('Error!', 'Password is required', 'error');
+                            return;
                         }
-                    });
+
+                        $.ajax({
+                            url: '<?= Yii::$app->urlManager->createUrl("finance/truncate-finance") ?>',
+                            type: 'POST',
+                            dataType: 'json',
+                            data: { password: password },
+                            success: function(response) {
+                                if (response.success) {
+                                    Swal.fire({
+                                        title: 'Deleted!',
+                                        text: response.message,
+                                        icon: 'success',
+                                        confirmButtonColor: '#0f4c29'
+                                    }).then(() => {
+                                        location.reload();
+                                    });
+                                } else {
+                                    Swal.fire('Error!', response.message, 'error');
+                                }
+                            },
+                            error: function() {
+                                Swal.fire('Error!', 'Failed to truncate finance records', 'error');
+                            }
+                        });
+                    }
                 });
             }
         });
