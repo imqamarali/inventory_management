@@ -39,6 +39,76 @@ class PurchaseController extends Controller
         }
     }
 
+    private function postPurchaseToGL($purchase_order_id, $invoice_no, $grand_total, $user_id)
+    {
+        $db = Yii::$app->db;
+
+        try {
+            // Get default purchase account from settings
+            $purchaseAccountId = $db->createCommand(
+                "SELECT setting_value FROM inventory_settings WHERE setting_key='default_purchase_account' AND is_deleted=0"
+            )->queryScalar();
+
+            if (!$purchaseAccountId) {
+                return false; // Purchase account not configured
+            }
+
+            $transactionNo = 'PURCH-' . $invoice_no;
+
+            // Debit: Cost of Goods Sold / Purchases Expense Account
+            $db->createCommand()->insert('inventory_transactions', [
+                'transaction_no' => $transactionNo . '-DR',
+                'transaction_date' => date('Y-m-d'),
+                'reference_type' => 'Purchase',
+                'reference_id' => $purchase_order_id,
+                'account_id' => $purchaseAccountId,
+                'transaction_type' => 'Debit',
+                'amount' => $grand_total,
+                'remarks' => 'Purchase recorded - Invoice: ' . $invoice_no,
+                'created_at' => date('Y-m-d H:i:s'),
+                'created_by' => $user_id,
+                'is_active' => 1,
+                'is_deleted' => 0
+            ])->execute();
+
+            // Credit: Accounts Payable Account (Supplier payable tracking)
+            $apAccountId = $db->createCommand(
+                "SELECT id FROM inventory_accounts WHERE account_code='2000' AND is_deleted=0 LIMIT 1"
+            )->queryScalar();
+
+            if ($apAccountId) {
+                $db->createCommand()->insert('inventory_transactions', [
+                    'transaction_no' => $transactionNo . '-CR',
+                    'transaction_date' => date('Y-m-d'),
+                    'reference_type' => 'Purchase',
+                    'reference_id' => $purchase_order_id,
+                    'account_id' => $apAccountId,
+                    'transaction_type' => 'Credit',
+                    'amount' => $grand_total,
+                    'remarks' => 'Accounts Payable - Invoice: ' . $invoice_no,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'created_by' => $user_id,
+                    'is_active' => 1,
+                    'is_deleted' => 0
+                ])->execute();
+
+                // Update account balance for Purchase Expense
+                $db->createCommand()->update('inventory_accounts', [
+                    'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
+                ], ['id' => $purchaseAccountId])->execute();
+
+                // Update account balance for Accounts Payable
+                $db->createCommand()->update('inventory_accounts', [
+                    'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
+                ], ['id' => $apAccountId])->execute();
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
     private function createGoodsReceiving($db, $purchaseOrderId, $status) {
         $po = $db->createCommand("
             SELECT * FROM inventory_purchase_orders WHERE id=:id
@@ -119,6 +189,9 @@ class PurchaseController extends Controller
             ];
             $db->createCommand()->insert('inventory_purchase_invoice_items', $invoiceItemData)->execute();
         }
+
+        // Post to GL when invoice is created
+        $this->postPurchaseToGL($purchaseOrderId, $invoice_no, $po['grand_total'], $this->currentUserId());
 
         return $invoiceId;
     }

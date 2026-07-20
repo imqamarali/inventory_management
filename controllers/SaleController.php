@@ -35,6 +35,77 @@ class SaleController extends Controller
         return 'SINV-' . date('Y') . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
     }
 
+    private function postSaleToGL($sales_order_id, $invoice_no, $grand_total, $user_id)
+    {
+        $db = Yii::$app->db;
+        $db_user = Yii::$app->db;
+
+        try {
+            // Get default sales account from settings
+            $salesAccountId = $db->createCommand(
+                "SELECT setting_value FROM inventory_settings WHERE setting_key='default_sales_account' AND is_deleted=0"
+            )->queryScalar();
+
+            if (!$salesAccountId) {
+                return false; // Sales account not configured
+            }
+
+            $transactionNo = 'SALE-' . $invoice_no;
+
+            // Credit: Sales Revenue Account
+            $db->createCommand()->insert('inventory_transactions', [
+                'transaction_no' => $transactionNo . '-CR',
+                'transaction_date' => date('Y-m-d'),
+                'reference_type' => 'Sale',
+                'reference_id' => $sales_order_id,
+                'account_id' => $salesAccountId,
+                'transaction_type' => 'Credit',
+                'amount' => $grand_total,
+                'remarks' => 'Sale recorded - Invoice: ' . $invoice_no,
+                'created_at' => date('Y-m-d H:i:s'),
+                'created_by' => $user_id,
+                'is_active' => 1,
+                'is_deleted' => 0
+            ])->execute();
+
+            // Debit: Accounts Receivable Account (Customer receivable tracking)
+            $arAccountId = $db->createCommand(
+                "SELECT id FROM inventory_accounts WHERE account_code='1200' AND is_deleted=0 LIMIT 1"
+            )->queryScalar();
+
+            if ($arAccountId) {
+                $db->createCommand()->insert('inventory_transactions', [
+                    'transaction_no' => $transactionNo . '-DR',
+                    'transaction_date' => date('Y-m-d'),
+                    'reference_type' => 'Sale',
+                    'reference_id' => $sales_order_id,
+                    'account_id' => $arAccountId,
+                    'transaction_type' => 'Debit',
+                    'amount' => $grand_total,
+                    'remarks' => 'Account Receivable - Invoice: ' . $invoice_no,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'created_by' => $user_id,
+                    'is_active' => 1,
+                    'is_deleted' => 0
+                ])->execute();
+
+                // Update account balance for Sales Revenue
+                $db->createCommand()->update('inventory_accounts', [
+                    'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
+                ], ['id' => $salesAccountId])->execute();
+
+                // Update account balance for Accounts Receivable
+                $db->createCommand()->update('inventory_accounts', [
+                    'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
+                ], ['id' => $arAccountId])->execute();
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
     private function createSaleInvoiceFromPos($pos_sales_id, $customer_id, $subtotal, $discount_amount, $tax_amount, $grand_total, $paid_amount, $user_id)
     {
         $db = Yii::$app->db;
@@ -129,6 +200,9 @@ class SaleController extends Controller
         )->execute();
 
         $invoice_id = $db->getLastInsertID();
+
+        // Post to GL when invoice is created
+        $this->postSaleToGL($sales_order_id, $invoice_no, $grand_total, $user_id);
 
         return $invoice_no;
     }
