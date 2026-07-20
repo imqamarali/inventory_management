@@ -351,15 +351,19 @@ function grnStatusBadgeServer($status)
                 poItemsHtml = '<div style="margin-top: 20px; border-top: 1px solid #ddd; padding-top: 15px;">';
                 poItemsHtml += '<strong>Purchased Items:</strong>';
                 poItemsHtml += '<table class="table table-striped table-sm" style="margin-top: 10px; font-size: 12px;">';
-                poItemsHtml += '<thead><tr><th>Product</th><th>SKU</th><th>Qty Ordered</th><th>Unit Price</th><th>Total</th></tr></thead><tbody>';
+                poItemsHtml += '<thead><tr><th style="text-align: left;">Product</th><th style="text-align: left;">SKU</th><th style="text-align: left;">Qty</th><th style="text-align: left;">Unit Price</th><th style="text-align: left;">Discount</th><th style="text-align: left;">Tax</th><th style="text-align: left;">Total</th></tr></thead><tbody>';
 
                 item.items.forEach(function(pItem) {
+                    const discount = parseFloat(pItem.discount_amount || 0).toFixed(2);
+                    const tax = parseFloat(pItem.tax_amount || 0).toFixed(2);
                     poItemsHtml += `<tr>
-                        <td>${pItem.product_name}</td>
-                        <td>${pItem.sku}</td>
-                        <td>${parseFloat(pItem.quantity).toFixed(2)}</td>
-                        <td>${parseFloat(pItem.unit_price).toFixed(2)}</td>
-                        <td>${parseFloat(pItem.line_total).toFixed(2)}</td>
+                        <td style="text-align: left;">${pItem.product_name}</td>
+                        <td style="text-align: left;">${pItem.sku}</td>
+                        <td style="text-align: left;">${parseFloat(pItem.quantity).toFixed(2)}</td>
+                        <td style="text-align: left;">${parseFloat(pItem.unit_price).toFixed(2)}</td>
+                        <td style="text-align: left;">${discount}</td>
+                        <td style="text-align: left;">${tax}</td>
+                        <td style="text-align: left;">${parseFloat(pItem.line_total).toFixed(2)}</td>
                     </tr>`;
                 });
 

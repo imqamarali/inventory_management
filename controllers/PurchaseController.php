@@ -1097,6 +1097,8 @@ class PurchaseController extends Controller
                     p.sku,
                     poi.quantity,
                     poi.unit_price,
+                    poi.discount_amount,
+                    poi.tax_amount,
                     poi.line_total
                 FROM inventory_purchase_order_items poi
                 INNER JOIN inventory_products p ON p.id = poi.product_id
