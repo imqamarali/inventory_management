@@ -303,14 +303,18 @@ class InventoryController extends Controller
             $db = Yii::$app->db;
             $db->createCommand('SET FOREIGN_KEY_CHECKS=0')->execute();
 
+            // All tables used by Sale Controller
             $tables = [
-                'inventory_sales_order_items',
-                'inventory_sales_orders',
-                'inventory_sale_invoice_items',
-                'inventory_sale_invoices',
-                'inventory_pos_sales',
-                'inventory_pos_payment_history',
-                'inventory_sale_invoice_payments'
+                'inventory_sale_invoice_payments',      // Payment history (must be first)
+                'inventory_pos_payment_history',        // POS payment history (must be first)
+                'inventory_sales_returns',              // Sales returns
+                'inventory_sale_invoice_items',         // Invoice line items
+                'inventory_sale_invoices',              // Sales invoices
+                'inventory_pos_items',                  // POS items
+                'inventory_pos_transactions',           // POS transactions
+                'inventory_pos_sales',                  // POS sales
+                'inventory_sales_order_items',          // Sales order line items
+                'inventory_sales_orders'                // Sales orders
             ];
 
             foreach ($tables as $table) {
@@ -328,7 +332,7 @@ class InventoryController extends Controller
                 Yii::$app->db->createCommand()->insert(
                     'activitylogs',
                     [
-                        'activity' => 'Truncate Sales Records - Deleted all sale records including sales orders, POS sales, invoices, and payment history',
+                        'activity' => 'Truncate Sales Records - Deleted all sale records including sales orders, invoices, payment history, POS sales, returns, and transactions',
                         'activitytype' => 'Truncate',
                         'module' => 'Sales',
                         'uid' => $user_id,
@@ -343,7 +347,7 @@ class InventoryController extends Controller
 
             return [
                 'success' => true,
-                'message' => 'All sale records have been successfully deleted!'
+                'message' => 'All sale records have been successfully deleted including orders, invoices, payments, POS sales, returns, and transactions!'
             ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
@@ -386,10 +390,17 @@ class InventoryController extends Controller
             $db = Yii::$app->db;
             $db->createCommand('SET FOREIGN_KEY_CHECKS=0')->execute();
 
+            // All tables used by Purchase Controller
             $tables = [
-                'inventory_purchase_orders',
-                'inventory_purchase_invoices',
-                'inventory_purchase_invoice_payments'
+                'inventory_purchase_invoice_payments',   // Payment history (must be first)
+                'inventory_purchase_return_items',       // Purchase return line items
+                'inventory_purchase_returns',            // Purchase returns
+                'inventory_goods_receiving_items',       // Goods receiving line items
+                'inventory_goods_receiving',             // Goods receiving records
+                'inventory_purchase_invoice_items',      // Invoice line items
+                'inventory_purchase_invoices',           // Purchase invoices
+                'inventory_purchase_order_items',        // Purchase order line items
+                'inventory_purchase_orders'              // Purchase orders
             ];
 
             foreach ($tables as $table) {
@@ -407,7 +418,7 @@ class InventoryController extends Controller
                 Yii::$app->db->createCommand()->insert(
                     'activitylogs',
                     [
-                        'activity' => 'Truncate Purchase Records - Deleted all purchase records including purchase orders, invoices, and payment history',
+                        'activity' => 'Truncate Purchase Records - Deleted all purchase records including purchase orders, invoices, payment history, goods receiving, returns, and related items',
                         'activitytype' => 'Truncate',
                         'module' => 'Purchase',
                         'uid' => $user_id,
@@ -422,7 +433,7 @@ class InventoryController extends Controller
 
             return [
                 'success' => true,
-                'message' => 'All purchase records have been successfully deleted!'
+                'message' => 'All purchase records have been successfully deleted including orders, invoices, payments, goods receiving, returns, and line items!'
             ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
