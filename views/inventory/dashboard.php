@@ -211,7 +211,7 @@ $this->title = 'Student Dashboard';
         </div>
 
         <!-- Today Profit/Loss -->
-        <div class="stat-card yellow">
+        <div class="stat-card red">
             <div class="stat-header">
                 <span class="stat-title">Today P/L</span>
                 <div class="stat-icon">
@@ -402,21 +402,19 @@ $this->title = 'Student Dashboard';
             todayProfitElement.html(`<span style="color: #e74c3c; font-weight: bold;">-PKR ${Math.abs(todayProfitLoss).toLocaleString()}</span><br><span style="font-size: 11px; color: #e74c3c;">(${todayProfitPercent}%)</span>`);
         }
 
-        // Verify Balance Sheet Equation
-        const assetsValue = parseFloat(stats.total_assets) || 0;
-        const liabilitiesValue = parseFloat(stats.total_liabilities) || 0;
-        const equityValue = parseFloat(stats.total_equity) || 0;
-        const liabilitiesEquitySum = liabilitiesValue + equityValue;
-
-        const tolerance = 1; // Allow 1 PKR difference due to rounding
-        const isBalanced = Math.abs(assetsValue - liabilitiesEquitySum) <= tolerance;
-
+        // Display Balance Sheet Profit/Loss
+        const profitLossBS = parseFloat(stats.balance_sheet_profit_loss) || 0;
         const statusCard = $("#balance_status");
-        if (isBalanced) {
-            statusCard.html(`<span style="color: #27ae60; font-weight: bold;">✓ VERIFIED</span><br><span style="font-size: 11px; color: #27ae60;">${assetsValue.toLocaleString()} = ${liabilitiesEquitySum.toLocaleString()}</span>`);
+
+        if (profitLossBS > 0) {
+            // Profit - Green
+            statusCard.html(`<span style="color: #2ecc71; font-weight: bold; font-size: 16px;">PKR ${Math.abs(profitLossBS).toLocaleString()}</span><br><span style="font-size: 11px; color: #2ecc71; font-weight: 600;">Profit</span>`);
+        } else if (profitLossBS < 0) {
+            // Loss - Red
+            statusCard.html(`<span style="color: #e74c3c; font-weight: bold; font-size: 16px;">PKR ${Math.abs(profitLossBS).toLocaleString()}</span><br><span style="font-size: 11px; color: #e74c3c; font-weight: 600;">Loss</span>`);
         } else {
-            const difference = Math.abs(assetsValue - liabilitiesEquitySum);
-            statusCard.html(`<span style="color: #e74c3c; font-weight: bold;">⚠ IMBALANCE</span><br><span style="font-size: 11px; color: #e74c3c;">Diff: PKR ${difference.toLocaleString()}</span>`);
+            // Break even
+            statusCard.html(`<span style="color: #7f8c8d; font-weight: bold; font-size: 16px;">PKR 0</span><br><span style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Break Even</span>`);
         }
 
     }

@@ -85,7 +85,7 @@
                                          Go Back
                                      </a>
 
-                                     <a href="index.php" class="btn btn-primary">
+                                     <a href="index.php?r=inventory/dashboard" class="btn btn-primary">
                                          <i class="ace-icon fa fa-tachometer"></i>
                                          Dashboard
                                      </a>

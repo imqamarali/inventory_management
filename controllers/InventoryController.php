@@ -259,6 +259,9 @@ class InventoryController extends Controller
             // Equity = Assets - Liabilities
             $stats['total_equity'] = $stats['total_assets'] - $stats['total_liabilities'];
 
+            // Balance Sheet Profit/Loss = Total Revenue - Total Purchases Value
+            $stats['balance_sheet_profit_loss'] = $stats['total_revenue'] - $stats['total_purchases_value'];
+
         } catch (\Exception $e) {
             \Yii::error("Dashboard stats error: " . $e->getMessage());
         }
