@@ -667,7 +667,7 @@ function invoiceStatusBadgeServer($status)
                 <div class="row" style="margin-top:10px;">
                 <div class="col-md-3">
                 <label>Paid Amount</label>
-                <input type="number" id="so_paid_amount" class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00" readonly style="background:#e8f4f8;">
+                <input type="number" id="so_paid_amount" class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00" style="background:#e8f4f8;">
                 </div>
                 <div class="col-md-3">
                 <label><strong>Remaining Amount</strong></label>
@@ -772,7 +772,25 @@ function invoiceStatusBadgeServer($status)
         });
 
         $(document).on('input', '#so_shipping', calcOrderGrandTotal);
-        // Note: Paid amount is now read-only and auto-populated from invoice
+
+        // Handle Paid Amount changes
+        $(document).on('input', '#so_paid_amount', function() {
+            let grandTotal = parseFloat($('#so_grand_total').val()) || 0;
+            let paidAmount = parseFloat($(this).val()) || 0;
+            let remaining = grandTotal - paidAmount;
+
+            // Validate paid amount doesn't exceed grand total
+            if (paidAmount > grandTotal) {
+                $(this).val(grandTotal.toFixed(2));
+                showWarning(`Paid amount cannot exceed Grand Total (${grandTotal.toFixed(2)}). Amount reset to Grand Total.`);
+                remaining = 0;
+            } else {
+                clearWarning();
+            }
+
+            $('#so_remaining_amount').val(Math.max(0, remaining).toFixed(2));
+            updateOrderStatusByRemaining(remaining, grandTotal);
+        });
 
         // Delete row
         $(document).on('click', '#saleItemTable .remove-item', function() {
@@ -908,14 +926,18 @@ function invoiceStatusBadgeServer($status)
     }
 
     function calculateSaleOrderTotals() {
-        let subtotal = 0;
+        let subtotal = 0;  // Sum of (Rate * Qty)
         let rowDiscount = 0;
         let rowTax = 0;
+        let lineTotal = 0;  // Sum of all line totals
 
         $('#saleItemTable tbody tr').each(function() {
-            subtotal += parseFloat($(this).find('.item-total').val()) || 0;
+            let qty = parseFloat($(this).find('.item-qty').val()) || 0;
+            let rate = parseFloat($(this).find('.item-rate').val()) || 0;
+            subtotal += (qty * rate);  // Subtotal is sum of (Qty * Rate)
             rowDiscount += parseFloat($(this).find('.item-discount').val()) || 0;
             rowTax += parseFloat($(this).find('.item-tax').val()) || 0;
+            lineTotal += parseFloat($(this).find('.item-total').val()) || 0;
         });
 
         // Update order-level discount and tax fields from row sums
@@ -925,7 +947,9 @@ function invoiceStatusBadgeServer($status)
         let discount = rowDiscount;
         let tax = rowTax;
         let shipping = parseFloat($('#so_shipping').val()) || 0;
-        let grand = subtotal + tax + shipping - discount;
+
+        // Grand Total = Subtotal - Discount + Tax + Shipping
+        let grand = subtotal - discount + tax + shipping;
 
         $('#so_subtotal').val(Math.max(0, subtotal).toFixed(2));
         $('#so_grand_total').val(Math.max(0, grand).toFixed(2));
