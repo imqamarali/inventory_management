@@ -445,11 +445,14 @@ class StockController extends Controller
                         p.maximum_stock,
                         p.reorder_level,
                         p.selling_price,
+                        p.is_active,
                         c.category_name,
                         b.brand_name,
                         u.short_name unit_name,
                         w.warehouse_name,
-                        w.warehouse_code
+                        w.warehouse_code,
+                        COALESCE(SUM(sii.quantity), 0) as sold_quantity,
+                        COALESCE(SUM(sii.quantity * sii.unit_price), 0) as sold_amount
                     FROM inventory_stock s
                     INNER JOIN inventory_products p
                         ON p.id=s.product_id
@@ -461,7 +464,12 @@ class StockController extends Controller
                         ON u.id=p.unit_id
                     INNER JOIN inventory_warehouses w
                         ON w.id=s.warehouse_id
+                    LEFT JOIN inventory_sales_invoice_items sii
+                        ON sii.product_id=p.id
+                    LEFT JOIN inventory_sales_invoices si
+                        ON si.id=sii.invoice_id AND si.status IN ('Paid', 'Partially Paid', 'Issued')
                     $where
+                    GROUP BY s.id, p.id
                     ORDER BY p.product_name ASC
                     LIMIT $offset,$perPage
                 ", $params)->queryAll();
@@ -475,6 +483,76 @@ class StockController extends Controller
                     'total_pages' => ceil($total / $perPage)
                 ];
             }
+
+            // Get product statistics (purchases, sales)
+            if (isset($post['flag']) && $post['flag'] == 'get_stats') {
+                $productId = (int)($post['product_id'] ?? 0);
+
+                if ($productId > 0) {
+                    // Get total purchase quantity and amount
+                    $purchaseStats = Yii::$app->db->createCommand("
+                        SELECT
+                            COALESCE(SUM(pii.quantity), 0) as total_purchase_qty,
+                            COALESCE(SUM(pii.quantity * pii.unit_price), 0) as total_purchase_amount
+                        FROM inventory_purchase_invoice_items pii
+                        LEFT JOIN inventory_purchase_invoices pi ON pi.id = pii.invoice_id
+                        WHERE pii.product_id = :product_id
+                            AND pi.status IN ('Paid', 'Partially Paid', 'Issued')
+                            AND pi.is_deleted = 0
+                    ")->bindValue(':product_id', $productId)->queryOne();
+
+                    // Get total sales quantity and amount
+                    $salesStats = Yii::$app->db->createCommand("
+                        SELECT
+                            COALESCE(SUM(sii.quantity), 0) as total_sold_qty,
+                            COALESCE(SUM(sii.quantity * sii.unit_price), 0) as total_sold_amount
+                        FROM inventory_sales_invoice_items sii
+                        LEFT JOIN inventory_sales_invoices si ON si.id = sii.invoice_id
+                        WHERE sii.product_id = :product_id
+                            AND si.status IN ('Paid', 'Partially Paid', 'Issued')
+                            AND si.is_deleted = 0
+                    ")->bindValue(':product_id', $productId)->queryOne();
+
+                    $stats = array_merge(
+                        $purchaseStats ?? ['total_purchase_qty' => 0, 'total_purchase_amount' => 0],
+                        $salesStats ?? ['total_sold_qty' => 0, 'total_sold_amount' => 0]
+                    );
+
+                    return [
+                        'success' => true,
+                        'stats' => $stats,
+                        'message' => 'Product statistics loaded successfully'
+                    ];
+                }
+
+                return [
+                    'success' => false,
+                    'message' => 'Invalid product ID'
+                ];
+            }
+
+            // Update product active/inactive status
+            if (isset($post['flag']) && $post['flag'] == 'update_status') {
+                $productId = (int)($post['product_id'] ?? 0);
+                $isActive = (int)($post['is_active'] ?? 0);
+
+                if ($productId > 0) {
+                    Yii::$app->db->createCommand()
+                        ->update('inventory_products', ['is_active' => $isActive], ['id' => $productId])
+                        ->execute();
+
+                    return [
+                        'success' => true,
+                        'message' => $isActive ? 'Product marked as active' : 'Product marked as inactive'
+                    ];
+                }
+
+                return [
+                    'success' => false,
+                    'message' => 'Invalid product ID'
+                ];
+            }
+
             $stock = Yii::$app->request->post();
 
             $stock_id = Yii::$app->request->post('id');

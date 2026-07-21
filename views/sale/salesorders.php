@@ -488,15 +488,15 @@ function invoiceStatusBadgeServer($status)
         const notes = isEdit ? (orderData.notes || '') : '';
 
         // Prevent editing if order is confirmed
-        if (isEdit && orderStatus === 'Confirmed') {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Cannot Edit',
-                text: 'This Sales Order is Confirmed and cannot be edited.',
-                confirmButtonColor: '#87B87F'
-            });
-            return;
-        }
+        // if (isEdit && orderStatus === 'Confirmed') {
+        //     Swal.fire({
+        //         icon: 'warning',
+        //         title: 'Cannot Edit',
+        //         text: 'This Sales Order is Confirmed and cannot be edited.',
+        //         confirmButtonColor: '#87B87F'
+        //     });
+        //     return;
+        // }
 
         let customerOptions = '<option value="">Walk-in Customer</option>';
         window.saleOrderViewData.customers.forEach(c => {
@@ -573,7 +573,7 @@ function invoiceStatusBadgeServer($status)
                 <div class="row" style="margin-top:10px;">
 
                 <div class="col-md-3">
-                <label>Payment Status (Auto from Invoice)</label>
+                <label>Payment Status</label>
                 <select id="so_payment_status" class="form-control" readonly style="background:#f5f5f5;">
                 ${paymentStatusOptions}
                 </select>
@@ -640,7 +640,7 @@ function invoiceStatusBadgeServer($status)
 
                 <div class="row" style="margin-top:15px;">
                 <div class="col-md-2">
-                <label>Subtotal (Read-Only)</label>
+                <label>Subtotal</label>
                 <input type="number" id="so_subtotal" class="form-control" readonly value="0" style="background:#f5f5f5;">
                 </div>
                 <div class="col-md-2">
@@ -656,18 +656,18 @@ function invoiceStatusBadgeServer($status)
                 <input type="number" id="so_shipping" class="form-control" value="${shipping}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
-                <label><strong>Grand Total (Read-Only)</strong></label>
+                <label><strong>Grand Total</strong></label>
                 <input type="number" id="so_grand_total" class="form-control" readonly value="0" style="background:#fff3cd; font-weight:bold;">
                 </div>
                 </div>
 
                 <div class="row" style="margin-top:10px;">
                 <div class="col-md-3">
-                <label>Paid Amount (Auto from Invoice)</label>
+                <label>Paid Amount</label>
                 <input type="number" id="so_paid_amount" class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00" readonly style="background:#e8f4f8;">
                 </div>
                 <div class="col-md-3">
-                <label><strong>Remaining Amount (Auto from Invoice)</strong></label>
+                <label><strong>Remaining Amount</strong></label>
                 <input type="number" id="so_remaining_amount" class="form-control" readonly value="${(grandTotal - paidAmount).toFixed(2)}" style="background:#e8f4f8; font-weight:bold;">
                 </div>
                 </div>

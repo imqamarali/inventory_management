@@ -99,10 +99,12 @@ if (!isset($products)) $products = [];
                                 <th>Warehouse</th>
                                 <th>Category</th>
                                 <th>Brand</th>
-                                <th>Quantity</th>
-                                <th>Reserved</th>
-                                <th>Available</th>
-                                <th>Average Cost</th>
+                                <th class="text-right">Quantity</th>
+                                <th class="text-right">Reserved</th>
+                                <th class="text-right">Available</th>
+                                <th class="text-right">Average Cost</th>
+                                <th class="text-right">Sold Qty</th>
+                                <th class="text-right">Sold Amount</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -120,10 +122,12 @@ if (!isset($products)) $products = [];
                                     <td><?= Html::encode($item['category_name']) ?></td>
                                     <td><?= Html::encode($item['brand_name']) ?></td>
 
-                                    <td><?= number_format($item['quantity'], 2) ?></td>
-                                    <td><?= number_format($item['reserved_quantity'], 2) ?></td>
-                                    <td><?= number_format($item['available_quantity'], 2) ?></td>
-                                    <td><?= number_format($item['average_cost'], 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['quantity'], 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['reserved_quantity'], 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['available_quantity'], 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['average_cost'], 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['sold_quantity'] ?? 0, 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['sold_amount'] ?? 0, 2) ?></td>
 
                                     <td>
                                         <?php if ($item['quantity'] <= 0) { ?>
@@ -136,12 +140,8 @@ if (!isset($products)) $products = [];
                                     </td>
 
                                     <td>
-                                        <button onclick='openStockModal(<?= json_encode($item) ?>)'>
-                                            <i class="fa fa-pencil"></i>
-                                        </button>
-                                        |
-                                        <button onclick="deleteStock(<?= $item['id'] ?>)">
-                                            <i class="fa fa-trash"></i>
+                                        <button onclick='viewProductStats(<?= json_encode($item) ?>)' title="View Details">
+                                            <i class="fa fa-eye"></i>
                                         </button>
                                     </td>
                                 </tr>
@@ -242,7 +242,7 @@ if (!isset($products)) $products = [];
     function renderStock(rows) {
         let html = '';
         if (rows.length == 0) {
-            html = `<tr><td colspan="11" class="text-center">No Stock Found</td></tr>`;
+            html = `<tr><td colspan="13" class="text-center">No Stock Found</td></tr>`;
         } else {
             rows.forEach(function(item, index) {
                 let status = '<span class="label label-success">Available</span>';
@@ -257,17 +257,16 @@ if (!isset($products)) $products = [];
                     <td>${htmlEscape(item.warehouse_name)}</td>
                     <td>${htmlEscape(item.category_name??'')}</td>
                     <td>${htmlEscape(item.brand_name??'')}</td>
-                    <td>${parseFloat(item.quantity??0).toFixed(2)}</td>
-                    <td>${parseFloat(item.reserved_quantity??0).toFixed(2)}</td>
-                    <td>${parseFloat(item.available_quantity??0).toFixed(2)}</td>
-                    <td>${parseFloat(item.average_cost??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.quantity??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.reserved_quantity??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.available_quantity??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.average_cost??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.sold_quantity??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.sold_amount??0).toFixed(2)}</td>
                     <td>${status}</td>
                     <td>
-                        <button onclick='openStockModal(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
-                            <i class="fa fa-pencil"></i>
-                        </button>
-                        | <button onclick="deleteStock(${item.id})">
-                            <i class="fa fa-trash"></i>
+                        <button onclick='viewProductStats(${JSON.stringify(item).replace(/'/g, "&apos;")})' title="View Details">
+                            <i class="fa fa-eye"></i>
                         </button>
                     </td>
                 </tr>`;
@@ -551,5 +550,178 @@ if (!isset($products)) $products = [];
 
         });
 
+    }
+
+    function viewProductStats(stockData) {
+        const productId = stockData.product_id;
+        const isActive = stockData.is_active == 1 ? true : false;
+
+        // Fetch product statistics from backend
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'get_stats');
+        data.append('product_id', productId);
+
+        Swal.fire({
+            title: 'Loading...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        fetch('index.php?r=stock/inventorycurrentstock', {
+            method: 'POST',
+            body: data,
+            signal: AbortSignal.timeout(5000)
+        })
+        .then(res => res.json())
+        .then(res => {
+            Swal.close();
+            if (res.success) {
+                const stats = res.stats;
+                showProductStatsModal(stockData, stats, isActive);
+            } else {
+                Swal.fire('Error', res.message || 'Failed to load product statistics', 'error');
+            }
+        })
+        .catch(error => {
+            Swal.close();
+            console.error('Error:', error);
+            Swal.fire('Error', 'Unable to load data', 'error');
+        });
+    }
+
+    function showProductStatsModal(stockData, stats, isActive) {
+        const activeCheckbox = isActive ? 'checked' : '';
+        const activeLabel = isActive ? '<span class="label label-success">Active</span>' : '<span class="label label-danger">Inactive</span>';
+
+        Swal.fire({
+            title: 'Product Details',
+            width: '700px',
+            html: `
+                <div style="text-align: left; padding: 20px;">
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <h4 style="margin-top: 0; margin-bottom: 10px;">${htmlEscape(stockData.product_name)}</h4>
+                        <p style="margin: 5px 0;"><strong>SKU:</strong> ${htmlEscape(stockData.sku ?? 'N/A')}</p>
+                        <p style="margin: 5px 0;"><strong>Barcode:</strong> ${htmlEscape(stockData.barcode ?? 'N/A')}</p>
+                        <p style="margin: 5px 0;"><strong>Category:</strong> ${htmlEscape(stockData.category_name ?? 'N/A')}</p>
+                        <p style="margin: 5px 0;"><strong>Brand:</strong> ${htmlEscape(stockData.brand_name ?? 'N/A')}</p>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <h5 style="margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Stock Information</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Current Quantity</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">${parseFloat(stockData.quantity ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Reserved</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #ff9800;">${parseFloat(stockData.reserved_quantity ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Available</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4caf50;">${parseFloat(stockData.available_quantity ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Average Cost</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">PKR ${parseFloat(stockData.average_cost ?? 0).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <h5 style="margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Sales Statistics</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Quantity</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #2196f3;">${parseFloat(stats.total_sold_qty ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Amount</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #2196f3;">PKR ${parseFloat(stats.total_sold_amount ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Qty</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #673ab7;">${parseFloat(stats.total_purchase_qty ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Amount</p>
+                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #673ab7;">PKR ${parseFloat(stats.total_purchase_amount ?? 0).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                        <h5 style="margin-top: 0; margin-bottom: 10px;">Product Status</h5>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="product_active_toggle" ${activeCheckbox} style="width: 18px; height: 18px; cursor: pointer;">
+                            <span>Mark as Active</span>
+                            <span id="active_status_badge" style="margin-left: auto;">${activeLabel}</span>
+                        </label>
+                    </div>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Update Status',
+            cancelButtonText: 'Close',
+            preConfirm: () => {
+                const isChecked = document.getElementById('product_active_toggle').checked;
+                return {
+                    product_id: productId,
+                    is_active: isChecked ? 1 : 0
+                };
+            }
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                updateProductStatus(result.value);
+            }
+        });
+    }
+
+    function updateProductStatus(data) {
+        Swal.fire({
+            title: 'Updating...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const formData = new FormData();
+        formData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        formData.append('flag', 'update_status');
+        formData.append('product_id', data.product_id);
+        formData.append('is_active', data.is_active);
+
+        fetch('index.php?r=stock/inventorycurrentstock', {
+            method: 'POST',
+            body: formData,
+            signal: AbortSignal.timeout(5000)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: res.message,
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    searchform();
+                });
+            } else {
+                Swal.fire('Error', res.message || 'Failed to update status', 'error');
+            }
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                Swal.fire('Error', 'Request timed out. Please try again.', 'error');
+            } else {
+                Swal.fire('Error', 'Unable to update status', 'error');
+            }
+        });
     }
 </script>
