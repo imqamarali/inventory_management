@@ -556,19 +556,42 @@ if (!isset($products)) $products = [];
         const productId = stockData.product_id;
         const isActive = stockData.is_active == 1 ? true : false;
 
+        // Function to show the loading dialog
+        const showLoading = () => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Loading...',
+                    text: 'Please wait',
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    didOpen: () => Swal.showLoading()
+                });
+            }
+        };
+
+        // Wait for Swal to be available (max 3 seconds)
+        let waitAttempts = 0;
+        const maxAttempts = 30; // 3 seconds with 100ms intervals
+
+        const waitForSwal = setInterval(() => {
+            waitAttempts++;
+            if (typeof Swal !== 'undefined') {
+                clearInterval(waitForSwal);
+                showLoading();
+                fetchProductStats(stockData, productId, isActive);
+            } else if (waitAttempts >= maxAttempts) {
+                clearInterval(waitForSwal);
+                alert('Unable to load product details. Please refresh the page and try again.');
+            }
+        }, 100);
+    }
+
+    function fetchProductStats(stockData, productId, isActive) {
         // Fetch product statistics from backend
         const data = new FormData();
         data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
         data.append('flag', 'get_stats');
         data.append('product_id', productId);
-
-        Swal.fire({
-            title: 'Loading...',
-            text: 'Please wait',
-            allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: () => Swal.showLoading()
-        });
 
         fetch('index.php?r=stock/inventorycurrentstock', {
             method: 'POST',
