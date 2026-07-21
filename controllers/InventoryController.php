@@ -649,14 +649,14 @@ class InventoryController extends Controller
         $modules = [
             ['name' => 'Dashboard', 'controller' => 'stock/inventorydashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Current Stock', 'controller' => 'stock/inventorycurrentstock', 'icon' => 'fa fa-cubes'],
-            ['name' => 'Reserved Stock', 'controller' => 'stock/inventoryreservedstock', 'icon' => 'fa fa-lock'],
+            // ['name' => 'Reserved Stock', 'controller' => 'stock/inventoryreservedstock', 'icon' => 'fa fa-lock'],
             ['name' => 'Stock Adjustment', 'controller' => 'stock/inventorystockadjustment', 'icon' => 'fa fa-sliders'],
-            ['name' => 'Stock Movement', 'controller' => 'stock/inventorystockmovement', 'icon' => 'fa fa-exchange'],
+            // ['name' => 'Stock Movement', 'controller' => 'stock/inventorystockmovement', 'icon' => 'fa fa-exchange'],
             // ['name' => 'Opening Stock', 'controller' => 'stock/inventoryopeningstock', 'icon' => 'fa fa-plus-square'],
             ['name' => 'Damaged Stock', 'controller' => 'stock/inventorydamagedstock', 'icon' => 'fa fa-times-circle'],
             ['name' => 'Stock Valuation', 'controller' => 'stock/inventorystockvaluation', 'icon' => 'fa fa-line-chart'],
             ['name' => 'Low Stock Items', 'controller' => 'stock/inventorylowstock', 'icon' => 'fa fa-warning'],
-            ['name' => 'Stock Ledger', 'controller' => 'stock/inventorystockledger', 'icon' => 'fa fa-book'],
+            // ['name' => 'Stock Ledger', 'controller' => 'stock/inventorystockledger', 'icon' => 'fa fa-book'],
             // ['name' => 'Reorder Report', 'controller' => 'stock/inventoryreorderreport', 'icon' => 'fa fa-refresh'],
         ];
         return $this->render('index', compact('modules'));

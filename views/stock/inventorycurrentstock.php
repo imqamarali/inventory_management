@@ -94,19 +94,16 @@ if (!isset($products)) $products = [];
                     <table class="table table-striped table-bordered table-hover" id="stock_table">
                         <thead>
                             <tr>
-                                <th>#</th>
+                                <th>Sr#</th>
                                 <th>Product</th>
-                                <th>Warehouse</th>
                                 <th>Category</th>
                                 <th>Brand</th>
-                                <th class="text-right">Quantity</th>
-                                <th class="text-right">Reserved</th>
-                                <th class="text-right">Available</th>
-                                <th class="text-right">Average Cost</th>
+                                <th>Unit</th>
+                                <th class="text-right">Selling Price</th>
+                                <th class="text-right">Available Qty</th>
                                 <th class="text-right">Sold Qty</th>
                                 <th class="text-right">Sold Amount</th>
-                                <th class="text-right">Remaining Amount</th>
-                                <th>Status</th>
+                                <th class="text-right">Remaining Qty</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -119,27 +116,14 @@ if (!isset($products)) $products = [];
                                         <?= Html::encode($item['product_name']) ?><br>
                                         <small><?= Html::encode($item['sku']) ?></small>
                                     </td>
-                                    <td><?= Html::encode($item['warehouse_name']) ?></td>
                                     <td><?= Html::encode($item['category_name']) ?></td>
                                     <td><?= Html::encode($item['brand_name']) ?></td>
-
-                                    <td class="text-right"><?= number_format($item['quantity'], 2) ?></td>
-                                    <td class="text-right"><?= number_format($item['reserved_quantity'], 2) ?></td>
-                                    <td class="text-right"><?= number_format($item['available_quantity'], 2) ?></td>
-                                    <td class="text-right"><?= number_format($item['average_cost'], 2) ?></td>
+                                    <td><?= Html::encode($item['unit_name'] ?? 'N/A') ?></td>
+                                    <td class="text-right"><?= number_format($item['selling_price'] ?? 0, 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['available_quantity'] ?? 0, 2) ?></td>
                                     <td class="text-right"><?= number_format($item['sold_quantity'] ?? 0, 2) ?></td>
                                     <td class="text-right"><?= number_format($item['sold_amount'] ?? 0, 2) ?></td>
-                                    <td class="text-right"><span id="remaining-<?= $item['id'] ?>"><?= number_format($item['remaining_amount'] ?? 0, 2) ?></span></td>
-
-                                    <td>
-                                        <?php if ($item['quantity'] <= 0) { ?>
-                                            <span class="label label-danger">Out</span>
-                                        <?php } elseif ($item['quantity'] <= $item['reorder_level']) { ?>
-                                            <span class="label label-warning">Low</span>
-                                        <?php } else { ?>
-                                            <span class="label label-success">Available</span>
-                                        <?php } ?>
-                                    </td>
+                                    <td class="text-right"><?= number_format($item['quantity'] ?? 0, 2) ?></td>
 
                                     <td>
                                         <button onclick='viewProductStats(<?= json_encode($item) ?>)' title="View Details">
@@ -244,29 +228,20 @@ if (!isset($products)) $products = [];
     function renderStock(rows) {
         let html = '';
         if (rows.length == 0) {
-            html = `<tr><td colspan="14" class="text-center">No Stock Found</td></tr>`;
+            html = `<tr><td colspan="11" class="text-center">No Stock Found</td></tr>`;
         } else {
             rows.forEach(function(item, index) {
-                let status = '<span class="label label-success">Available</span>';
-                if (parseFloat(item.quantity) <= 0) {
-                    status = '<span class="label label-danger">Out</span>';
-                } else if (parseFloat(item.quantity) <= parseFloat(item.reorder_level)) {
-                    status = '<span class="label label-warning">Low</span>';
-                }
                 html += `<tr>
                     <td>${index+1}</td>
                     <td>${htmlEscape(item.product_name)}<br><small>${htmlEscape(item.sku??'')}</small></td>
-                    <td>${htmlEscape(item.warehouse_name)}</td>
                     <td>${htmlEscape(item.category_name??'')}</td>
                     <td>${htmlEscape(item.brand_name??'')}</td>
-                    <td class="text-right">${parseFloat(item.quantity??0).toFixed(2)}</td>
-                    <td class="text-right">${parseFloat(item.reserved_quantity??0).toFixed(2)}</td>
+                    <td>${htmlEscape(item.unit_name??'N/A')}</td>
+                    <td class="text-right">${parseFloat(item.selling_price??0).toFixed(2)}</td>
                     <td class="text-right">${parseFloat(item.available_quantity??0).toFixed(2)}</td>
-                    <td class="text-right">${parseFloat(item.average_cost??0).toFixed(2)}</td>
                     <td class="text-right">${parseFloat(item.sold_quantity??0).toFixed(2)}</td>
                     <td class="text-right">${parseFloat(item.sold_amount??0).toFixed(2)}</td>
-                    <td class="text-right">${parseFloat(item.remaining_amount??0).toFixed(2)}</td>
-                    <td>${status}</td>
+                    <td class="text-right">${parseFloat(item.quantity??0).toFixed(2)}</td>
                     <td>
                         <button onclick='viewProductStats(${JSON.stringify(item).replace(/'/g, "&apos;")})' title="View Details">
                             <i class="fa fa-eye"></i>
@@ -620,108 +595,149 @@ if (!isset($products)) $products = [];
 
     function showProductStatsModal(stockData, stats, isActive) {
         const activeCheckbox = isActive ? 'checked' : '';
-        const activeLabel = isActive ? '<span class="label label-success">Active</span>' : '<span class="label label-danger">Inactive</span>';
 
         Swal.fire({
             title: 'Product Details',
-            width: '1000px',
+            width: '1100px',
             html: `
-                <div style="text-align: left; padding: 20px; max-height: 70vh; overflow-y: auto;">
-                    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                        <h4 style="margin-top: 0; margin-bottom: 10px;">${htmlEscape(stockData.product_name)}</h4>
-                        <p style="margin: 5px 0;"><strong>SKU:</strong> ${htmlEscape(stockData.sku ?? 'N/A')}</p>
-                        <p style="margin: 5px 0;"><strong>Barcode:</strong> ${htmlEscape(stockData.barcode ?? 'N/A')}</p>
-                        <p style="margin: 5px 0;"><strong>Category:</strong> ${htmlEscape(stockData.category_name ?? 'N/A')}</p>
-                        <p style="margin: 5px 0;"><strong>Brand:</strong> ${htmlEscape(stockData.brand_name ?? 'N/A')}</p>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                        <div>
-                            <h5 style="margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Stock Information</h5>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Current Quantity</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">${parseFloat(stockData.quantity ?? 0).toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Reserved</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #ff9800;">${parseFloat(stockData.reserved_quantity ?? 0).toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Available</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #4caf50;">${parseFloat(stockData.available_quantity ?? 0).toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Average Cost</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">PKR ${parseFloat(stockData.average_cost ?? 0).toFixed(2)}</p>
-                                </div>
+                <div style="text-align: left; padding: 20px; max-height: 75vh; overflow-y: auto;">
+                    <!-- Row 1: Product Information -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Product Name</p>
+                                <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold; color: #333;">${htmlEscape(stockData.product_name)}</p>
                             </div>
-                        </div>
-
-                        <div>
-                            <h5 style="margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Sales Statistics</h5>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Qty</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #2196f3;">${parseFloat(stats.total_sold_qty ?? 0).toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Amount</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #2196f3;">PKR ${parseFloat(stats.total_sold_amount ?? 0).toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Qty</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #673ab7;">${parseFloat(stats.total_purchase_qty ?? 0).toFixed(2)}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Amount</p>
-                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #673ab7;">PKR ${parseFloat(stats.total_purchase_amount ?? 0).toFixed(2)}</p>
-                                </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">SKU</p>
+                                <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">${htmlEscape(stockData.sku ?? 'N/A')}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Barcode</p>
+                                <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">${htmlEscape(stockData.barcode ?? 'N/A')}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Category</p>
+                                <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">${htmlEscape(stockData.category_name ?? 'N/A')}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Brand</p>
+                                <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">${htmlEscape(stockData.brand_name ?? 'N/A')}</p>
                             </div>
                         </div>
                     </div>
 
-                    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                        <h5 style="margin-top: 0; margin-bottom: 10px;">Product Status</h5>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                            <input type="checkbox" id="product_active_toggle" ${activeCheckbox} style="width: 18px; height: 18px; cursor: pointer;">
-                            <span>Mark as Active</span>
-                            <span id="active_status_badge" style="margin-left: auto;">${activeLabel}</span>
-                        </label>
+                    <!-- Row 2: Stock Information -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
+                        <h5 style="margin: 0 0 15px 0; color: #333;">Stock Information</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Current Quantity</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #333;">${parseFloat(stockData.quantity ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Reserved</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #ff9800;">${parseFloat(stockData.reserved_quantity ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Available</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #4caf50;">${parseFloat(stockData.available_quantity ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Average Cost</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #333;">PKR ${parseFloat(stockData.average_cost ?? 0).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Sales Statistics -->
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
+                        <h5 style="margin: 0 0 15px 0; color: #333;">Sales & Purchase Statistics</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Total Sales Qty</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #2196f3;">${parseFloat(stats.total_sold_qty ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Total Sales Amount</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #2196f3;">PKR ${parseFloat(stats.total_sold_amount ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Total Purchase Qty</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #673ab7;">${parseFloat(stats.total_purchase_qty ?? 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Total Purchase Amount</p>
+                                <p style="margin: 5px 0 0 0; font-size: 16px; font-weight: bold; color: #673ab7;">PKR ${parseFloat(stats.total_purchase_amount ?? 0).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Edit Section -->
+                    <div style="background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #ff9800;">
+                        <h5 style="margin: 0 0 15px 0; color: #333;">Update Stock Information</h5>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <label style="display: block; color: #666; font-size: 12px; font-weight: bold; margin-bottom: 5px;">Quantity</label>
+                                <input type="number" id="edit_quantity" value="${parseFloat(stockData.quantity ?? 0).toFixed(2)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; color: #666; font-size: 12px; font-weight: bold; margin-bottom: 5px;">Reserved Quantity</label>
+                                <input type="number" id="edit_reserved" value="${parseFloat(stockData.reserved_quantity ?? 0).toFixed(2)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; color: #666; font-size: 12px; font-weight: bold; margin-bottom: 5px;">Average Cost (PKR)</label>
+                                <input type="number" id="edit_avg_cost" value="${parseFloat(stockData.average_cost ?? 0).toFixed(2)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; color: #666; font-size: 12px; font-weight: bold; margin-bottom: 5px;">Last Purchase Price (PKR)</label>
+                                <input type="number" id="edit_purchase_price" value="${parseFloat(stockData.last_purchase_price ?? 0).toFixed(2)}" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
                     </div>
                 </div>
             `,
             showCancelButton: true,
-            confirmButtonText: 'Update Status',
+            confirmButtonText: 'Update Stock',
             cancelButtonText: 'Close',
             preConfirm: () => {
-                const isChecked = document.getElementById('product_active_toggle').checked;
                 return {
-                    product_id: productId,
-                    is_active: isChecked ? 1 : 0
+                    id: stockData.id,
+                    quantity: document.getElementById('edit_quantity').value,
+                    reserved_quantity: document.getElementById('edit_reserved').value,
+                    average_cost: document.getElementById('edit_avg_cost').value,
+                    last_purchase_price: document.getElementById('edit_purchase_price').value,
+                    flag: 'update'
                 };
             }
         }).then(function(result) {
             if (result.isConfirmed) {
-                updateProductStatus(result.value);
+                updateStockData(result.value);
             }
         });
     }
 
-    function updateProductStatus(data) {
-        Swal.fire({
-            title: 'Updating...',
-            text: 'Please wait',
-            allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: () => Swal.showLoading()
-        });
+    function updateStockData(data) {
+        if (typeof Swal === 'undefined') {
+            alert('Updating...');
+        } else {
+            Swal.fire({
+                title: 'Updating...',
+                text: 'Please wait',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+        }
 
         const formData = new FormData();
         formData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-        formData.append('flag', 'update_status');
-        formData.append('product_id', data.product_id);
-        formData.append('is_active', data.is_active);
+        formData.append('id', data.id);
+        formData.append('quantity', data.quantity);
+        formData.append('reserved_quantity', data.reserved_quantity);
+        formData.append('average_cost', data.average_cost);
+        formData.append('last_purchase_price', data.last_purchase_price);
+        formData.append('flag', 'update');
 
         fetch('index.php?r=stock/inventorycurrentstock', {
             method: 'POST',
@@ -730,25 +746,37 @@ if (!isset($products)) $products = [];
         })
         .then(res => res.json())
         .then(res => {
+            if (typeof Swal !== 'undefined') Swal.close();
             if (res.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Success',
-                    text: res.message,
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: res.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        searchform();
+                    });
+                } else {
+                    alert(res.message);
                     searchform();
-                });
+                }
             } else {
-                Swal.fire('Error', res.message || 'Failed to update status', 'error');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Error', res.message || 'Failed to update stock', 'error');
+                } else {
+                    alert(res.message || 'Failed to update stock');
+                }
             }
         })
         .catch(error => {
-            if (error.name === 'AbortError') {
-                Swal.fire('Error', 'Request timed out. Please try again.', 'error');
+            if (typeof Swal !== 'undefined') Swal.close();
+            console.error('Error:', error);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('Error', 'Unable to update stock', 'error');
             } else {
-                Swal.fire('Error', 'Unable to update status', 'error');
+                alert('Unable to update stock');
             }
         });
     }
