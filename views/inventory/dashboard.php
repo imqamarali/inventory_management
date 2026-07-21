@@ -211,6 +211,63 @@ $this->title = 'Student Dashboard';
 
     </div>
 
+    <!-- Balance Sheet Equation -->
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-md-12">
+            <div class="dashboard-box">
+                <h4>
+                    <i class="fa fa-calculator"></i>
+                    Balance Sheet Equation: Assets = Liabilities + Equity
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 20px;">
+                    <!-- Assets -->
+                    <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 10px;">
+                            <i class="fa fa-bank"></i> ASSETS
+                        </div>
+                        <div id="total_assets" style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">...</div>
+                        <div style="font-size: 11px; opacity: 0.8;">
+                            Inventory + Receivables
+                        </div>
+                    </div>
+
+                    <!-- Equal Sign -->
+                    <div style="display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #34495e;">
+                        =
+                    </div>
+
+                    <!-- Liabilities + Equity -->
+                    <div style="display: grid; grid-template-rows: 1fr 1fr; gap: 10px;">
+                        <!-- Liabilities -->
+                        <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">
+                                <i class="fa fa-credit-card"></i> LIABILITIES
+                            </div>
+                            <div id="total_liabilities" style="font-size: 18px; font-weight: bold;">...</div>
+                            <div style="font-size: 10px; opacity: 0.8;">Payables</div>
+                        </div>
+
+                        <!-- Equity -->
+                        <div style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">
+                                <i class="fa fa-shield"></i> EQUITY
+                            </div>
+                            <div id="total_equity" style="font-size: 18px; font-weight: bold;">...</div>
+                            <div style="font-size: 10px; opacity: 0.8;">Net Worth</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verification Message -->
+                <div style="text-align: center; padding: 15px; background: #ecf0f1; border-radius: 6px; margin-top: 15px;">
+                    <div id="balance_verification" style="font-size: 12px; font-weight: 600; color: #34495e;">
+                        Verifying Balance Sheet Equation...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Performance Charts -->
 
     <div class="row">
@@ -362,6 +419,28 @@ $this->title = 'Student Dashboard';
             profitElement.html(`<span style="color: #2ecc71; font-weight: bold;">+PKR ${Math.abs(profitLoss).toLocaleString()}</span><br><span style="font-size: 11px; color: #2ecc71;">(+${profitPercent}%)</span>`);
         } else {
             profitElement.html(`<span style="color: #e74c3c; font-weight: bold;">-PKR ${Math.abs(profitLoss).toLocaleString()}</span><br><span style="font-size: 11px; color: #e74c3c;">(${profitPercent}%)</span>`);
+        }
+
+        // Display Balance Sheet Equation
+        animateCurrency("#total_assets", stats.total_assets);
+        animateCurrency("#total_liabilities", stats.total_liabilities);
+        animateCurrency("#total_equity", stats.total_equity);
+
+        // Verify Balance Sheet Equation
+        const assetsValue = parseFloat(stats.total_assets) || 0;
+        const liabilitiesValue = parseFloat(stats.total_liabilities) || 0;
+        const equityValue = parseFloat(stats.total_equity) || 0;
+        const liabilitiesEquitySum = liabilitiesValue + equityValue;
+
+        const tolerance = 1; // Allow 1 PKR difference due to rounding
+        const isBalanced = Math.abs(assetsValue - liabilitiesEquitySum) <= tolerance;
+
+        const verificationElement = $("#balance_verification");
+        if (isBalanced) {
+            verificationElement.html(`<i class="fa fa-check-circle" style="color: #27ae60; margin-right: 5px;"></i><span style="color: #27ae60;">✓ Balance Sheet Equation Verified: ${assetsValue.toLocaleString()} = ${liabilitiesEquitySum.toLocaleString()}</span>`);
+        } else {
+            const difference = Math.abs(assetsValue - liabilitiesEquitySum);
+            verificationElement.html(`<i class="fa fa-exclamation-circle" style="color: #e74c3c; margin-right: 5px;"></i><span style="color: #e74c3c;">⚠ Imbalance Detected: Difference = PKR ${difference.toLocaleString()}</span>`);
         }
 
     }

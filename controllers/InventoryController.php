@@ -100,6 +100,9 @@ class InventoryController extends Controller
             'total_revenue' => 0,
             'total_purchases_value' => 0,
             'pending_returns' => 0,
+            'total_assets' => 0,
+            'total_liabilities' => 0,
+            'total_equity' => 0,
         ];
 
         try {
@@ -205,6 +208,40 @@ class InventoryController extends Controller
                 // Returns table might not exist, so don't log error
                 $stats['pending_returns'] = 0;
             }
+
+            // BALANCE SHEET CALCULATIONS
+            // Assets = Inventory Value + Accounts Receivable (unpaid sales invoices)
+            try {
+                // Inventory Value: Sum of (quantity * average_cost)
+                $inventoryValue = $db->createCommand(
+                    "SELECT IFNULL(SUM(quantity * average_cost), 0) FROM inventory_stock WHERE is_deleted = 0"
+                )->queryScalar();
+
+                // Accounts Receivable: Remaining amount in unpaid sales invoices
+                $accountsReceivable = $db->createCommand(
+                    "SELECT IFNULL(SUM(remaining_amount), 0) FROM inventory_sales_invoices
+                     WHERE is_deleted = 0 AND status IN ('Issued', 'Partially Paid')"
+                )->queryScalar();
+
+                $stats['total_assets'] = (float)$inventoryValue + (float)$accountsReceivable;
+            } catch (\Exception $e) {
+                \Yii::warning("Total assets calculation failed: " . $e->getMessage());
+                $stats['total_assets'] = 0;
+            }
+
+            // Liabilities = Accounts Payable (unpaid purchase invoices)
+            try {
+                $stats['total_liabilities'] = (float)$db->createCommand(
+                    "SELECT IFNULL(SUM(remaining_amount), 0) FROM inventory_purchase_invoices
+                     WHERE is_deleted = 0 AND status IN ('Issued', 'Partially Paid')"
+                )->queryScalar();
+            } catch (\Exception $e) {
+                \Yii::warning("Total liabilities calculation failed: " . $e->getMessage());
+                $stats['total_liabilities'] = 0;
+            }
+
+            // Equity = Assets - Liabilities
+            $stats['total_equity'] = $stats['total_assets'] - $stats['total_liabilities'];
 
         } catch (\Exception $e) {
             \Yii::error("Dashboard stats error: " . $e->getMessage());
