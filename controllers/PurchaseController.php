@@ -239,10 +239,14 @@ class PurchaseController extends Controller
                 $currentTotal = $currentStock['quantity'] * $currentCost;
                 $newAverageCost = ($currentTotal + $totalCost) / $newQuantity;
 
+                // Calculate new available quantity (adding the received quantity to existing available)
+                $newAvailableQuantity = $currentStock['available_quantity'] + $quantity;
+
                 $db->createCommand()->update(
                     'inventory_stock',
                     [
                         'quantity' => $newQuantity,
+                        'available_quantity' => $newAvailableQuantity,
                         'average_cost' => $newAverageCost,
                         'last_purchase_price' => $unitPrice,
                         'updated_at' => date('Y-m-d H:i:s')
@@ -256,6 +260,8 @@ class PurchaseController extends Controller
                         'product_id' => $item['product_id'],
                         'warehouse_id' => $po['warehouse_id'],
                         'quantity' => $quantity,
+                        'available_quantity' => $quantity,
+                        'reserved_quantity' => 0,
                         'average_cost' => $unitPrice,
                         'last_purchase_price' => $unitPrice,
                         'created_at' => date('Y-m-d H:i:s'),

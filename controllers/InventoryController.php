@@ -302,13 +302,11 @@ class InventoryController extends Controller
         try {
             $db = Yii::$app->db;
             $db->createCommand('SET FOREIGN_KEY_CHECKS=0')->execute();
-
-            // All tables used by Sale Controller
             $tables = [
                 'inventory_sale_invoice_payments',      // Payment history (must be first)
                 'inventory_pos_payment_history',        // POS payment history (must be first)
                 'inventory_sales_returns',              // Sales returns
-                'inventory_sale_invoice_items',         // Invoice line items
+                'inventory_sales_invoice_items',         // Invoice line items
                 'inventory_sales_invoices',              // Sales invoices
                 'inventory_pos_items',                  // POS items
                 'inventory_pos_transactions',           // POS transactions

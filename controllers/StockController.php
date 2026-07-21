@@ -112,6 +112,7 @@ class StockController extends Controller
             return $this->renderPartial('inventorydashboard');
         }
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+        $db = Yii::$app->db;
         try {
             $post = Yii::$app->request->post();
 
@@ -143,18 +144,14 @@ class StockController extends Controller
                     } catch (\Exception $e) {
                         // Table might not exist, continue anyway
                     }
-
-                    // Delete all damaged stock records (if table exists)
                     try {
                         $db->createCommand("DELETE FROM inventory_damaged_stock WHERE is_deleted = 0 OR is_deleted = 1")->execute();
                     } catch (\Exception $e) {
                         // Table might not exist, continue anyway
                     }
 
-                    // Delete all inventory current stock records
                     $db->createCommand("DELETE FROM inventory_stock")->execute();
 
-                    // Get all active products and add them to inventory_stock with 0 quantities
                     $activeProducts = $db->createCommand("SELECT id, unit_id FROM inventory_products WHERE is_active = 1 AND is_deleted = 0")->queryAll();
 
                     foreach ($activeProducts as $product) {

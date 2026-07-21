@@ -9,12 +9,12 @@
             </h3>
         </div>
 
-        <div style="display: flex; gap: 10px;">
+        <div >
             <button id="refreshDashboard">
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
-            <button id="truncateStockDetails" style="background-color: #dc3545; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+            <button id="truncateStockDetails">
                 <i class="fa fa-trash"></i>
                 Truncate Stock Details
             </button>
