@@ -159,7 +159,7 @@ class InventoryController extends Controller
             try {
                 $result = $db->createCommand(
                     "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_sales_invoices
-                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued', 'Draft')"
                 )->queryScalar();
                 $stats['today_sales'] = (float)$result;
             } catch (\Exception $e) {
@@ -171,7 +171,7 @@ class InventoryController extends Controller
             try {
                 $result = $db->createCommand(
                     "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
-                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Unpaid', 'Partially Paid')"
+                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Paid', 'Unpaid', 'Partially Paid')"
                 )->queryScalar();
                 $stats['today_purchases'] = (float)$result;
             } catch (\Exception $e) {
@@ -197,7 +197,7 @@ class InventoryController extends Controller
             try {
                 $result = $db->createCommand(
                     "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_sales_invoices
-                     WHERE is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                     WHERE is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued', 'Draft')"
                 )->queryScalar();
                 $stats['total_revenue'] = (float)$result;
             } catch (\Exception $e) {
@@ -209,7 +209,7 @@ class InventoryController extends Controller
             try {
                 $result = $db->createCommand(
                     "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
-                     WHERE is_deleted = 0 AND status IN ('Unpaid', 'Partially Paid')"
+                     WHERE is_deleted = 0 AND status IN ('Paid', 'Unpaid', 'Partially Paid')"
                 )->queryScalar();
                 $stats['total_purchases_value'] = (float)$result;
             } catch (\Exception $e) {

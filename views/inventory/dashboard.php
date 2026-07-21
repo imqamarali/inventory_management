@@ -173,6 +173,19 @@ $this->title = 'Student Dashboard';
             <div class="stat-subtitle">Total Sale Value</div>
         </div>
 
+        
+        <!-- Profit Loss -->
+        <div class="stat-card red">
+            <div class="stat-header">
+                <span class="stat-title">Profit/Loss</span>
+                <div class="stat-icon">
+                    <i class="fa fa-line-chart"></i>
+                </div>
+            </div>
+            <div class="stat-value" id="profit_loss">...</div>
+            <div class="stat-subtitle">Overall P/L</div>
+        </div>
+
         <!-- Today Purchase -->
         <div class="stat-card purple">
             <div class="stat-header">
@@ -197,17 +210,6 @@ $this->title = 'Student Dashboard';
             <div class="stat-subtitle">Today's Sale Total</div>
         </div>
 
-        <!-- Profit Loss -->
-        <div class="stat-card red">
-            <div class="stat-header">
-                <span class="stat-title">Profit/Loss</span>
-                <div class="stat-icon">
-                    <i class="fa fa-line-chart"></i>
-                </div>
-            </div>
-            <div class="stat-value" id="profit_loss">...</div>
-            <div class="stat-subtitle">Overall P/L</div>
-        </div>
 
         <!-- Balance Sheet Verification -->
         <div class="stat-card teal">
@@ -221,63 +223,6 @@ $this->title = 'Student Dashboard';
             <div class="stat-subtitle">Equation Verified</div>
         </div>
 
-    </div>
-
-    <!-- Balance Sheet Equation -->
-    <div class="row" style="margin-top: 20px;">
-        <div class="col-md-12">
-            <div class="dashboard-box">
-                <h4>
-                    <i class="fa fa-calculator"></i>
-                    Balance Sheet Equation: Assets = Liabilities + Equity
-                </h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 20px;">
-                    <!-- Assets -->
-                    <div style="background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 10px;">
-                            <i class="fa fa-bank"></i> ASSETS
-                        </div>
-                        <div id="total_assets" style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">...</div>
-                        <div style="font-size: 11px; opacity: 0.8;">
-                            Inventory + Receivables
-                        </div>
-                    </div>
-
-                    <!-- Equal Sign -->
-                    <div style="display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: #34495e;">
-                        =
-                    </div>
-
-                    <!-- Liabilities + Equity -->
-                    <div style="display: grid; grid-template-rows: 1fr 1fr; gap: 10px;">
-                        <!-- Liabilities -->
-                        <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">
-                                <i class="fa fa-credit-card"></i> LIABILITIES
-                            </div>
-                            <div id="total_liabilities" style="font-size: 18px; font-weight: bold;">...</div>
-                            <div style="font-size: 10px; opacity: 0.8;">Payables</div>
-                        </div>
-
-                        <!-- Equity -->
-                        <div style="background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 5px;">
-                                <i class="fa fa-shield"></i> EQUITY
-                            </div>
-                            <div id="total_equity" style="font-size: 18px; font-weight: bold;">...</div>
-                            <div style="font-size: 10px; opacity: 0.8;">Net Worth</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Verification Message -->
-                <div style="text-align: center; padding: 15px; background: #ecf0f1; border-radius: 6px; margin-top: 15px;">
-                    <div id="balance_verification" style="font-size: 12px; font-weight: 600; color: #34495e;">
-                        Verifying Balance Sheet Equation...
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Performance Charts -->
