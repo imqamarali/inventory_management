@@ -155,6 +155,10 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td class="text-right"><span id="paid-amount-<?= $item['id'] ?>"><?= number_format($item['paid_amount'] ?? 0, 2) ?></span></td>
                                 <td class="text-right"><span id="remaining-<?= $item['id'] ?>"><?= number_format($item['remaining_balance'] ?? 0, 2) ?></span></td>
                                 <td>
+                                    <button onclick="showStatusOptions(<?= $item['id'] ?>, '<?= $item['order_status'] ?>')" title="Update Status">
+                                        <i class="fa fa-exchange"></i>
+                                    </button>
+                                    |
                                     <button onclick='showOrderModal(<?= json_encode($item) ?>)' title="Edit">
                                         <i class="fa fa-pencil"></i>
                                     </button>
@@ -454,6 +458,85 @@ function invoiceStatusBadgeServer($status)
 
         });
 
+    }
+
+    function showStatusOptions(id, currentStatus) {
+        const statuses = ['Draft', 'Confirmed', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'];
+
+        const options = statuses
+            .map(s => `<option value="${s}">${s}</option>`)
+            .join('');
+
+        Swal.fire({
+            title: 'Update Sale Order Status',
+            html: `
+                <div style="text-align: left;">
+                    <label>Current Status: <strong>${currentStatus}</strong></label><br><br>
+                    <label>New Status:</label>
+                    <select id="newStatus" class="form-control" style="margin-top: 10px;">
+                        <option value="">-- Select Status --</option>
+                        ${options}
+                    </select>
+                </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Update Status',
+            confirmButtonColor: '#87B87F',
+            cancelButtonText: 'Cancel',
+            preConfirm: () => {
+                const status = $('#newStatus').val();
+                if (!status) {
+                    Swal.showValidationMessage('Please select a status');
+                    return false;
+                }
+                return status;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                updateSOStatus(id, result.value);
+            }
+        });
+    }
+
+    function updateSOStatus(id, status) {
+        Swal.fire({
+            title: 'Processing...',
+            text: 'Updating order status',
+            icon: 'info',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'updateStatus');
+        data.append('id', id);
+        data.append('status', status);
+
+        fetch('index.php?r=sale/salesorders', {
+            method: 'POST',
+            body: data
+        })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: res.message || 'Order status updated',
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        $('.ajax-module.active').trigger('click');
+                    });
+                } else {
+                    Swal.fire('Error', res.message || 'Failed to update status', 'error');
+                }
+            })
+            .catch(() => {
+                Swal.fire('Error', 'Failed to update order status', 'error');
+            });
     }
 
     function calcOrderGrandTotal() {

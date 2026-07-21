@@ -1533,6 +1533,29 @@ class SaleController extends Controller
                     }
                 }
 
+                if (isset($post['flag']) && $post['flag'] == 'updateStatus') {
+
+                    $db = Yii::$app->db;
+                    $orderId = (int)($post['id'] ?? 0);
+                    $newStatus = trim($post['status'] ?? '');
+
+                    if ($orderId <= 0 || empty($newStatus)) {
+                        return ['success' => false, 'message' => 'Invalid Order ID or status.'];
+                    }
+
+                    // Update order status
+                    $db->createCommand()->update(
+                        'inventory_sales_orders',
+                        ['order_status' => $newStatus, 'updated_at' => date('Y-m-d H:i:s')],
+                        ['id' => $orderId]
+                    )->execute();
+
+                    return [
+                        'success' => true,
+                        'message' => 'Sale Order status updated to ' . $newStatus . ' successfully.'
+                    ];
+                }
+
                 if (isset($post['flag']) && $post['flag'] == 'delete') {
 
                     Yii::$app->db->createCommand()->update(
