@@ -933,14 +933,20 @@ function statusBadgeServer($status)
     function calculateTotals() {
 
         let subtotal = 0;
+        let totalDiscount = 0;
+        let totalTax = 0;
 
         $('#purchaseItemTable tbody tr').each(function() {
 
             subtotal += parseFloat($(this).find('.item-total').val()) || 0;
+            totalDiscount += parseFloat($(this).find('.item-discount').val()) || 0;
+            totalTax += parseFloat($(this).find('.item-tax').val()) || 0;
 
         });
 
         $('#swal_subtotal').val(subtotal.toFixed(2));
+        $('#swal_discount').val(totalDiscount.toFixed(2));
+        $('#swal_tax').val(totalTax.toFixed(2));
 
         updateGrandTotal();
 
@@ -949,11 +955,10 @@ function statusBadgeServer($status)
     function updateGrandTotal() {
 
         let subtotal = parseFloat($('#swal_subtotal').val()) || 0;
-        let discount = parseFloat($('#swal_discount').val()) || 0;
-        let tax = parseFloat($('#swal_tax').val()) || 0;
         let freight = parseFloat($('#swal_freight').val()) || 0;
 
-        $('#swal_grand_total').val((subtotal - discount + tax + freight).toFixed(2));
+        // Subtotal already includes line-level discounts and taxes, so just add freight
+        $('#swal_grand_total').val((subtotal + freight).toFixed(2));
 
     }
     $(document).on('input', '#swal_discount,#swal_tax,#swal_freight', updateGrandTotal);
