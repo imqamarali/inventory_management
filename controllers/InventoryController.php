@@ -237,32 +237,17 @@ class InventoryController extends Controller
                 'pending_returns' => 0,
             ], $stats);
 
-            // Inventory Distribution Chart Data
-            $inventoryChart = [
-                ['name' => 'Products', 'value' => (int)$stats['total_products']],
-                ['name' => 'Warehouses', 'value' => (int)$stats['warehouses']],
-                ['name' => 'Customers', 'value' => (int)$stats['customers']],
-                ['name' => 'Suppliers', 'value' => (int)$stats['suppliers']],
-            ];
+            // Purchase Performance Chart Data (Last 12 months)
+            $purchasePerformance = $this->getPurchasePerformanceData();
 
-            // Sales vs Purchases Chart Data
-            $monthSalesTotal = $this->getMonthSalesTotal();
-            $monthPurchasesTotal = $this->getMonthPurchasesTotal();
-
-            $salesPurchaseChart = [
-                ['label' => 'Today', 'sales' => (float)$stats['today_sales'], 'purchases' => (float)$stats['today_purchases']],
-                ['label' => 'This Month', 'sales' => (float)$monthSalesTotal, 'purchases' => (float)$monthPurchasesTotal],
-            ];
-
-            // Monthly Overview Chart Data
-            $monthlyData = $this->getMonthlyChartData();
+            // Sales Performance Chart Data (Last 12 months)
+            $salesPerformance = $this->getSalesPerformanceData();
 
             return [
                 'success' => true,
                 'stats' => $stats,
-                'inventoryChart' => $inventoryChart,
-                'salesPurchaseChart' => $salesPurchaseChart,
-                'monthlyData' => $monthlyData,
+                'purchasePerformance' => $purchasePerformance,
+                'salesPerformance' => $salesPerformance,
             ];
         } catch (\Exception $e) {
             \Yii::error("Dashboard data error: " . $e->getMessage());
@@ -505,6 +490,68 @@ class InventoryController extends Controller
             }
         } catch (\Exception $e) {
             \Yii::error("Monthly chart data query failed: " . $e->getMessage());
+        }
+        return $data;
+    }
+
+    private function getPurchasePerformanceData()
+    {
+        $data = [];
+        try {
+            for ($i = 11; $i >= 0; $i--) {
+                $date = date('Y-m', strtotime("-$i months"));
+                try {
+                    $amount = Yii::$app->db->createCommand(
+                        "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
+                         WHERE DATE_FORMAT(created_at, '%Y-%m') = :date
+                         AND is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                    )->bindValue(':date', $date)->queryScalar();
+
+                    $data[] = [
+                        'label' => date('M', strtotime($date)),
+                        'amount' => (float)$amount,
+                    ];
+                } catch (\Exception $e) {
+                    \Yii::warning("Purchase performance data for $date failed: " . $e->getMessage());
+                    $data[] = [
+                        'label' => date('M', strtotime($date)),
+                        'amount' => 0,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Yii::error("Purchase performance query failed: " . $e->getMessage());
+        }
+        return $data;
+    }
+
+    private function getSalesPerformanceData()
+    {
+        $data = [];
+        try {
+            for ($i = 11; $i >= 0; $i--) {
+                $date = date('Y-m', strtotime("-$i months"));
+                try {
+                    $amount = Yii::$app->db->createCommand(
+                        "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_sales_invoices
+                         WHERE DATE_FORMAT(created_at, '%Y-%m') = :date
+                         AND is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                    )->bindValue(':date', $date)->queryScalar();
+
+                    $data[] = [
+                        'label' => date('M', strtotime($date)),
+                        'amount' => (float)$amount,
+                    ];
+                } catch (\Exception $e) {
+                    \Yii::warning("Sales performance data for $date failed: " . $e->getMessage());
+                    $data[] = [
+                        'label' => date('M', strtotime($date)),
+                        'amount' => 0,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Yii::error("Sales performance query failed: " . $e->getMessage());
         }
         return $data;
     }
