@@ -155,20 +155,28 @@ class InventoryController extends Controller
                 \Yii::warning("Pending sales orders query failed: " . $e->getMessage());
             }
 
-            // Today's Sales
+            // Today's Sales (from Sales Invoices)
             try {
-                $result = $db->createCommand("SELECT IFNULL(SUM(total_amount), 0) FROM inventory_sales_orders WHERE DATE(created_at) = CURDATE() AND is_deleted = 0")->queryScalar();
+                $result = $db->createCommand(
+                    "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_sales_invoices
+                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                )->queryScalar();
                 $stats['today_sales'] = (float)$result;
             } catch (\Exception $e) {
                 \Yii::warning("Today's sales query failed: " . $e->getMessage());
+                $stats['today_sales'] = 0;
             }
 
-            // Today's Purchases
+            // Today's Purchases (from Purchase Invoices)
             try {
-                $result = $db->createCommand("SELECT IFNULL(SUM(total_amount), 0) FROM inventory_purchase_orders WHERE DATE(created_at) = CURDATE() AND is_deleted = 0")->queryScalar();
+                $result = $db->createCommand(
+                    "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
+                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Unpaid', 'Partially Paid')"
+                )->queryScalar();
                 $stats['today_purchases'] = (float)$result;
             } catch (\Exception $e) {
                 \Yii::warning("Today's purchases query failed: " . $e->getMessage());
+                $stats['today_purchases'] = 0;
             }
 
             // Customers
@@ -185,20 +193,28 @@ class InventoryController extends Controller
                 \Yii::warning("Suppliers query failed: " . $e->getMessage());
             }
 
-            // Total Revenue
+            // Total Revenue (from Sales Invoices)
             try {
-                $result = $db->createCommand("SELECT IFNULL(SUM(total_amount), 0) FROM inventory_sales_orders WHERE is_deleted = 0")->queryScalar();
+                $result = $db->createCommand(
+                    "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_sales_invoices
+                     WHERE is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                )->queryScalar();
                 $stats['total_revenue'] = (float)$result;
             } catch (\Exception $e) {
                 \Yii::warning("Total revenue query failed: " . $e->getMessage());
+                $stats['total_revenue'] = 0;
             }
 
-            // Total Purchases Value
+            // Total Purchases Value (from Purchase Invoices)
             try {
-                $result = $db->createCommand("SELECT IFNULL(SUM(total_amount), 0) FROM inventory_purchase_orders WHERE is_deleted = 0")->queryScalar();
+                $result = $db->createCommand(
+                    "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
+                     WHERE is_deleted = 0 AND status IN ('Unpaid', 'Partially Paid')"
+                )->queryScalar();
                 $stats['total_purchases_value'] = (float)$result;
             } catch (\Exception $e) {
                 \Yii::warning("Total purchases value query failed: " . $e->getMessage());
+                $stats['total_purchases_value'] = 0;
             }
 
             // Pending Returns
@@ -217,9 +233,9 @@ class InventoryController extends Controller
                     "SELECT IFNULL(SUM(quantity * average_cost), 0) FROM inventory_stock WHERE is_deleted = 0"
                 )->queryScalar();
 
-                // Accounts Receivable: Remaining amount in unpaid sales invoices
+                // Accounts Receivable: Remaining balance in unpaid/partial sales invoices
                 $accountsReceivable = $db->createCommand(
-                    "SELECT IFNULL(SUM(remaining_amount), 0) FROM inventory_sales_invoices
+                    "SELECT IFNULL(SUM(remaining_balance), 0) FROM inventory_sales_invoices
                      WHERE is_deleted = 0 AND status IN ('Issued', 'Partially Paid')"
                 )->queryScalar();
 
@@ -232,8 +248,8 @@ class InventoryController extends Controller
             // Liabilities = Accounts Payable (unpaid purchase invoices)
             try {
                 $stats['total_liabilities'] = (float)$db->createCommand(
-                    "SELECT IFNULL(SUM(remaining_amount), 0) FROM inventory_purchase_invoices
-                     WHERE is_deleted = 0 AND status IN ('Issued', 'Partially Paid')"
+                    "SELECT IFNULL(SUM(balance_amount), 0) FROM inventory_purchase_invoices
+                     WHERE is_deleted = 0 AND status IN ('Unpaid', 'Partially Paid')"
                 )->queryScalar();
             } catch (\Exception $e) {
                 \Yii::warning("Total liabilities calculation failed: " . $e->getMessage());

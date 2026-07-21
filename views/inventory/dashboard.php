@@ -209,6 +209,18 @@ $this->title = 'Student Dashboard';
             <div class="stat-subtitle">Overall P/L</div>
         </div>
 
+        <!-- Balance Sheet Verification -->
+        <div class="stat-card teal">
+            <div class="stat-header">
+                <span class="stat-title">Balance Sheet</span>
+                <div class="stat-icon">
+                    <i class="fa fa-balance-scale"></i>
+                </div>
+            </div>
+            <div class="stat-value" id="balance_status" style="font-size: 14px;">...</div>
+            <div class="stat-subtitle">Equation Verified</div>
+        </div>
+
     </div>
 
     <!-- Balance Sheet Equation -->
@@ -436,11 +448,14 @@ $this->title = 'Student Dashboard';
         const isBalanced = Math.abs(assetsValue - liabilitiesEquitySum) <= tolerance;
 
         const verificationElement = $("#balance_verification");
+        const statusCard = $("#balance_status");
         if (isBalanced) {
             verificationElement.html(`<i class="fa fa-check-circle" style="color: #27ae60; margin-right: 5px;"></i><span style="color: #27ae60;">✓ Balance Sheet Equation Verified: ${assetsValue.toLocaleString()} = ${liabilitiesEquitySum.toLocaleString()}</span>`);
+            statusCard.html(`<span style="color: #27ae60; font-weight: bold;">✓ VERIFIED</span><br><span style="font-size: 11px; color: #27ae60;">${assetsValue.toLocaleString()} = ${liabilitiesEquitySum.toLocaleString()}</span>`);
         } else {
             const difference = Math.abs(assetsValue - liabilitiesEquitySum);
             verificationElement.html(`<i class="fa fa-exclamation-circle" style="color: #e74c3c; margin-right: 5px;"></i><span style="color: #e74c3c;">⚠ Imbalance Detected: Difference = PKR ${difference.toLocaleString()}</span>`);
+            statusCard.html(`<span style="color: #e74c3c; font-weight: bold;">⚠ IMBALANCE</span><br><span style="font-size: 11px; color: #e74c3c;">Diff: PKR ${difference.toLocaleString()}</span>`);
         }
 
     }
