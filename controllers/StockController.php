@@ -467,7 +467,7 @@ class StockController extends Controller
                     LEFT JOIN inventory_sales_invoice_items sii
                         ON sii.product_id=p.id
                     LEFT JOIN inventory_sales_invoices si
-                        ON si.id=sii.invoice_id AND si.status IN ('Paid', 'Partially Paid', 'Issued')
+                        ON si.id=sii.sales_invoice_id AND si.status IN ('Paid', 'Partially Paid', 'Issued')
                     $where
                     GROUP BY s.id, p.id
                     ORDER BY p.product_name ASC
@@ -507,7 +507,7 @@ class StockController extends Controller
                             COALESCE(SUM(sii.quantity), 0) as total_sold_qty,
                             COALESCE(SUM(sii.quantity * sii.unit_price), 0) as total_sold_amount
                         FROM inventory_sales_invoice_items sii
-                        LEFT JOIN inventory_sales_invoices si ON si.id = sii.invoice_id
+                        LEFT JOIN inventory_sales_invoices si ON si.id = sii.sales_invoice_id
                         WHERE sii.product_id = :product_id
                             AND si.status IN ('Paid', 'Partially Paid', 'Issued')
                             AND si.is_deleted = 0
