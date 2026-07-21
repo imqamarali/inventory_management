@@ -105,6 +105,7 @@ if (!isset($products)) $products = [];
                                 <th class="text-right">Average Cost</th>
                                 <th class="text-right">Sold Qty</th>
                                 <th class="text-right">Sold Amount</th>
+                                <th class="text-right">Remaining Amount</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -128,6 +129,7 @@ if (!isset($products)) $products = [];
                                     <td class="text-right"><?= number_format($item['average_cost'], 2) ?></td>
                                     <td class="text-right"><?= number_format($item['sold_quantity'] ?? 0, 2) ?></td>
                                     <td class="text-right"><?= number_format($item['sold_amount'] ?? 0, 2) ?></td>
+                                    <td class="text-right"><span id="remaining-<?= $item['id'] ?>"><?= number_format($item['remaining_amount'] ?? 0, 2) ?></span></td>
 
                                     <td>
                                         <?php if ($item['quantity'] <= 0) { ?>
@@ -242,7 +244,7 @@ if (!isset($products)) $products = [];
     function renderStock(rows) {
         let html = '';
         if (rows.length == 0) {
-            html = `<tr><td colspan="13" class="text-center">No Stock Found</td></tr>`;
+            html = `<tr><td colspan="14" class="text-center">No Stock Found</td></tr>`;
         } else {
             rows.forEach(function(item, index) {
                 let status = '<span class="label label-success">Available</span>';
@@ -263,6 +265,7 @@ if (!isset($products)) $products = [];
                     <td class="text-right">${parseFloat(item.average_cost??0).toFixed(2)}</td>
                     <td class="text-right">${parseFloat(item.sold_quantity??0).toFixed(2)}</td>
                     <td class="text-right">${parseFloat(item.sold_amount??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.remaining_amount??0).toFixed(2)}</td>
                     <td>${status}</td>
                     <td>
                         <button onclick='viewProductStats(${JSON.stringify(item).replace(/'/g, "&apos;")})' title="View Details">

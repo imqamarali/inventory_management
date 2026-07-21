@@ -452,7 +452,8 @@ class StockController extends Controller
                         w.warehouse_name,
                         w.warehouse_code,
                         COALESCE(SUM(sii.quantity), 0) as sold_quantity,
-                        COALESCE(SUM(sii.quantity * sii.unit_price), 0) as sold_amount
+                        COALESCE(SUM(sii.quantity * sii.unit_price), 0) as sold_amount,
+                        COALESCE(SUM(COALESCE(pi.grand_total, 0) - COALESCE(pi.paid_amount, 0)), 0) as remaining_amount
                     FROM inventory_stock s
                     INNER JOIN inventory_products p
                         ON p.id=s.product_id
@@ -468,6 +469,10 @@ class StockController extends Controller
                         ON sii.product_id=p.id
                     LEFT JOIN inventory_sales_invoices si
                         ON si.id=sii.sales_invoice_id AND si.status IN ('Paid', 'Partially Paid', 'Issued')
+                    LEFT JOIN inventory_purchase_invoice_items pii
+                        ON pii.product_id=p.id
+                    LEFT JOIN inventory_purchase_invoices pi
+                        ON pi.id=pii.purchase_invoice_id AND pi.status IN ('Paid', 'Partially Paid', 'Issued') AND pi.is_deleted = 0
                     $where
                     GROUP BY s.id, p.id
                     ORDER BY p.product_name ASC
@@ -495,7 +500,7 @@ class StockController extends Controller
                             COALESCE(SUM(pii.quantity), 0) as total_purchase_qty,
                             COALESCE(SUM(pii.quantity * pii.unit_price), 0) as total_purchase_amount
                         FROM inventory_purchase_invoice_items pii
-                        LEFT JOIN inventory_purchase_invoices pi ON pi.id = pii.invoice_id
+                        LEFT JOIN inventory_purchase_invoices pi ON pi.id = pii.purchase_invoice_id
                         WHERE pii.product_id = :product_id
                             AND pi.status IN ('Paid', 'Partially Paid', 'Issued')
                             AND pi.is_deleted = 0
