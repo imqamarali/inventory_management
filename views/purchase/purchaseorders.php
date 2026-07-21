@@ -352,7 +352,7 @@ function statusBadgeServer($status)
             html: `
                 <div style="text-align: left;">
                     <label>Current Status: <strong>${currentStatus}</strong></label><br><br>
-                    ${currentStatus !== 'Completed' ? '<label style="color: #0066cc; font-size: 13px;"><i class="fa fa-info-circle"></i> (On setting Status to Completed, it will automatically update stock quantities as well)</label><br><br>' : ''}
+                    <label style="color: #0066cc; font-size: 13px;"><i class="fa fa-info-circle"></i> (On setting Status to Completed, it will automatically update stock quantities as well)</label><br><br>
                     <label>New Status:</label>
                     <select id="newStatus" class="form-control" style="margin-top: 10px;">
                         <option value="">-- Select Status --</option>

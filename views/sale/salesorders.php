@@ -726,10 +726,37 @@ function invoiceStatusBadgeServer($status)
             let tr = $(this).closest('tr');
             let productId = $(this).val();
             let product = window.saleOrderViewData.products.find(p => p.id == productId);
+
+            if (!productId) {
+                clearWarning();
+                return;
+            }
+
+            // Check for duplicate product selection
+            let isDuplicate = false;
+            $('#saleItemTable tbody tr').each(function() {
+                if ($(this)[0] !== tr[0]) { // Don't compare with self
+                    let otherProductId = $(this).find('.item-product').val();
+                    if (otherProductId == productId) {
+                        isDuplicate = true;
+                        return false;
+                    }
+                }
+            });
+
+            if (isDuplicate) {
+                showWarning('This product is already added to the order. Please select a different product.');
+                $(this).val('').trigger('chosen:updated');
+                return;
+            }
+
+            clearWarning();
+
             if (product) {
                 tr.find('.item-rate').val(parseFloat(product.selling_price || 0).toFixed(2));
                 tr.find('.available-qty').text(parseFloat(product.available_quantity || 0).toFixed(2));
                 tr.find('.item-qty').attr('max', parseFloat(product.available_quantity || 0));
+                tr.find('.item-qty').val(1);
                 tr.find('.item-qty').trigger('input');
             }
         });
@@ -849,18 +876,32 @@ function invoiceStatusBadgeServer($status)
         let discount = parseFloat(tr.find('.item-discount').val()) || 0;
         let tax = parseFloat(tr.find('.item-tax').val()) || 0;
         let availableQty = parseFloat(tr.find('.available-qty').text()) || 0;
+        let productName = tr.find('.item-product option:selected').text();
 
         // Validate qty not exceeding available
         if (qty > availableQty) {
             tr.find('.item-qty').val(availableQty).css('border', '2px solid #ff6b6b');
             qty = availableQty;
-            Swal.fire('Warning', `Cannot exceed available quantity of ${availableQty}`, 'warning');
+            showWarning(`Invalid Qty for ${productName}: Cannot exceed available quantity of ${availableQty}. Qty has been reset to ${availableQty}.`);
         } else {
             tr.find('.item-qty').css('border', '');
         }
 
         let total = (qty * rate) - discount + tax;
         tr.find('.item-total').val(Math.max(0, total).toFixed(2));
+    }
+
+    function showWarning(message) {
+        let warningDiv = $('#saleOrderWarning');
+        if (warningDiv.length === 0) {
+            warningDiv = $(`<div id="saleOrderWarning" style="color: #d9534f; font-size: 12px; margin-bottom: 10px; padding: 8px 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;"></div>`);
+            $('#saleItemTable').before(warningDiv);
+        }
+        warningDiv.html('<i class="fa fa-exclamation-circle"></i> ' + message).show();
+    }
+
+    function clearWarning() {
+        $('#saleOrderWarning').fadeOut(300, function() { $(this).hide(); });
     }
 
     function calculateSaleOrderTotals() {

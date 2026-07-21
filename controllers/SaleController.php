@@ -1618,10 +1618,10 @@ class SaleController extends Controller
                         p.product_name,
                         p.sku,
                         p.selling_price,
-                        s.available_quantity
+                        COALESCE(s.available_quantity, 0) as available_quantity
                     FROM inventory_products p
                     LEFT JOIN inventory_stock s ON s.product_id=p.id AND s.warehouse_id=:warehouse_id
-                    WHERE p.is_deleted=0 AND p.is_active=1
+                    WHERE p.is_deleted=0 AND p.is_active=1 AND COALESCE(s.available_quantity, 0) > 0
                     ORDER BY p.product_name ASC
                 ")->bindValue(':warehouse_id', $warehouseId)->queryAll();
 
@@ -1741,6 +1741,9 @@ class SaleController extends Controller
                             'created_by' => $userId,
                             'is_deleted' => 0
                         ])->execute();
+
+                        // Update remaining quantity in stock
+                        $this->updateRemainingQuantity($db, $item['product_id'], $warehouseId, $item['quantity']);
                     }
 
                     // Update or create invoice
@@ -1803,6 +1806,9 @@ class SaleController extends Controller
                             'created_by' => $userId,
                             'is_deleted' => 0
                         ])->execute();
+
+                        // Update remaining quantity in stock
+                        $this->updateRemainingQuantity($db, $item['product_id'], $warehouseId, $item['quantity']);
                     }
 
                     // Create invoice for the sales order
@@ -2012,6 +2018,26 @@ class SaleController extends Controller
             return 'Partially Paid';
         }
         return 'Draft';
+    }
+
+    private function updateRemainingQuantity($db, $productId, $warehouseId, $quantity)
+    {
+        // Get current stock for the product in the warehouse
+        $stock = $db->createCommand("
+            SELECT id, available_quantity FROM inventory_stock
+            WHERE product_id = :product_id AND warehouse_id = :warehouse_id
+            LIMIT 1
+        ")->bindValues([':product_id' => $productId, ':warehouse_id' => $warehouseId])->queryOne();
+
+        if ($stock) {
+            // Update remaining quantity by subtracting the order quantity
+            $newAvailableQty = max(0, (float)$stock['available_quantity'] - (float)$quantity);
+            $db->createCommand()->update(
+                'inventory_stock',
+                ['available_quantity' => $newAvailableQty, 'updated_at' => date('Y-m-d H:i:s')],
+                ['id' => $stock['id']]
+            )->execute();
+        }
     }
 
     public function actionCreatesale()
