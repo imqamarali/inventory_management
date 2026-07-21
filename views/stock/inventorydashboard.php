@@ -50,110 +50,6 @@
 
 
 
-        <div class="stat-card green">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Active Items
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-check-circle"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="active_stock_items">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Active Stock
-            </div>
-
-        </div>
-
-
-
-        <div class="stat-card orange">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Quantity
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-cubes"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="total_quantity">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Total Quantity
-            </div>
-
-        </div>
-
-
-
-        <div class="stat-card purple">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Available
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-check"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="available_quantity">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Available Quantity
-            </div>
-
-        </div>
-
-
-
-        <div class="stat-card teal">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Reserved
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-lock"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="reserved_quantity">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Reserved Quantity
-            </div>
-
-        </div>
-
-
-
         <div class="stat-card red">
 
             <div class="stat-header">
@@ -206,26 +102,78 @@
 
 
 
-        <div class="stat-card blue">
+        <div class="stat-card orange">
 
             <div class="stat-header">
 
                 <span class="stat-title">
-                    Movements
+                    Total Purchase Value
                 </span>
 
                 <div class="stat-icon">
-                    <i class="fa fa-exchange"></i>
+                    <i class="fa fa-shopping-cart"></i>
                 </div>
 
             </div>
 
-            <div class="stat-value" id="stock_movements">
+            <div class="stat-value" id="total_purchase_value">
                 ...
             </div>
 
             <div class="stat-subtitle">
-                Stock Movements
+                All Purchase Invoices
+            </div>
+
+        </div>
+
+
+
+        <div class="stat-card purple">
+
+            <div class="stat-header">
+
+                <span class="stat-title">
+                    Total Sale Value
+                </span>
+
+                <div class="stat-icon">
+                    <i class="fa fa-dollar"></i>
+                </div>
+
+            </div>
+
+            <div class="stat-value" id="total_sale_value">
+                ...
+            </div>
+
+            <div class="stat-subtitle">
+                All Sales Invoices
+            </div>
+
+        </div>
+
+
+
+        <div class="stat-card teal">
+
+            <div class="stat-header">
+
+                <span class="stat-title">
+                    Overall Trend
+                </span>
+
+                <div class="stat-icon">
+                    <i class="fa fa-line-chart"></i>
+                </div>
+
+            </div>
+
+            <div class="stat-value" id="overall_trend">
+                ...
+            </div>
+
+            <div class="stat-subtitle">
+                Profit / Loss %
             </div>
 
         </div>
@@ -339,6 +287,27 @@
 
     <div class="row">
 
+        <div class="col-md-12">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-line-chart"></i>
+                    Daily Sales & Purchase Trend (Last 30 Days)
+                </h4>
+
+                <canvas id="trendChart" height="100"></canvas>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="row" style="margin-top:15px;">
+
         <div class="col-md-6">
 
             <div class="dashboard-box">
@@ -372,36 +341,15 @@
 
     </div>
 
-
-
-    <div class="row" style="margin-top:15px;">
-
-        <div class="col-md-12">
-
-            <div class="dashboard-box">
-
-                <h4>
-                    <i class="fa fa-line-chart"></i>
-                    Monthly Stock Movements
-                </h4>
-
-                <canvas id="monthlyChart" height="100"></canvas>
-
-            </div>
-
-        </div>
-
-    </div>
-
 </div>
 
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+    var trendChart = null;
     var warehouseChart = null;
     var movementChart = null;
-    var monthlyChart = null;
 
     $(function() {
 
@@ -428,9 +376,9 @@
                 if (response.success) {
                     loadStatistics(response.stats);
                     if (typeof Chart === 'function' || typeof Chart === 'object') {
+                        loadTrendChart(response.dailySalesData, response.dailyPurchaseData);
                         loadWarehouseChart(response.warehouseChart);
                         loadMovementChart(response.movementChart);
-                        loadMonthlyChart(response.monthlyMovements);
                     } else {
                         console.warn('Chart.js not loaded');
                     }
@@ -473,27 +421,24 @@
 
         animateCounter("#total_stock_items", stats.total_stock_items);
 
-        animateCounter("#active_stock_items", stats.active_stock_items);
-
-        animateCounter("#total_quantity", stats.total_quantity);
-
-        animateCounter("#available_quantity", stats.available_quantity);
-
-        animateCounter("#reserved_quantity", stats.reserved_quantity);
-
         animateCurrency("#inventory_value", stats.inventory_value);
 
         animateCounter("#stock_adjustments", stats.stock_adjustments);
 
-        animateCounter("#stock_movements", stats.stock_movements);
+        animateCurrency("#total_purchase_value", stats.total_purchase_value);
 
-        animateCounter("#stock_transfers", stats.stock_transfers);
+        animateCurrency("#total_sale_value", stats.total_sale_value);
 
-        animateCounter("#stock_audits", stats.stock_audits);
+        // Display overall trend with profit/loss indicator
+        const trendValue = stats.overall_trend;
+        const trendPercent = stats.profit_loss_percentage;
+        const trendElement = $("#overall_trend");
 
-        animateCounter("#pending_transfers", stats.pending_transfers);
-
-        animateCounter("#pending_audits", stats.pending_audits);
+        if (trendValue >= 0) {
+            trendElement.html(`<span style="color: #2ecc71;">+${trendPercent}%</span>`);
+        } else {
+            trendElement.html(`<span style="color: #e74c3c;">${trendPercent}%</span>`);
+        }
 
     }
 
@@ -560,6 +505,79 @@
                 }
 
             });
+
+    }
+
+    function loadTrendChart(salesData, purchaseData) {
+
+        if (trendChart) {
+            trendChart.destroy();
+        }
+
+        let labels = [];
+        let salesAmounts = [];
+        let purchaseAmounts = [];
+
+        $.each(salesData, function(i, row) {
+            labels.push(row.date);
+            salesAmounts.push(parseFloat(row.amount));
+        });
+
+        $.each(purchaseData, function(i, row) {
+            purchaseAmounts.push(parseFloat(row.amount));
+        });
+
+        trendChart = new Chart(
+            document.getElementById("trendChart"), {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Sales",
+                            data: salesAmounts,
+                            borderColor: "#2ecc71",
+                            backgroundColor: "rgba(46, 204, 113, 0.1)",
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: "#2ecc71"
+                        },
+                        {
+                            label: "Purchases",
+                            data: purchaseAmounts,
+                            borderColor: "#e74c3c",
+                            backgroundColor: "rgba(231, 76, 60, 0.1)",
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: "#e74c3c"
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'PKR ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
 
     }
 

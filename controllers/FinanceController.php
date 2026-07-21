@@ -1392,8 +1392,10 @@ class FinanceController extends Controller
             WHERE is_deleted=0 AND order_date>=:from_date AND order_date<=:to_date
         ", $params)->queryScalar();
 
-        $totalIncome = array_sum(array_column($income, 'total')) + $salesTotal;
-        $totalExpense = array_sum(array_column($expense, 'total')) + $purchaseTotal;
+        // $totalIncome = array_sum(array_column($income, 'total')) + $salesTotal;
+        // $totalExpense = array_sum(array_column($expense, 'total')) + $purchaseTotal;
+        $totalIncome = $salesTotal;
+        $totalExpense = $purchaseTotal;
 
         return [
             'income' => $income,

@@ -365,6 +365,10 @@ function invoiceStatusBadgeServer($status)
                 <td class="text-right">${paidAmount}</td>
                 <td class="text-right">${remaining}</td>
                 <td>
+                    <button onclick="showStatusOptions(${item.id}, '${item.order_status}')" title="Update Status">
+                        <i class="fa fa-exchange"></i>
+                    </button>
+                    |
                     <button onclick='showSaleOrderModal(${JSON.stringify(item)})' title="Edit">
                         <i class="fa fa-pencil"></i>
                     </button>
@@ -574,15 +578,15 @@ function invoiceStatusBadgeServer($status)
         const notes = isEdit ? (orderData.notes || '') : '';
 
         // Prevent editing if order is confirmed
-        // if (isEdit && orderStatus === 'Confirmed') {
-        //     Swal.fire({
-        //         icon: 'warning',
-        //         title: 'Cannot Edit',
-        //         text: 'This Sales Order is Confirmed and cannot be edited.',
-        //         confirmButtonColor: '#87B87F'
-        //     });
-        //     return;
-        // }
+        if (isEdit && orderStatus === 'Confirmed' && orderData.payment_status==="Paid") {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cannot Edit',
+                text: 'This Sales Order is Confirmed and cannot be edited.',
+                confirmButtonColor: '#87B87F'
+            });
+            return;
+        }
 
         let customerOptions = '<option value="">Walk-in Customer</option>';
         window.saleOrderViewData.customers.forEach(c => {

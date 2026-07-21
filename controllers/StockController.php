@@ -208,17 +208,27 @@ class StockController extends Controller
             $db = Yii::$app->db;
             $stats = [];
             $stats['total_stock_items'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock WHERE is_deleted=0")->queryScalar();
-            $stats['active_stock_items'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock WHERE is_deleted=0 AND is_active=1")->queryScalar();
-            $stats['total_quantity'] = (float)$db->createCommand("SELECT IFNULL(SUM(quantity),0) FROM inventory_stock WHERE is_deleted=0")->queryScalar();
-            $stats['available_quantity'] = (float)$db->createCommand("SELECT IFNULL(SUM(available_quantity),0) FROM inventory_stock WHERE is_deleted=0")->queryScalar();
-            $stats['reserved_quantity'] = (float)$db->createCommand("SELECT IFNULL(SUM(reserved_quantity),0) FROM inventory_stock WHERE is_deleted=0")->queryScalar();
             $stats['inventory_value'] = (float)$db->createCommand("SELECT IFNULL(SUM(quantity*average_cost),0) FROM inventory_stock WHERE is_deleted=0")->queryScalar();
             $stats['stock_adjustments'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock_adjustments WHERE is_deleted=0")->queryScalar();
-            $stats['stock_movements'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock_movements WHERE is_deleted=0")->queryScalar();
-            $stats['stock_transfers'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock_transfers WHERE is_deleted=0")->queryScalar();
-            $stats['stock_audits'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock_audits WHERE is_deleted=0")->queryScalar();
-            $stats['pending_transfers'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock_transfers WHERE is_deleted=0 AND status='Pending'")->queryScalar();
-            $stats['pending_audits'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_stock_audits WHERE is_deleted=0 AND status='Pending'")->queryScalar();
+
+            // Purchase and Sales metrics
+            $stats['total_purchase_value'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total), 0)
+                FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND status IN ('Paid', 'Partially Paid', 'Issued')
+            ")->queryScalar();
+
+            $stats['total_sale_value'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total), 0)
+                FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND status IN ('Paid', 'Partially Paid', 'Issued')
+            ")->queryScalar();
+
+            // Calculate overall trend (profit/loss)
+            $stats['overall_trend'] = $stats['total_sale_value'] - $stats['total_purchase_value'];
+            $stats['profit_loss_percentage'] = $stats['total_purchase_value'] > 0
+                ? round(($stats['overall_trend'] / $stats['total_purchase_value']) * 100, 2)
+                : 0;
 
             $warehouseChart = Yii::$app->db->createCommand("
                 SELECT
@@ -252,6 +262,29 @@ class StockController extends Controller
                 WHERE is_deleted=0
                 GROUP BY YEAR(movement_date),MONTH(movement_date)
                 ORDER BY YEAR(movement_date),MONTH(movement_date)
+            ")->queryAll();
+
+            // Daily Sales and Purchase Trend (last 30 days)
+            $dailySalesData = $db->createCommand("
+                SELECT
+                    DATE_FORMAT(created_at, '%Y-%m-%d') date,
+                    IFNULL(SUM(grand_total), 0) amount
+                FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    AND status IN ('Paid', 'Partially Paid', 'Issued')
+                GROUP BY DATE(created_at)
+                ORDER BY created_at ASC
+            ")->queryAll();
+
+            $dailyPurchaseData = $db->createCommand("
+                SELECT
+                    DATE_FORMAT(created_at, '%Y-%m-%d') date,
+                    IFNULL(SUM(grand_total), 0) amount
+                FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                    AND status IN ('Paid', 'Partially Paid', 'Issued')
+                GROUP BY DATE(created_at)
+                ORDER BY created_at ASC
             ")->queryAll();
 
             $latestMovements = $db->createCommand("
@@ -288,7 +321,9 @@ class StockController extends Controller
                 'movementChart' => $movementChart,
                 'monthlyMovements' => $monthlyMovements,
                 'latestMovements' => $latestMovements,
-                'recentTransfers' => $recentTransfers
+                'recentTransfers' => $recentTransfers,
+                'dailySalesData' => $dailySalesData,
+                'dailyPurchaseData' => $dailyPurchaseData
             ];
         } catch (\Exception $e) {
 
