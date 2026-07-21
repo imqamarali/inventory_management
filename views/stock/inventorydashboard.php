@@ -287,7 +287,7 @@
 
     <div class="row">
 
-        <div class="col-md-12">
+        <div class="col-md-6">
 
             <div class="dashboard-box">
 
@@ -297,6 +297,21 @@
                 </h4>
 
                 <canvas id="trendChart" height="100"></canvas>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-bar-chart"></i>
+                    Sales vs Purchase Difference
+                </h4>
+
+                <canvas id="differenceChart" height="100"></canvas>
 
             </div>
 
@@ -348,6 +363,7 @@
 
 <script>
     var trendChart = null;
+    var differenceChart = null;
     var warehouseChart = null;
     var movementChart = null;
 
@@ -377,6 +393,7 @@
                     loadStatistics(response.stats);
                     if (typeof Chart === 'function' || typeof Chart === 'object') {
                         loadTrendChart(response.dailySalesData, response.dailyPurchaseData);
+                        loadDifferenceChart(response.dailySalesData, response.dailyPurchaseData);
                         loadWarehouseChart(response.warehouseChart);
                         loadMovementChart(response.movementChart);
                     } else {
@@ -554,6 +571,66 @@
                             borderWidth: 2,
                             pointRadius: 3,
                             pointBackgroundColor: "#e74c3c"
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'PKR ' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
+    }
+
+    function loadDifferenceChart(salesData, purchaseData) {
+
+        if (differenceChart) {
+            differenceChart.destroy();
+        }
+
+        let labels = [];
+        let differences = [];
+        let colors = [];
+
+        $.each(salesData, function(i, row) {
+            labels.push(row.date);
+            let saleAmount = parseFloat(row.amount);
+            let purchaseAmount = parseFloat(purchaseData[i].amount);
+            let diff = saleAmount - purchaseAmount;
+            differences.push(diff);
+
+            // Color: green for profit (positive), red for loss (negative)
+            colors.push(diff >= 0 ? '#2ecc71' : '#e74c3c');
+        });
+
+        differenceChart = new Chart(
+            document.getElementById("differenceChart"), {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Profit/Loss",
+                            data: differences,
+                            backgroundColor: colors,
+                            borderColor: colors,
+                            borderWidth: 1
                         }
                     ]
                 },
