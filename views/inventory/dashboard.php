@@ -210,6 +210,17 @@ $this->title = 'Student Dashboard';
             <div class="stat-subtitle">Today's Sale Total</div>
         </div>
 
+        <!-- Today Profit/Loss -->
+        <div class="stat-card yellow">
+            <div class="stat-header">
+                <span class="stat-title">Today P/L</span>
+                <div class="stat-icon">
+                    <i class="fa fa-line-chart"></i>
+                </div>
+            </div>
+            <div class="stat-value" id="today_profit_loss">...</div>
+            <div class="stat-subtitle">Today's Profit/Loss</div>
+        </div>
 
         <!-- Balance Sheet Verification -->
         <div class="stat-card teal">
@@ -365,7 +376,7 @@ $this->title = 'Student Dashboard';
 
         animateCurrency("#today_sale", stats.today_sales);
 
-        // Calculate and display profit/loss
+        // Calculate and display overall profit/loss
         const profitLoss = stats.total_revenue - stats.total_purchases_value;
         const profitPercent = stats.total_purchases_value > 0
             ? ((profitLoss / stats.total_purchases_value) * 100).toFixed(2)
@@ -378,10 +389,18 @@ $this->title = 'Student Dashboard';
             profitElement.html(`<span style="color: #e74c3c; font-weight: bold;">-PKR ${Math.abs(profitLoss).toLocaleString()}</span><br><span style="font-size: 11px; color: #e74c3c;">(${profitPercent}%)</span>`);
         }
 
-        // Display Balance Sheet Equation
-        animateCurrency("#total_assets", stats.total_assets);
-        animateCurrency("#total_liabilities", stats.total_liabilities);
-        animateCurrency("#total_equity", stats.total_equity);
+        // Calculate and display today's profit/loss
+        const todayProfitLoss = stats.today_sales - stats.today_purchases;
+        const todayProfitPercent = stats.today_purchases > 0
+            ? ((todayProfitLoss / stats.today_purchases) * 100).toFixed(2)
+            : 0;
+
+        const todayProfitElement = $("#today_profit_loss");
+        if (todayProfitLoss >= 0) {
+            todayProfitElement.html(`<span style="color: #2ecc71; font-weight: bold;">+PKR ${Math.abs(todayProfitLoss).toLocaleString()}</span><br><span style="font-size: 11px; color: #2ecc71;">(+${todayProfitPercent}%)</span>`);
+        } else {
+            todayProfitElement.html(`<span style="color: #e74c3c; font-weight: bold;">-PKR ${Math.abs(todayProfitLoss).toLocaleString()}</span><br><span style="font-size: 11px; color: #e74c3c;">(${todayProfitPercent}%)</span>`);
+        }
 
         // Verify Balance Sheet Equation
         const assetsValue = parseFloat(stats.total_assets) || 0;
@@ -392,14 +411,11 @@ $this->title = 'Student Dashboard';
         const tolerance = 1; // Allow 1 PKR difference due to rounding
         const isBalanced = Math.abs(assetsValue - liabilitiesEquitySum) <= tolerance;
 
-        const verificationElement = $("#balance_verification");
         const statusCard = $("#balance_status");
         if (isBalanced) {
-            verificationElement.html(`<i class="fa fa-check-circle" style="color: #27ae60; margin-right: 5px;"></i><span style="color: #27ae60;">✓ Balance Sheet Equation Verified: ${assetsValue.toLocaleString()} = ${liabilitiesEquitySum.toLocaleString()}</span>`);
             statusCard.html(`<span style="color: #27ae60; font-weight: bold;">✓ VERIFIED</span><br><span style="font-size: 11px; color: #27ae60;">${assetsValue.toLocaleString()} = ${liabilitiesEquitySum.toLocaleString()}</span>`);
         } else {
             const difference = Math.abs(assetsValue - liabilitiesEquitySum);
-            verificationElement.html(`<i class="fa fa-exclamation-circle" style="color: #e74c3c; margin-right: 5px;"></i><span style="color: #e74c3c;">⚠ Imbalance Detected: Difference = PKR ${difference.toLocaleString()}</span>`);
             statusCard.html(`<span style="color: #e74c3c; font-weight: bold;">⚠ IMBALANCE</span><br><span style="font-size: 11px; color: #e74c3c;">Diff: PKR ${difference.toLocaleString()}</span>`);
         }
 
