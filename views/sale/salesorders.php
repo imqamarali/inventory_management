@@ -468,6 +468,9 @@ function invoiceStatusBadgeServer($status)
         let paidAmount = parseFloat($('#so_paid_amount').val()) || 0;
         let remaining = Math.max(0, grand - paidAmount);
         $('#so_remaining_amount').val(remaining.toFixed(2));
+
+        // Auto-set Order Status and Payment Status based on remaining amount
+        updateOrderStatusByRemaining(remaining, grand);
     }
 
     function showSaleOrderModal(orderData = null) {
@@ -894,7 +897,7 @@ function invoiceStatusBadgeServer($status)
     function showWarning(message) {
         let warningDiv = $('#saleOrderWarning');
         if (warningDiv.length === 0) {
-            warningDiv = $(`<div id="saleOrderWarning" style="color: #d9534f; font-size: 12px; margin-bottom: 10px; padding: 8px 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;"></div>`);
+            warningDiv = $(`<div id="saleOrderWarning" style="color: #d9534f; font-size: 12px; margin-bottom: 10px;margin-top:5px; padding: 8px 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;"></div>`);
             $('#saleItemTable').before(warningDiv);
         }
         warningDiv.html('<i class="fa fa-exclamation-circle"></i> ' + message).show();
@@ -931,6 +934,30 @@ function invoiceStatusBadgeServer($status)
         let paidAmount = parseFloat($('#so_paid_amount').val()) || 0;
         let remaining = grand - paidAmount;
         $('#so_remaining_amount').val(Math.max(0, remaining).toFixed(2));
+
+        // Auto-set Order Status and Payment Status based on remaining amount
+        updateOrderStatusByRemaining(remaining, grand);
+    }
+
+    function updateOrderStatusByRemaining(remaining, grand) {
+        // Auto-set Payment Status based on remaining amount
+        if (remaining === 0) {
+            // Fully paid
+            $('#so_order_status').val('Confirmed');
+            $('#so_payment_status').val('Paid');
+        } else if (remaining > 0 && remaining < grand) {
+            // Partially paid
+            $('#so_payment_status').val('Partial');
+            if ($('#so_order_status').val() === '') {
+                $('#so_order_status').val('Draft');
+            }
+        } else if (remaining === grand) {
+            // Not paid yet
+            $('#so_payment_status').val('Pending');
+            if ($('#so_order_status').val() === '') {
+                $('#so_order_status').val('Draft');
+            }
+        }
     }
 
     function loadSaleOrderItems(orderId) {
