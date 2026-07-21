@@ -9,10 +9,14 @@
             </h3>
         </div>
 
-        <div>
+        <div style="display: flex; gap: 10px;">
             <button id="refreshDashboard">
                 <i class="fa fa-refresh"></i>
                 Refresh
+            </button>
+            <button id="truncateStockDetails" style="background-color: #dc3545; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">
+                <i class="fa fa-trash"></i>
+                Truncate Stock Details
             </button>
         </div>
     </div>
@@ -769,5 +773,69 @@
         </div>`);
         $(document.body).prepend(alert);
         setTimeout(() => alert.fadeOut(), 5000);
+    }
+
+    // Truncate Stock Details Handler
+    document.getElementById('truncateStockDetails').addEventListener('click', function() {
+        Swal.fire({
+            title: 'Truncate Stock Details?',
+            html: '<div style="text-align: left;"><p style="margin-bottom: 15px;"><strong>⚠️ WARNING: This action is IRREVERSIBLE!</strong></p><p style="margin-bottom: 10px;">This will:</p><ul style="margin: 10px 0; padding-left: 20px;"><li>Delete all records from Stock Adjustment table</li><li>Delete all records from Damaged Stock table</li><li>Delete all Inventory Current Stock records</li><li>Add all Active products to Inventory Current Stock</li><li>Set all quantities to 0 and reserved to 0</li></ul></div>',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Delete All',
+            confirmButtonColor: '#dc3545',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Confirm by Type',
+                    text: 'Type "TRUNCATE" exactly to confirm this irreversible action',
+                    input: 'text',
+                    inputPlaceholder: 'Type TRUNCATE to confirm...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Truncate',
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonText: 'Cancel',
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Please type TRUNCATE';
+                        }
+                        if (value !== 'TRUNCATE') {
+                            return 'You must type exactly "TRUNCATE"';
+                        }
+                    }
+                }).then((confirmResult) => {
+                    if (confirmResult.isConfirmed) {
+                        truncateStockData();
+                    }
+                });
+            }
+        });
+    });
+
+    function truncateStockData() {
+        $.ajax({
+            url: '<?= Yii::$app->urlManager->createUrl("stock/inventorydashboard") ?>',
+            type: 'POST',
+            dataType: 'json',
+            data: { flag: 'truncate_stock' },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Deleted!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#0f4c29'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error!', response.message || 'Failed to truncate stock details', 'error');
+                }
+            },
+            error: function() {
+                Swal.fire('Error!', 'Failed to truncate stock details', 'error');
+            }
+        });
     }
 </script>

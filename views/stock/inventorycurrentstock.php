@@ -609,14 +609,6 @@ if (!isset($products)) $products = [];
                                 <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold; color: #333;">${htmlEscape(stockData.product_name)}</p>
                             </div>
                             <div>
-                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">SKU</p>
-                                <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">${htmlEscape(stockData.sku ?? 'N/A')}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Barcode</p>
-                                <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">${htmlEscape(stockData.barcode ?? 'N/A')}</p>
-                            </div>
-                            <div>
                                 <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Category</p>
                                 <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;">${htmlEscape(stockData.category_name ?? 'N/A')}</p>
                             </div>
@@ -629,7 +621,6 @@ if (!isset($products)) $products = [];
 
                     <!-- Row 2: Stock Information -->
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #4caf50;">
-                        <h5 style="margin: 0 0 15px 0; color: #333;">Stock Information</h5>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                             <div>
                                 <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Current Quantity</p>
@@ -652,7 +643,6 @@ if (!isset($products)) $products = [];
 
                     <!-- Row 3: Sales Statistics -->
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #2196f3;">
-                        <h5 style="margin: 0 0 15px 0; color: #333;">Sales & Purchase Statistics</h5>
                         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                             <div>
                                 <p style="margin: 0; color: #666; font-size: 11px; text-transform: uppercase; font-weight: bold;">Total Sales Qty</p>
@@ -674,8 +664,7 @@ if (!isset($products)) $products = [];
                     </div>
 
                     <!-- Edit Section -->
-                    <div style="background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #ff9800;">
-                        <h5 style="margin: 0 0 15px 0; color: #333;">Update Stock Information</h5>
+                    <div style="background: #fff3e0; padding: 15px; border-radius: 5px; border-left: 4px solid #ff9800;"> 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                             <div>
                                 <label style="display: block; color: #666; font-size: 12px; font-weight: bold; margin-bottom: 5px;">Quantity</label>

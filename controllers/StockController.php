@@ -114,6 +114,61 @@ class StockController extends Controller
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         try {
             $post = Yii::$app->request->post();
+
+            // Handle truncate stock details
+            if (isset($post['flag']) && $post['flag'] == 'truncate_stock') {
+                $db = Yii::$app->db;
+                $transaction = $db->beginTransaction();
+                try {
+                    // Delete all stock adjustments (if table exists)
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_adjustments WHERE is_deleted = 0 OR is_deleted = 1")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist, continue anyway
+                    }
+
+                    // Delete all damaged stock records (if table exists)
+                    try {
+                        $db->createCommand("DELETE FROM inventory_damaged_stock WHERE is_deleted = 0 OR is_deleted = 1")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist, continue anyway
+                    }
+
+                    // Delete all inventory current stock records
+                    $db->createCommand("DELETE FROM inventory_stock")->execute();
+
+                    // Get all active products and add them to inventory_stock with 0 quantities
+                    $activeProducts = $db->createCommand("SELECT id, unit_id FROM inventory_products WHERE is_active = 1 AND is_deleted = 0")->queryAll();
+
+                    foreach ($activeProducts as $product) {
+                        $db->createCommand()->insert('inventory_stock', [
+                            'product_id' => $product['id'],
+                            'warehouse_id' => 1,
+                            'quantity' => 0,
+                            'reserved_quantity' => 0,
+                            'available_quantity' => 0,
+                            'average_cost' => 0,
+                            'last_purchase_price' => 0,
+                            'is_active' => 1,
+                            'is_deleted' => 0,
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'created_by' => Yii::$app->user->id ?? 1,
+                            'updated_at' => date('Y-m-d H:i:s'),
+                            'updated_by' => Yii::$app->user->id ?? 1
+                        ])->execute();
+                    }
+
+                    $transaction->commit();
+                    return [
+                        'success' => true,
+                        'message' => 'Stock details truncated successfully. ' . count($activeProducts) . ' active products added to inventory with zero quantities.'
+                    ];
+                } catch (\Exception $e) {
+                    $transaction->rollBack();
+                    return ['success' => false, 'message' => 'Error truncating stock: ' . $e->getMessage()];
+                }
+            }
+
             if (!isset($post['flag']) || $post['flag'] != 'load_dashboard') {
                 return ['success' => false, 'message' => 'Invalid request.'];
             }

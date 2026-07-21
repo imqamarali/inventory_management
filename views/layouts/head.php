@@ -17,6 +17,11 @@
 <script src="assets/js/jquery.ui.touch-punch.min.js"></script>
 <script src="assets/js/jquery.gritter.min.js"></script>
 <script src="assets/js/bootbox.js"></script>
+
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="assets/css/sweetalert2.min.css">
+<script src="assets/js/sweetalert2.all.min.js"></script>
+
 <script src="assets/js/jquery.easypiechart.min.js"></script>
 <script src="assets/js/bootstrap-datepicker.min.js"></script>
 <script src="assets/js/jquery.hotkeys.index.min.js"></script>
