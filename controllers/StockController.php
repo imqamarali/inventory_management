@@ -117,7 +117,24 @@ class StockController extends Controller
 
             // Handle truncate stock details
             if (isset($post['flag']) && $post['flag'] == 'truncate_stock') {
-                $db = Yii::$app->db;
+                $password = Yii::$app->request->post('password', '');
+                $user_id = Yii::$app->user->id ?? 1;
+
+                // Verify password against admin user
+                $admin = $db->createCommand(
+                    "SELECT password FROM system_users WHERE id = :id AND is_active = 1",
+                    [':id' => $user_id]
+                )->queryOne();
+
+                if (!$admin) {
+                    return ['success' => false, 'message' => 'User not found'];
+                }
+
+                // Verify password using bcrypt
+                if (!password_verify($password, $admin['password'])) {
+                    return ['success' => false, 'message' => 'Invalid password'];
+                }
+
                 $transaction = $db->beginTransaction();
                 try {
                     // Delete all stock adjustments (if table exists)
@@ -152,13 +169,32 @@ class StockController extends Controller
                             'is_active' => 1,
                             'is_deleted' => 0,
                             'created_at' => date('Y-m-d H:i:s'),
-                            'created_by' => Yii::$app->user->id ?? 1,
+                            'created_by' => $user_id,
                             'updated_at' => date('Y-m-d H:i:s'),
-                            'updated_by' => Yii::$app->user->id ?? 1
+                            'updated_by' => $user_id
                         ])->execute();
                     }
 
                     $transaction->commit();
+
+                    // Log the action
+                    try {
+                        $db->createCommand()->insert(
+                            'activitylogs',
+                            [
+                                'activity' => 'Truncate Stock Details - Deleted all inventory stock records and repopulated with active products at zero quantities',
+                                'activitytype' => 'Truncate',
+                                'module' => 'Stock',
+                                'uid' => $user_id,
+                                'ip_address' => Yii::$app->request->userIP,
+                                'date' => date('Y-m-d'),
+                                'datetime' => date('Y-m-d H:i:s')
+                            ]
+                        )->execute();
+                    } catch (\Exception $e) {
+                        // Log table might not exist, continue anyway
+                    }
+
                     return [
                         'success' => true,
                         'message' => 'Stock details truncated successfully. ' . count($activeProducts) . ' active products added to inventory with zero quantities.'

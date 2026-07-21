@@ -788,37 +788,40 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.fire({
-                    title: 'Confirm by Type',
-                    text: 'Type "TRUNCATE" exactly to confirm this irreversible action',
-                    input: 'text',
-                    inputPlaceholder: 'Type TRUNCATE to confirm...',
+                    title: 'Enter Your Password',
+                    text: 'Please confirm by entering your Inventory Admin password',
+                    input: 'password',
+                    inputPlaceholder: 'Enter your password...',
                     showCancelButton: true,
-                    confirmButtonText: 'Truncate',
+                    confirmButtonText: 'Confirm',
                     confirmButtonColor: '#dc3545',
                     cancelButtonText: 'Cancel',
-                    inputValidator: (value) => {
-                        if (!value) {
-                            return 'Please type TRUNCATE';
-                        }
-                        if (value !== 'TRUNCATE') {
-                            return 'You must type exactly "TRUNCATE"';
-                        }
+                    inputAttributes: {
+                        autocapitalize: 'off',
+                        autocorrect: 'off'
                     }
-                }).then((confirmResult) => {
-                    if (confirmResult.isConfirmed) {
-                        truncateStockData();
+                }).then((passwordResult) => {
+                    if (passwordResult.isConfirmed) {
+                        const password = passwordResult.value;
+
+                        if (!password || password === '') {
+                            Swal.fire('Error!', 'Password is required', 'error');
+                            return;
+                        }
+
+                        truncateStockData(password);
                     }
                 });
             }
         });
     });
 
-    function truncateStockData() {
+    function truncateStockData(password) {
         $.ajax({
             url: '<?= Yii::$app->urlManager->createUrl("stock/inventorydashboard") ?>',
             type: 'POST',
             dataType: 'json',
-            data: { flag: 'truncate_stock' },
+            data: { flag: 'truncate_stock', password: password },
             success: function(response) {
                 if (response.success) {
                     Swal.fire({
