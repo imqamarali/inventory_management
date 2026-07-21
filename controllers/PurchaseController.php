@@ -149,11 +149,17 @@ class PurchaseController extends Controller
 
         if (!$po) return false;
 
+        // Get default purchase account from settings
+        $accountId = $db->createCommand(
+            "SELECT setting_value FROM inventory_settings WHERE setting_key='default_purchase_account' AND is_deleted=0"
+        )->queryScalar();
+
         $invoice_no = $this->generateInvoiceNumber('PI');
 
         $invoiceData = [
             'purchase_order_id' => $purchaseOrderId,
             'supplier_id' => $po['supplier_id'],
+            'account_id' => $accountId ?: null,
             'invoice_no' => $invoice_no,
             'invoice_date' => date('Y-m-d'),
             'due_date' => date('Y-m-d', strtotime($po['expected_date'] . ' + 30 days')),
@@ -319,8 +325,6 @@ class PurchaseController extends Controller
             ['name' => 'Purchase Invoices', 'controller' => 'purchase/purchaseinvoices', 'icon' => 'fa fa-file-text'],
             ['name' => 'Pending Purchases', 'controller' => 'purchase/pendingpurchases', 'icon' => 'fa fa-clock-o'],
             ['name' => 'Approved Purchases', 'controller' => 'purchase/approvedpurchases', 'icon' => 'fa fa-check-circle'],
-            ['name' => 'Purchase Returns', 'controller' => 'purchase/purchasereturns', 'icon' => 'fa fa-undo'],
-            ['name' => 'Supplier Payments', 'controller' => 'purchase/supplierpayments', 'icon' => 'fa fa-money'],
             ['name' => 'Purchase Reports', 'controller' => 'purchase/purchasereports', 'icon' => 'fa fa-bar-chart'],
             ['name' => 'Purchase Analytics', 'controller' => 'purchase/purchaseanalytics', 'icon' => 'fa fa-line-chart'],
         ];

@@ -309,7 +309,7 @@ class InventoryController extends Controller
                 'inventory_pos_payment_history',        // POS payment history (must be first)
                 'inventory_sales_returns',              // Sales returns
                 'inventory_sale_invoice_items',         // Invoice line items
-                'inventory_sale_invoices',              // Sales invoices
+                'inventory_sales_invoices',              // Sales invoices
                 'inventory_pos_items',                  // POS items
                 'inventory_pos_transactions',           // POS transactions
                 'inventory_pos_sales',                  // POS sales
@@ -683,11 +683,9 @@ class InventoryController extends Controller
             ['name' => 'Dashboard', 'controller' => 'purchase/purchasedashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Purchase Orders', 'controller' => 'purchase/purchaseorders', 'icon' => 'fa fa-shopping-cart'],
             ['name' => 'Goods Receiving', 'controller' => 'purchase/goodsreceiving', 'icon' => 'fa fa-truck'],
-            ['name' => 'Invoices', 'controller' => 'purchase/purchaseinvoices', 'icon' => 'fa fa-file-text'],
+            ['name' => 'Purchase Invoices', 'controller' => 'purchase/purchaseinvoices', 'icon' => 'fa fa-file-text'],
             ['name' => 'Pending Purchases', 'controller' => 'purchase/pendingpurchases', 'icon' => 'fa fa-clock-o'],
             ['name' => 'Approved Purchases', 'controller' => 'purchase/approvedpurchases', 'icon' => 'fa fa-check-circle'],
-            // ['name' => 'Purchase Returns', 'controller' => 'purchase/purchasereturns', 'icon' => 'fa fa-undo'],
-            ['name' => 'Supplier Payments', 'controller' => 'supplier/supplierpayments', 'icon' => 'fa fa-money'],
             ['name' => 'Purchase Reports', 'controller' => 'purchase/purchasereports', 'icon' => 'fa fa-bar-chart'],
             ['name' => 'Purchase Analytics', 'controller' => 'purchase/purchaseanalytics', 'icon' => 'fa fa-line-chart'],
         ]; 
@@ -715,16 +713,7 @@ class InventoryController extends Controller
         $modules = [
             ['name' => 'Customer Dashboard', 'controller' => 'customers/customerdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Customer List', 'controller' => 'customers/customerlist', 'icon' => 'fa fa-users'],
-            // ['name' => 'Add Customer', 'controller' => 'customers/addcustomer', 'icon' => 'fa fa-user-plus'],
-            // ['name' => 'Retail Customers', 'controller' => 'customers/retailcustomers', 'icon' => 'fa fa-shopping-cart'],
-            // ['name' => 'Workshop Customers', 'controller' => 'customers/workshopcustomers', 'icon' => 'fa fa-wrench'],
-            // ['name' => 'Fleet Customers', 'controller' => 'customers/fleetcustomers', 'icon' => 'fa fa-bus'],
-            // ['name' => 'Dealer Customers', 'controller' => 'customers/dealercustomers', 'icon' => 'fa fa-building'],
-            ['name' => 'Customer Ledger', 'controller' => 'customers/customerledger', 'icon' => 'fa fa-book'],
             ['name' => 'Customer Payments', 'controller' => 'customers/customerpayments', 'icon' => 'fa fa-money'],
-            ['name' => 'Sales History', 'controller' => 'customers/saleshistory', 'icon' => 'fa fa-history'],
-            // ['name' => 'Customer Returns', 'controller' => 'customers/customerreturns', 'icon' => 'fa fa-reply'],
-            ['name' => 'Outstanding Balance', 'controller' => 'customers/customerbalance', 'icon' => 'fa fa-credit-card'],
         ];
 
         return $this->render('index', compact('modules'));
@@ -751,14 +740,6 @@ class InventoryController extends Controller
         $modules = [
             ['name' => 'Finance Dashboard', 'controller' => 'finance/financedashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Chart of Accounts', 'controller' => 'finance/chartofaccounts', 'icon' => 'fa fa-sitemap'],
-            // ['name' => 'Cash Book', 'controller' => 'finance/cashbook', 'icon' => 'fa fa-money'],
-            // ['name' => 'Bank Accounts', 'controller' => 'finance/bankaccounts', 'icon' => 'fa fa-university'],
-            ['name' => 'Customer Receipts', 'controller' => 'finance/customerreceipts', 'icon' => 'fa fa-arrow-circle-down'],
-            // ['name' => 'Supplier Payments', 'controller' => 'supplier/supplierpayments', 'icon' => 'fa fa-arrow-circle-up'],
-            ['name' => 'Expenses', 'controller' => 'finance/expenses', 'icon' => 'fa fa-credit-card'],
-            ['name' => 'Journal Entries', 'controller' => 'finance/journalentries', 'icon' => 'fa fa-book'],
-            ['name' => 'General Ledger', 'controller' => 'finance/generalledger', 'icon' => 'fa fa-list-alt'],
-            ['name' => 'Trial Balance', 'controller' => 'finance/trialbalance', 'icon' => 'fa fa-balance-scale'],
             ['name' => 'Profit & Loss', 'controller' => 'finance/profitloss', 'icon' => 'fa fa-line-chart'],
             ['name' => 'Balance Sheet', 'controller' => 'finance/balancesheet', 'icon' => 'fa fa-file-text-o'],
         ];
@@ -2445,6 +2426,7 @@ class InventoryController extends Controller
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 purchase_order_id INT NULL,
                 supplier_id INT NULL,
+                account_id INT NULL,
                 invoice_no VARCHAR(100) NOT NULL,
                 invoice_date DATE NULL,
                 due_date DATE NULL,
@@ -2462,7 +2444,9 @@ class InventoryController extends Controller
                 is_deleted TINYINT(1) DEFAULT 0,
                 INDEX(purchase_order_id),
                 INDEX(supplier_id),
-                INDEX(status)
+                INDEX(account_id),
+                INDEX(status),
+                FOREIGN KEY(account_id) REFERENCES inventory_accounts(id) ON UPDATE CASCADE
                 ) ENGINE=InnoDB;
             ")->execute();
 
@@ -3128,7 +3112,7 @@ class InventoryController extends Controller
             ")->execute();
 
             $db->createCommand("
-            CREATE TABLE IF NOT EXISTS inventory_sale_invoices (
+            CREATE TABLE IF NOT EXISTS inventory_sales_invoices (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 invoice_no VARCHAR(100) UNIQUE,
                 sales_order_id INT NOT NULL,
@@ -3238,7 +3222,7 @@ class InventoryController extends Controller
                 INDEX(sales_invoice_id),
                 INDEX(customer_id),
                 FOREIGN KEY(sales_invoice_id)
-                    REFERENCES inventory_sale_invoices(id)
+                    REFERENCES inventory_sales_invoices(id)
                     ON UPDATE CASCADE,
                 FOREIGN KEY(customer_id)
                     REFERENCES inventory_customers(id)

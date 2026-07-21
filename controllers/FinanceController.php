@@ -74,11 +74,8 @@ class FinanceController extends Controller
 
     public function actionFinance()
     {
-        $modules = [
-            ['name' => 'Finance Summary', 'controller' => 'finance/financesummary', 'icon' => 'fa fa-dashboard'],
-            ['name' => 'Sales Records', 'controller' => 'finance/salesrecords', 'icon' => 'fa fa-shopping-cart'],
-            ['name' => 'Purchase Records', 'controller' => 'finance/purchaserecords', 'icon' => 'fa fa-shopping-bag'],
-            ['name' => 'Expense Records', 'controller' => 'finance/expenserecords', 'icon' => 'fa fa-credit-card'],
+         $modules = [
+            ['name' => 'Finance Dashboard', 'controller' => 'finance/financedashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Chart of Accounts', 'controller' => 'finance/chartofaccounts', 'icon' => 'fa fa-sitemap'],
             ['name' => 'Profit & Loss', 'controller' => 'finance/profitloss', 'icon' => 'fa fa-line-chart'],
             ['name' => 'Balance Sheet', 'controller' => 'finance/balancesheet', 'icon' => 'fa fa-file-text-o'],
@@ -109,10 +106,16 @@ class FinanceController extends Controller
     {
         try {
             $stats = $this->getFinanceStats();
+            $salesStats = $this->getSalesInvoiceStats();
+            $purchaseStats = $this->getPurchaseInvoiceStats();
             $accountTypeChart = $this->getAccountTypeChartData();
             $monthlyCashflow = $this->getMonthlyCashflowData();
+            $monthlySalesChart = $this->getMonthlySalesData();
+            $monthlyPurchaseChart = $this->getMonthlyPurchaseData();
             $recentTransactions = $this->getRecentTransactions();
             $recentPayments = $this->getRecentPayments();
+            $recentSalesInvoices = $this->getRecentSalesInvoices();
+            $recentPurchaseInvoices = $this->getRecentPurchaseInvoices();
 
             // Ensure all keys exist
             $stats = array_merge([
@@ -133,10 +136,16 @@ class FinanceController extends Controller
                 'success' => true,
                 'message' => 'Dashboard loaded.',
                 'stats' => $stats,
+                'salesStats' => $salesStats,
+                'purchaseStats' => $purchaseStats,
                 'accountTypeChart' => $accountTypeChart,
                 'monthlyCashflow' => $monthlyCashflow,
+                'monthlySalesChart' => $monthlySalesChart,
+                'monthlyPurchaseChart' => $monthlyPurchaseChart,
                 'recentTransactions' => $recentTransactions,
-                'recentPayments' => $recentPayments
+                'recentPayments' => $recentPayments,
+                'recentSalesInvoices' => $recentSalesInvoices,
+                'recentPurchaseInvoices' => $recentPurchaseInvoices
             ];
         } catch (\Exception $e) {
             \Yii::error("Finance dashboard error: " . $e->getMessage());
@@ -166,78 +175,78 @@ class FinanceController extends Controller
         try {
             $db = Yii::$app->db;
 
-            // Assets
+            // ===== TOTAL ASSETS = INVENTORY STOCK VALUE =====
             try {
-                $stats['total_assets'] = (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_accounts WHERE is_deleted=0 AND account_type='Asset'")->queryScalar();
+                $stats['total_assets'] = (float)$db->createCommand("
+                    SELECT IFNULL(SUM(quantity * average_cost), 0)
+                    FROM inventory_stock
+                    WHERE is_deleted=0
+                ")->queryScalar();
             } catch (\Exception $e) {
-                \Yii::warning("Total assets query failed: " . $e->getMessage());
+                \Yii::warning("Total assets (inventory stock) query failed: " . $e->getMessage());
             }
 
-            // Liabilities
+            // ===== TOTAL LIABILITIES = REMAINING PURCHASE INVOICE AMOUNT =====
+            // (SUM of grand_total - SUM of paid_amount for all purchase invoices)
             try {
-                $stats['total_liabilities'] = (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_accounts WHERE is_deleted=0 AND account_type='Liability'")->queryScalar();
+                $stats['total_liabilities'] = (float)$db->createCommand("
+                    SELECT IFNULL(SUM(grand_total - paid_amount), 0)
+                    FROM inventory_purchase_invoices
+                    WHERE is_deleted=0
+                ")->queryScalar();
             } catch (\Exception $e) {
-                \Yii::warning("Total liabilities query failed: " . $e->getMessage());
+                \Yii::warning("Total liabilities (purchase balance) query failed: " . $e->getMessage());
             }
 
-            // Equity
+            // ===== CUSTOMER RECEIVABLE = REMAINING SALES INVOICE AMOUNT =====
+            // (SUM of grand_total - SUM of paid_amount for all sales invoices)
             try {
-                $stats['total_equity'] = (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_accounts WHERE is_deleted=0 AND account_type='Equity'")->queryScalar();
+                $stats['customer_receivable'] = (float)$db->createCommand("
+                    SELECT IFNULL(SUM(grand_total - paid_amount), 0)
+                    FROM inventory_sales_invoices
+                    WHERE is_deleted=0
+                ")->queryScalar();
             } catch (\Exception $e) {
-                \Yii::warning("Total equity query failed: " . $e->getMessage());
+                \Yii::warning("Customer receivable (sales balance) query failed: " . $e->getMessage());
             }
 
-            // Income
+            // ===== SUPPLIER PAYABLE = SAME AS LIABILITIES =====
+            $stats['supplier_payable'] = $stats['total_liabilities'];
+
+            // ===== TOTAL INCOME = PAID SALES AMOUNT =====
             try {
-                $stats['total_income'] = (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_accounts WHERE is_deleted=0 AND account_type='Income'")->queryScalar();
+                $stats['total_income'] = (float)$db->createCommand("
+                    SELECT IFNULL(SUM(paid_amount), 0)
+                    FROM inventory_sales_invoices
+                    WHERE is_deleted=0
+                ")->queryScalar();
             } catch (\Exception $e) {
-                \Yii::warning("Total income query failed: " . $e->getMessage());
+                \Yii::warning("Total income (paid sales) query failed: " . $e->getMessage());
             }
 
-            // Expense
+            // ===== TOTAL EXPENSES = TOTAL PURCHASE AMOUNT =====
             try {
-                $stats['total_expense'] = (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_accounts WHERE is_deleted=0 AND account_type='Expense'")->queryScalar();
+                $stats['total_expense'] = (float)$db->createCommand("
+                    SELECT IFNULL(SUM(grand_total), 0)
+                    FROM inventory_purchase_invoices
+                    WHERE is_deleted=0
+                ")->queryScalar();
             } catch (\Exception $e) {
-                \Yii::warning("Total expense query failed: " . $e->getMessage());
+                \Yii::warning("Total expense (purchases) query failed: " . $e->getMessage());
             }
 
-            // Total Accounts
+            // ===== TOTAL ACCOUNTS =====
             try {
                 $stats['total_accounts'] = (int)$db->createCommand("SELECT COUNT(*) FROM inventory_accounts WHERE is_deleted=0")->queryScalar();
             } catch (\Exception $e) {
                 \Yii::warning("Total accounts query failed: " . $e->getMessage());
             }
 
-            // Total Receipts
-            try {
-                $stats['total_receipts'] = (float)$db->createCommand("SELECT IFNULL(SUM(amount),0) FROM inventory_payments WHERE is_deleted=0 AND payment_type='Receive'")->queryScalar();
-            } catch (\Exception $e) {
-                \Yii::warning("Total receipts query failed: " . $e->getMessage());
-            }
-
-            // Total Payouts
-            try {
-                $stats['total_payouts'] = (float)$db->createCommand("SELECT IFNULL(SUM(amount),0) FROM inventory_payments WHERE is_deleted=0 AND payment_type='Pay'")->queryScalar();
-            } catch (\Exception $e) {
-                \Yii::warning("Total payouts query failed: " . $e->getMessage());
-            }
-
-            // Cash Balance
-            $stats['cash_balance'] = $stats['total_receipts'] - $stats['total_payouts'];
-
-            // Customer Receivable
-            try {
-                $stats['customer_receivable'] = (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_customers WHERE is_deleted=0 AND current_balance>0")->queryScalar();
-            } catch (\Exception $e) {
-                \Yii::warning("Customer receivable query failed: " . $e->getMessage());
-            }
-
-            // Supplier Payable
-            try {
-                $stats['supplier_payable'] = (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_suppliers WHERE is_deleted=0 AND current_balance>0")->queryScalar();
-            } catch (\Exception $e) {
-                \Yii::warning("Supplier payable query failed: " . $e->getMessage());
-            }
+            // Legacy fields (not displayed but kept for backward compatibility)
+            $stats['total_equity'] = 0;
+            $stats['total_receipts'] = 0;
+            $stats['total_payouts'] = 0;
+            $stats['cash_balance'] = 0;
 
         } catch (\Exception $e) {
             \Yii::error("Finance stats error: " . $e->getMessage());
@@ -309,6 +318,278 @@ class FinanceController extends Controller
             ")->queryAll();
         } catch (\Exception $e) {
             \Yii::warning("Recent payments query failed: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /* ================================================================
+     * Sales Invoice Stats & Charts
+     * ================================================================ */
+    private function getSalesInvoiceStats()
+    {
+        $stats = [
+            'total_sales_invoices' => 0,
+            'total_sales_amount' => 0,
+            'paid_sales_amount' => 0,
+            'unpaid_sales_amount' => 0,
+            'partially_paid_sales' => 0,
+            'paid_sales_count' => 0,
+            'unpaid_sales_count' => 0,
+            'partially_paid_sales_count' => 0,
+            'avg_invoice_value' => 0
+        ];
+
+        try {
+            $db = Yii::$app->db;
+
+            // Total sales invoices count
+            $stats['total_sales_invoices'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_sales_invoices
+                WHERE is_deleted=0
+            ")->queryScalar();
+
+            // Total sales amount
+            $stats['total_sales_amount'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total),0) FROM inventory_sales_invoices
+                WHERE is_deleted=0
+            ")->queryScalar();
+
+            // Paid sales amount
+            $stats['paid_sales_amount'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total),0) FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND status='Paid'
+            ")->queryScalar();
+
+            // Unpaid sales amount
+            $stats['unpaid_sales_amount'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(remaining_balance),0) FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND status IN ('Issued', 'Partially Paid')
+            ")->queryScalar();
+
+            // Partially paid sales amount
+            $stats['partially_paid_sales'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total),0) FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND status='Partially Paid'
+            ")->queryScalar();
+
+            // Paid invoices count
+            $stats['paid_sales_count'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND status='Paid'
+            ")->queryScalar();
+
+            // Unpaid invoices count
+            $stats['unpaid_sales_count'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND status='Issued'
+            ")->queryScalar();
+
+            // Partially paid invoices count
+            $stats['partially_paid_sales_count'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_sales_invoices
+                WHERE is_deleted=0 AND status='Partially Paid'
+            ")->queryScalar();
+
+            // Average invoice value
+            if ($stats['total_sales_invoices'] > 0) {
+                $stats['avg_invoice_value'] = $stats['total_sales_amount'] / $stats['total_sales_invoices'];
+            }
+
+        } catch (\Exception $e) {
+            \Yii::warning("Sales invoice stats query failed: " . $e->getMessage());
+        }
+
+        return $stats;
+    }
+
+    /* ================================================================
+     * Purchase Invoice Stats & Charts
+     * ================================================================ */
+    private function getPurchaseInvoiceStats()
+    {
+        $stats = [
+            'total_purchase_invoices' => 0,
+            'total_purchase_amount' => 0,
+            'paid_purchase_amount' => 0,
+            'unpaid_purchase_amount' => 0,
+            'partially_paid_purchase' => 0,
+            'paid_purchase_count' => 0,
+            'unpaid_purchase_count' => 0,
+            'partially_paid_purchase_count' => 0,
+            'avg_purchase_value' => 0
+        ];
+
+        try {
+            $db = Yii::$app->db;
+
+            // Total purchase invoices count
+            $stats['total_purchase_invoices'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_purchase_invoices
+                WHERE is_deleted=0
+            ")->queryScalar();
+
+            // Total purchase amount
+            $stats['total_purchase_amount'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total),0) FROM inventory_purchase_invoices
+                WHERE is_deleted=0
+            ")->queryScalar();
+
+            // Paid purchase amount
+            $stats['paid_purchase_amount'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total),0) FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND status='Paid'
+            ")->queryScalar();
+
+            // Unpaid purchase amount (balance amount)
+            $stats['unpaid_purchase_amount'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(balance_amount),0) FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND status IN ('Pending', 'Partial')
+            ")->queryScalar();
+
+            // Partially paid purchase amount
+            $stats['partially_paid_purchase'] = (float)$db->createCommand("
+                SELECT IFNULL(SUM(grand_total),0) FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND status='Partial'
+            ")->queryScalar();
+
+            // Paid invoices count
+            $stats['paid_purchase_count'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND status='Paid'
+            ")->queryScalar();
+
+            // Unpaid invoices count
+            $stats['unpaid_purchase_count'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND status='Pending'
+            ")->queryScalar();
+
+            // Partially paid invoices count
+            $stats['partially_paid_purchase_count'] = (int)$db->createCommand("
+                SELECT COUNT(*) FROM inventory_purchase_invoices
+                WHERE is_deleted=0 AND status='Partial'
+            ")->queryScalar();
+
+            // Average purchase value
+            if ($stats['total_purchase_invoices'] > 0) {
+                $stats['avg_purchase_value'] = $stats['total_purchase_amount'] / $stats['total_purchase_invoices'];
+            }
+
+        } catch (\Exception $e) {
+            \Yii::warning("Purchase invoice stats query failed: " . $e->getMessage());
+        }
+
+        return $stats;
+    }
+
+    /* ================================================================
+     * Monthly Sales Data for Chart
+     * ================================================================ */
+    private function getMonthlySalesData()
+    {
+        try {
+            return Yii::$app->db->createCommand("
+                SELECT
+                    DATE_FORMAT(invoice_date,'%b %Y') month,
+                    COUNT(*) invoice_count,
+                    SUM(grand_total) total_sales,
+                    SUM(paid_amount) paid_sales,
+                    SUM(remaining_balance) unpaid_sales
+                FROM inventory_sales_invoices
+                WHERE is_deleted=0
+                GROUP BY YEAR(invoice_date), MONTH(invoice_date)
+                ORDER BY YEAR(invoice_date), MONTH(invoice_date)
+            ")->queryAll();
+        } catch (\Exception $e) {
+            \Yii::warning("Monthly sales data query failed: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /* ================================================================
+     * Monthly Purchase Data for Chart
+     * ================================================================ */
+    private function getMonthlyPurchaseData()
+    {
+        try {
+            return Yii::$app->db->createCommand("
+                SELECT
+                    DATE_FORMAT(invoice_date,'%b %Y') month,
+                    COUNT(*) invoice_count,
+                    SUM(grand_total) total_purchase,
+                    SUM(paid_amount) paid_purchase,
+                    SUM(balance_amount) unpaid_purchase
+                FROM inventory_purchase_invoices
+                WHERE is_deleted=0
+                GROUP BY YEAR(invoice_date), MONTH(invoice_date)
+                ORDER BY YEAR(invoice_date), MONTH(invoice_date)
+            ")->queryAll();
+        } catch (\Exception $e) {
+            \Yii::warning("Monthly purchase data query failed: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /* ================================================================
+     * Recent Sales Invoices
+     * ================================================================ */
+    private function getRecentSalesInvoices()
+    {
+        try {
+            return Yii::$app->db->createCommand("
+                SELECT
+                    si.id,
+                    si.invoice_no,
+                    si.invoice_date,
+                    si.grand_total,
+                    si.paid_amount,
+                    si.remaining_balance,
+                    si.status,
+                    c.customer_code,
+                    COALESCE(CONCAT(c.first_name, ' ', c.last_name), c.company_name) customer_name,
+                    a.account_code,
+                    a.account_name
+                FROM inventory_sales_invoices si
+                LEFT JOIN inventory_customers c ON si.customer_id = c.id
+                LEFT JOIN inventory_accounts a ON si.account_id = a.id
+                WHERE si.is_deleted=0
+                ORDER BY si.invoice_date DESC, si.id DESC
+                LIMIT 10
+            ")->queryAll();
+        } catch (\Exception $e) {
+            \Yii::warning("Recent sales invoices query failed: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /* ================================================================
+     * Recent Purchase Invoices
+     * ================================================================ */
+    private function getRecentPurchaseInvoices()
+    {
+        try {
+            return Yii::$app->db->createCommand("
+                SELECT
+                    pi.id,
+                    pi.invoice_no,
+                    pi.invoice_date,
+                    pi.grand_total,
+                    pi.paid_amount,
+                    pi.balance_amount,
+                    pi.status,
+                    s.supplier_code,
+                    s.supplier_name,
+                    a.account_code,
+                    a.account_name
+                FROM inventory_purchase_invoices pi
+                LEFT JOIN inventory_suppliers s ON pi.supplier_id = s.id
+                LEFT JOIN inventory_accounts a ON pi.account_id = a.id
+                WHERE pi.is_deleted=0
+                ORDER BY pi.invoice_date DESC, pi.id DESC
+                LIMIT 10
+            ")->queryAll();
+        } catch (\Exception $e) {
+            \Yii::warning("Recent purchase invoices query failed: " . $e->getMessage());
             return [];
         }
     }
@@ -1520,7 +1801,7 @@ class FinanceController extends Controller
 
             $receivables = (float)$db->createCommand(
                 "SELECT IFNULL(SUM(grand_total), 0)
-                 FROM inventory_sale_invoices
+                 FROM inventory_sales_invoices
                  WHERE is_deleted=0 AND status IN ('Unpaid', 'Partial')"
             )->queryScalar();
 

@@ -153,7 +153,7 @@
     .stat-card {
         page-break-inside: avoid !important;
         flex: 1 !important;
-        min-width: 150px !important;
+        min-width: 250px !important;
         border: 1px solid #ccc !important;
         padding: 8px !important;
         font-size: 10px !important;

@@ -50,6 +50,63 @@ class DocumentsController extends Controller
         ];
     }
 
+    private function addPaymentStatusWatermark(&$pdf, $status)
+    {
+        // Determine watermark text and color based on payment status
+        $watermarkText = strtoupper($status ?? 'PENDING');
+
+        // Set color and opacity based on payment status
+        switch (strtolower($status ?? '')) {
+            case 'paid':
+                // Green for Paid
+                $pdf->SetTextColor(34, 139, 34);
+                $alpha = 0.30;
+                break;
+            case 'partially paid':
+                // Orange for Partially Paid
+                $pdf->SetTextColor(255, 140, 0);
+                $alpha = 0.30;
+                break;
+            case 'unpaid':
+                // Red for Unpaid
+                $pdf->SetTextColor(220, 20, 60);
+                $alpha = 0.30;
+                break;
+            case 'draft':
+                // Gray for Draft
+                $pdf->SetTextColor(128, 128, 128);
+                $alpha = 0.25;
+                break;
+            default:
+                // Default gray
+                $pdf->SetTextColor(100, 100, 100);
+                $alpha = 0.25;
+        }
+
+        // Save current settings
+        $pdf->SetAlpha($alpha);
+        $pdf->SetFont('times', 'B', 65);
+
+        // Get page dimensions
+        $pageWidth = $pdf->getPageWidth();
+        $pageHeight = $pdf->getPageHeight();
+
+        // Exact center position
+        $x = $pageWidth / 2;
+        $y = $pageHeight / 2;
+
+        // Rotate text 45 degrees (text direction from top to right)
+        $pdf->StartTransform();
+        $pdf->Rotate(45, $x, $y);
+        $pdf->SetXY($x - 30, $y - 30);
+        $pdf->Cell(80, 40, $watermarkText, 0, 0, 'C', false);
+        $pdf->StopTransform();
+
+        // Restore opacity and text color
+        $pdf->SetAlpha(1);
+        $pdf->SetTextColor(0, 0, 0);
+    }
+
     public function actionPurchaseorder()
     {
         try {
@@ -160,7 +217,7 @@ class DocumentsController extends Controller
             $invoice = null;
             $paymentHistory = [];
             $invoice = $db->createCommand("
-                SELECT * FROM inventory_sale_invoices
+                SELECT * FROM inventory_sales_invoices
                 WHERE sales_order_id = :id AND is_deleted = 0
                 LIMIT 1
             ", [':id' => $soId])->queryOne();
@@ -319,24 +376,9 @@ class DocumentsController extends Controller
         $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
 
-        // Add status watermark if invoice is paid
-        if ($invoice && isset($invoice['paid_amount']) && isset($invoice['grand_total'])) {
-            $paidAmount = (float)$invoice['paid_amount'];
-            $grandTotal = (float)$invoice['grand_total'];
-            $balanceAmount = $grandTotal - $paidAmount;
-
-            if ($balanceAmount <= 0) {
-                $pdf->SetAlpha(0.15);
-                $pdf->SetFont('times', 'B', 70);
-                $pdf->SetTextColor(100, 100, 100);
-                $pageWidth = $pdf->getPageWidth();
-                $pageHeight = $pdf->getPageHeight();
-                $pdf->SetXY(15, ($pageHeight / 2) - 20);
-                $pdf->SetFont('times', 'B', 70);
-                $pdf->Cell($pageWidth - 30, 40, 'PAID', 0, 0, 'C', false);
-                $pdf->SetAlpha(1);
-                $pdf->SetTextColor(0, 0, 0);
-            }
+        // Add diagonal payment status watermark if invoice exists
+        if ($invoice && isset($invoice['status'])) {
+            $this->addPaymentStatusWatermark($pdf, $invoice['status']);
         }
 
         // Header
@@ -482,26 +524,66 @@ class DocumentsController extends Controller
             }
         }
 
-        // Payment History section
+        // Payment History section (Purchase Invoice)
         if (!empty($paymentHistory)) {
             $pdf->Ln(5);
+
+            // Check if we need a new page for payment history
+            $currentY = $pdf->GetY();
+            $pageHeight = $pdf->getPageHeight();
+            $estimatedHeight = 40 + (count($paymentHistory) * 6); // Estimate height needed
+
+            if ($currentY + $estimatedHeight > $pageHeight - 20) {
+                $pdf->AddPage();
+            }
+
             $pdf->SetFont('times', 'B', 10);
             $pdf->SetFillColor(0, 0, 0);
             $pdf->SetTextColor(255, 255, 255);
             $pdf->Cell(0, 6, 'Payment History', 1, 1, 'L', true);
 
             $pdf->SetTextColor(0, 0, 0);
-            $pdf->SetFont('times', 'B', 9);
-            $pdf->Cell(40, 6, 'Payment Date', 1, 0, 'C');
-            $pdf->Cell(40, 6, 'Amount Paid', 1, 0, 'R');
+            $pdf->SetFont('times', 'B', 8);
+            $pdf->Cell(30, 6, 'Payment Date', 1, 0, 'C');
+            $pdf->Cell(30, 6, 'Amount Paid', 1, 0, 'R');
+            $pdf->Cell(30, 6, 'Cumulative', 1, 0, 'R');
+            $pdf->Cell(30, 6, 'Remaining', 1, 0, 'R');
             $pdf->Cell(0, 6, 'Remarks', 1, 1, 'L');
 
-            $pdf->SetFont('times', '', 8);
-            foreach ($paymentHistory as $payment) {
-                $pdf->Cell(40, 6, date('m/d/Y', strtotime($payment['payment_date'] ?? 'now')), 1, 0, 'C');
-                $pdf->Cell(40, 6, number_format($payment['paid_amount'] ?? 0, 2), 1, 0, 'R');
-                $pdf->Cell(0, 6, substr($payment['remarks'] ?? '', 0, 50), 1, 1, 'L');
+            $pdf->SetFont('times', '', 7);
+
+            // Sort payments by date (oldest first) for cumulative calculation
+            $sortedPayments = $paymentHistory;
+            usort($sortedPayments, function($a, $b) {
+                return strtotime($a['payment_date']) - strtotime($b['payment_date']);
+            });
+
+            $cumulativePaid = 0;
+            $grandTotal = (float)($invoice['grand_total'] ?? 0);
+
+            foreach ($sortedPayments as $payment) {
+                $paymentAmount = (float)($payment['paid_amount'] ?? 0);
+                $cumulativePaid += $paymentAmount;
+                $remainingBalance = $grandTotal - $cumulativePaid;
+
+                $pdf->Cell(30, 6, date('m/d/Y', strtotime($payment['payment_date'] ?? 'now')), 1, 0, 'C');
+                $pdf->Cell(30, 6, number_format($paymentAmount, 2), 1, 0, 'R');
+                $pdf->Cell(30, 6, number_format($cumulativePaid, 2), 1, 0, 'R');
+                $pdf->Cell(30, 6, number_format(max(0, $remainingBalance), 2), 1, 0, 'R');
+                $pdf->Cell(0, 6, substr($payment['remarks'] ?? '', 0, 30), 1, 1, 'L');
             }
+
+            // Summary row
+            $pdf->SetFont('times', 'B', 8);
+            $pdf->SetFillColor(220, 220, 220);
+            $paidAmount = (float)($invoice['paid_amount'] ?? 0);
+            $balanceAmount = $grandTotal - $paidAmount;
+            $pdf->Cell(30, 6, 'Total', 1, 0, 'C', true);
+            $pdf->Cell(30, 6, number_format($paidAmount, 2), 1, 0, 'R', true);
+            $pdf->Cell(30, 6, number_format($paidAmount, 2), 1, 0, 'R', true);
+            $pdf->Cell(30, 6, number_format(max(0, $balanceAmount), 2), 1, 0, 'R', true);
+            $pdf->Cell(0, 6, count($paymentHistory) . ' payment(s)', 1, 1, 'L', true);
+            $pdf->SetFillColor(255, 255, 255);
 
             $pdf->Ln(2);
         }
@@ -533,24 +615,9 @@ class DocumentsController extends Controller
         $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
 
-        // Add status watermark if invoice is paid
-        if ($invoice && isset($invoice['paid_amount']) && isset($invoice['grand_total'])) {
-            $paidAmount = (float)$invoice['paid_amount'];
-            $grandTotal = (float)$invoice['grand_total'];
-            $balanceAmount = $grandTotal - $paidAmount;
-
-            if ($balanceAmount <= 0) {
-                $pdf->SetAlpha(0.15);
-                $pdf->SetFont('times', 'B', 70);
-                $pdf->SetTextColor(100, 100, 100);
-                $pageWidth = $pdf->getPageWidth();
-                $pageHeight = $pdf->getPageHeight();
-                $pdf->SetXY(15, ($pageHeight / 2) - 20);
-                $pdf->SetFont('times', 'B', 70);
-                $pdf->Cell($pageWidth - 30, 40, 'PAID', 0, 0, 'C', false);
-                $pdf->SetAlpha(1);
-                $pdf->SetTextColor(0, 0, 0);
-            }
+        // Add diagonal payment status watermark if invoice exists
+        if ($invoice && isset($invoice['status'])) {
+            $this->addPaymentStatusWatermark($pdf, $invoice['status']);
         }
 
         // Header
@@ -913,19 +980,8 @@ class DocumentsController extends Controller
         $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
 
-        // Add status watermark (centered)
-        $status = $invoice['status'] ?? 'PENDING';
-        $pdf->SetAlpha(0.15);
-        $pdf->SetFont('times', 'B', 70);
-        $pdf->SetTextColor(100, 100, 100);
-        // Center the watermark on the page (A4 width is ~210mm)
-        $pageWidth = $pdf->getPageWidth();
-        $pageHeight = $pdf->getPageHeight();
-        $pdf->SetXY(15, ($pageHeight / 2) - 20);
-        $pdf->SetFont('times', 'B', 70);
-        $pdf->Cell($pageWidth - 30, 40, strtoupper($status), 0, 0, 'C', false);
-        $pdf->SetAlpha(1);
-        $pdf->SetTextColor(0, 0, 0);
+        // Add diagonal payment status watermark
+        $this->addPaymentStatusWatermark($pdf, $invoice['status'] ?? 'PENDING');
 
         // Header - Receipt title on left
         $pdf->SetXY(15, 16);
@@ -1082,13 +1138,17 @@ class DocumentsController extends Controller
         $pdf->SetFont('times', 'B', 10);
         $pdf->Cell(50, 6, 'Discount', 0, 0, 'R');
         $pdf->SetFont('times', '', 10);
-        $pdf->Cell(0, 6, number_format($invoice['discount_amount'] ?? 0, 2), 0, 1, 'R');
+        // Support both old (discount_amount) and new (discount) field names
+        $discount = $invoice['discount_amount'] ?? $invoice['discount'] ?? 0;
+        $pdf->Cell(0, 6, number_format($discount, 2), 0, 1, 'R');
 
         $pdf->SetX(120);
         $pdf->SetFont('times', 'B', 10);
         $pdf->Cell(50, 6, 'Tax', 0, 0, 'R');
         $pdf->SetFont('times', '', 10);
-        $pdf->Cell(0, 6, number_format($invoice['tax_amount'] ?? 0, 2), 0, 1, 'R');
+        // Support both old (tax_amount) and new (tax) field names
+        $tax = $invoice['tax_amount'] ?? $invoice['tax'] ?? 0;
+        $pdf->Cell(0, 6, number_format($tax, 2), 0, 1, 'R');
 
         $pdf->SetX(120);
         $pdf->SetFont('times', 'B', 11);
@@ -1168,9 +1228,12 @@ class DocumentsController extends Controller
             $db = Yii::$app->db;
 
             $invoice = $db->createCommand("
-                SELECT si.*, c.company_name, c.first_name, c.last_name, c.email, c.phone, c.address
-                FROM inventory_sale_invoices si
+                SELECT si.*, c.company_name, c.first_name, c.last_name, c.email, c.phone, c.address,
+                       so.order_number, w.warehouse_name
+                FROM inventory_sales_invoices si
                 LEFT JOIN inventory_customers c ON c.id = si.customer_id
+                LEFT JOIN inventory_sales_orders so ON so.id = si.sales_order_id
+                LEFT JOIN inventory_warehouses w ON w.id = si.warehouse_id
                 WHERE si.id = :id AND si.is_deleted = 0
                 LIMIT 1
             ", [':id' => $invoiceId])->queryOne();
@@ -1185,7 +1248,7 @@ class DocumentsController extends Controller
                 SELECT sii.*, p.product_name, p.sku
                 FROM inventory_sale_invoice_items sii
                 LEFT JOIN inventory_products p ON p.id = sii.product_id
-                WHERE sii.sale_invoice_id = :id AND sii.is_deleted = 0
+                WHERE sii.sales_invoice_id = :id AND sii.is_deleted = 0
                 ORDER BY sii.id
             ", [':id' => $invoiceId])->queryAll();
 
@@ -1318,18 +1381,8 @@ class DocumentsController extends Controller
         $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
 
-        // Add status watermark (centered)
-        $status = $invoice['status'] ?? 'PENDING';
-        $pdf->SetAlpha(0.15);
-        $pdf->SetFont('times', 'B', 70);
-        $pdf->SetTextColor(100, 100, 100);
-        $pageWidth = $pdf->getPageWidth();
-        $pageHeight = $pdf->getPageHeight();
-        $pdf->SetXY(15, ($pageHeight / 2) - 20);
-        $pdf->SetFont('times', 'B', 70);
-        $pdf->Cell($pageWidth - 30, 40, strtoupper($status), 0, 0, 'C', false);
-        $pdf->SetAlpha(1);
-        $pdf->SetTextColor(0, 0, 0);
+        // Add diagonal payment status watermark
+        $this->addPaymentStatusWatermark($pdf, $invoice['status'] ?? 'PENDING');
 
         // Header - Receipt title on left
         $pdf->SetXY(15, 16);
@@ -1371,7 +1424,7 @@ class DocumentsController extends Controller
         $pdf->SetFont('times', 'B', 9);
         $pdf->Cell(50, 5, 'Sales Order:', 0, 0);
         $pdf->SetFont('times', '', 9);
-        $pdf->Cell(40, 5, 'SO-' . ($invoice['sales_order_id'] ?? 'N/A'), 0, 0);
+        $pdf->Cell(40, 5, $invoice['order_number'] ?? 'N/A', 0, 0);
         $pdf->SetX(135);
         $pdf->SetFont('times', 'B', 9);
         $pdf->Cell(30, 5, 'Status:', 0, 0);
@@ -1433,9 +1486,13 @@ class DocumentsController extends Controller
             $pdf->Cell(50, 6, substr($item['product_name'] ?? 'N/A', 0, 25), 1, 0, 'L');
             $pdf->Cell(18, 6, number_format($item['quantity'] ?? 0, 2), 1, 0, 'C');
             $pdf->Cell(18, 6, number_format($item['unit_price'] ?? 0, 2), 1, 0, 'R');
-            $pdf->Cell(18, 6, number_format($item['discount_amount'] ?? 0, 2), 1, 0, 'R');
-            $pdf->Cell(15, 6, number_format($item['tax_amount'] ?? 0, 2), 1, 0, 'R');
-            $pdf->Cell(0, 6, number_format($item['total_amount'] ?? 0, 2), 1, 1, 'R');
+            // Support both old (discount_amount) and new (discount) field names
+            $discount = $item['discount_amount'] ?? $item['discount'] ?? 0;
+            $tax = $item['tax_amount'] ?? $item['tax'] ?? 0;
+            $total = $item['total_amount'] ?? $item['total'] ?? 0;
+            $pdf->Cell(18, 6, number_format($discount, 2), 1, 0, 'R');
+            $pdf->Cell(15, 6, number_format($tax, 2), 1, 0, 'R');
+            $pdf->Cell(0, 6, number_format($total, 2), 1, 1, 'R');
         }
 
         // Empty rows for additional items
@@ -1461,13 +1518,17 @@ class DocumentsController extends Controller
         $pdf->SetFont('times', 'B', 10);
         $pdf->Cell(50, 6, 'Discount', 0, 0, 'R');
         $pdf->SetFont('times', '', 10);
-        $pdf->Cell(0, 6, number_format($invoice['discount_amount'] ?? 0, 2), 0, 1, 'R');
+        // Support both old (discount_amount) and new (discount) field names
+        $discount = $invoice['discount_amount'] ?? $invoice['discount'] ?? 0;
+        $pdf->Cell(0, 6, number_format($discount, 2), 0, 1, 'R');
 
         $pdf->SetX(120);
         $pdf->SetFont('times', 'B', 10);
         $pdf->Cell(50, 6, 'Tax', 0, 0, 'R');
         $pdf->SetFont('times', '', 10);
-        $pdf->Cell(0, 6, number_format($invoice['tax_amount'] ?? 0, 2), 0, 1, 'R');
+        // Support both old (tax_amount) and new (tax) field names
+        $tax = $invoice['tax_amount'] ?? $invoice['tax'] ?? 0;
+        $pdf->Cell(0, 6, number_format($tax, 2), 0, 1, 'R');
 
         $pdf->SetX(120);
         $pdf->SetFont('times', 'B', 11);
@@ -1504,6 +1565,15 @@ class DocumentsController extends Controller
 
         // Payment History Section
         if (!empty($paymentHistory)) {
+            // Check if we need a new page for payment history (Sales Invoice)
+            $currentY = $pdf->GetY();
+            $pageHeight = $pdf->getPageHeight();
+            $estimatedHeight = 50 + (count($paymentHistory) * 6); // Estimate height needed
+
+            if ($currentY + $estimatedHeight > $pageHeight - 20) {
+                $pdf->AddPage();
+            }
+
             $pdf->SetFont('times', 'B', 10);
             $pdf->SetFillColor(0, 0, 0);
             $pdf->SetTextColor(255, 255, 255);
@@ -1588,22 +1658,13 @@ class DocumentsController extends Controller
         $pdf->SetAutoPageBreak(true, 15);
         $pdf->AddPage();
 
-        // Determine status for watermark
+        // Determine payment status for watermark
         $grandTotal = (float)($pos['grand_total'] ?? 0);
         $paidAmount = (float)($pos['paid_amount'] ?? 0);
-        $status = ($paidAmount >= $grandTotal) ? 'PAID' : (($paidAmount > 0) ? 'PARTIAL' : 'UNPAID');
+        $status = ($paidAmount >= $grandTotal) ? 'Paid' : (($paidAmount > 0) ? 'Partially Paid' : 'Unpaid');
 
-        // Add status watermark (centered)
-        $pdf->SetAlpha(0.15);
-        $pdf->SetFont('times', 'B', 70);
-        $pdf->SetTextColor(100, 100, 100);
-        $pageWidth = $pdf->getPageWidth();
-        $pageHeight = $pdf->getPageHeight();
-        $pdf->SetXY(15, ($pageHeight / 2) - 20);
-        $pdf->SetFont('times', 'B', 70);
-        $pdf->Cell($pageWidth - 30, 40, $status, 0, 0, 'C', false);
-        $pdf->SetAlpha(1);
-        $pdf->SetTextColor(0, 0, 0);
+        // Add diagonal payment status watermark
+        $this->addPaymentStatusWatermark($pdf, $status);
 
         // Header - Receipt title on left
         $pdf->SetXY(15, 16);

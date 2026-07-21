@@ -15,7 +15,7 @@
  *
  * DATA MANAGEMENT:
  * - Stores returns in: inventory_sales_returns table
- * - Foreign key: references inventory_sale_invoices (sales_invoice_id)
+ * - Foreign key: references inventory_sales_invoices (sales_invoice_id)
  * - Records: return_no, sales_invoice_id, customer_id, return_date, reason,
  *            subtotal, tax_amount, grand_total, status, remarks
  * - Status values: Pending, Approved, Completed

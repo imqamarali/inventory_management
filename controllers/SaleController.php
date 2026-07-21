@@ -31,14 +31,41 @@ class SaleController extends Controller
     private function generateSaleInvoiceNumber()
     {
         $db = Yii::$app->db;
-        $count = $db->createCommand("SELECT COUNT(*) + 1 FROM inventory_sale_invoices")->queryScalar();
+        $count = $db->createCommand("SELECT COUNT(*) + 1 FROM inventory_sales_invoices")->queryScalar();
         return 'SINV-' . date('Y') . '-' . str_pad($count, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function recordInvoicePayment($invoiceId, $paidAmount, $oldPaidAmount = 0, $remarks = 'Initial Payment', $user_id = null)
+    {
+        $db = Yii::$app->db;
+        $user_id = $user_id ?? $this->currentUserId();
+
+        // Calculate payment difference
+        $paymentDifference = $paidAmount - $oldPaidAmount;
+
+        // Always create payment record if there's any payment (including initial)
+        if ($paymentDifference > 0) {
+            $db->createCommand()->insert(
+                'inventory_sale_invoice_payments',
+                [
+                    'sale_invoice_id' => $invoiceId,
+                    'paid_amount' => $paymentDifference,
+                    'payment_date' => date('Y-m-d'),
+                    'remarks' => $remarks,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'created_by' => $user_id
+                ]
+            )->execute();
+
+            return true;
+        }
+
+        return false;
     }
 
     private function postSaleToGL($sales_order_id, $invoice_no, $grand_total, $user_id)
     {
         $db = Yii::$app->db;
-        $db_user = Yii::$app->db;
 
         try {
             // Get default sales account from settings
@@ -47,7 +74,34 @@ class SaleController extends Controller
             )->queryScalar();
 
             if (!$salesAccountId) {
+                \Yii::warning("postSaleToGL: Sales account not configured");
                 return false; // Sales account not configured
+            }
+
+            // Debit: Accounts Receivable Account (Customer receivable tracking)
+            $arAccountId = $db->createCommand(
+                "SELECT id FROM inventory_accounts WHERE account_code='1200' AND is_deleted=0 LIMIT 1"
+            )->queryScalar();
+
+            // If AR account doesn't exist, try to create it
+            if (!$arAccountId) {
+                $db->createCommand()->insert('inventory_accounts', [
+                    'account_code' => '1200',
+                    'account_name' => 'Accounts Receivable',
+                    'account_type' => 'Asset',
+                    'current_balance' => 0,
+                    'is_active' => 1,
+                    'is_deleted' => 0,
+                    'created_at' => date('Y-m-d H:i:s')
+                ])->execute();
+
+                $arAccountId = $db->getLastInsertID();
+                \Yii::warning("postSaleToGL: Created missing AR account (ID: " . $arAccountId . ")");
+            }
+
+            if (!$arAccountId) {
+                \Yii::warning("postSaleToGL: Could not create AR account");
+                return false;
             }
 
             $transactionNo = 'SALE-' . $invoice_no;
@@ -68,40 +122,144 @@ class SaleController extends Controller
                 'is_deleted' => 0
             ])->execute();
 
-            // Debit: Accounts Receivable Account (Customer receivable tracking)
+            // Debit: Accounts Receivable
+            $db->createCommand()->insert('inventory_transactions', [
+                'transaction_no' => $transactionNo . '-DR',
+                'transaction_date' => date('Y-m-d'),
+                'reference_type' => 'Sale',
+                'reference_id' => $sales_order_id,
+                'account_id' => $arAccountId,
+                'transaction_type' => 'Debit',
+                'amount' => $grand_total,
+                'remarks' => 'Account Receivable - Invoice: ' . $invoice_no,
+                'created_at' => date('Y-m-d H:i:s'),
+                'created_by' => $user_id,
+                'is_active' => 1,
+                'is_deleted' => 0
+            ])->execute();
+
+            // Update account balance for Sales Revenue
+            $db->createCommand()->update('inventory_accounts', [
+                'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
+            ], ['id' => $salesAccountId])->execute();
+
+            // Update account balance for Accounts Receivable
+            $db->createCommand()->update('inventory_accounts', [
+                'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
+            ], ['id' => $arAccountId])->execute();
+
+            return true;
+        } catch (\Exception $e) {
+            \Yii::error("postSaleToGL error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function postSalePaymentToGL($sales_order_id, $invoice_no, $paid_amount, $user_id)
+    {
+        $db = Yii::$app->db;
+
+        try {
+            // Get default cash/bank account from settings
+            $cashAccountId = $db->createCommand(
+                "SELECT setting_value FROM inventory_settings WHERE setting_key='default_cash_account' AND is_deleted=0"
+            )->queryScalar();
+
+            // If no cash account configured, try to find the main cash account (usually 1100)
+            if (!$cashAccountId) {
+                $cashAccountId = $db->createCommand(
+                    "SELECT id FROM inventory_accounts WHERE account_code='1100' AND is_deleted=0 LIMIT 1"
+                )->queryScalar();
+            }
+
+            // If still no cash account, try to create it
+            if (!$cashAccountId) {
+                $db->createCommand()->insert('inventory_accounts', [
+                    'account_code' => '1100',
+                    'account_name' => 'Cash at Bank',
+                    'account_type' => 'Asset',
+                    'current_balance' => 0,
+                    'is_active' => 1,
+                    'is_deleted' => 0,
+                    'created_at' => date('Y-m-d H:i:s')
+                ])->execute();
+
+                $cashAccountId = $db->getLastInsertID();
+                \Yii::warning("postSalePaymentToGL: Created missing Cash account (ID: " . $cashAccountId . ")");
+            }
+
+            // Get AR account
             $arAccountId = $db->createCommand(
                 "SELECT id FROM inventory_accounts WHERE account_code='1200' AND is_deleted=0 LIMIT 1"
             )->queryScalar();
 
-            if ($arAccountId) {
-                $db->createCommand()->insert('inventory_transactions', [
-                    'transaction_no' => $transactionNo . '-DR',
-                    'transaction_date' => date('Y-m-d'),
-                    'reference_type' => 'Sale',
-                    'reference_id' => $sales_order_id,
-                    'account_id' => $arAccountId,
-                    'transaction_type' => 'Debit',
-                    'amount' => $grand_total,
-                    'remarks' => 'Account Receivable - Invoice: ' . $invoice_no,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'created_by' => $user_id,
+            // If AR account doesn't exist, try to create it
+            if (!$arAccountId) {
+                $db->createCommand()->insert('inventory_accounts', [
+                    'account_code' => '1200',
+                    'account_name' => 'Accounts Receivable',
+                    'account_type' => 'Asset',
+                    'current_balance' => 0,
                     'is_active' => 1,
-                    'is_deleted' => 0
+                    'is_deleted' => 0,
+                    'created_at' => date('Y-m-d H:i:s')
                 ])->execute();
 
-                // Update account balance for Sales Revenue
-                $db->createCommand()->update('inventory_accounts', [
-                    'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
-                ], ['id' => $salesAccountId])->execute();
-
-                // Update account balance for Accounts Receivable
-                $db->createCommand()->update('inventory_accounts', [
-                    'current_balance' => new \yii\db\Expression('current_balance + ' . $grand_total)
-                ], ['id' => $arAccountId])->execute();
+                $arAccountId = $db->getLastInsertID();
+                \Yii::warning("postSalePaymentToGL: Created missing AR account (ID: " . $arAccountId . ")");
             }
+
+            if (!$cashAccountId || !$arAccountId) {
+                \Yii::error("postSalePaymentToGL: Could not get/create required accounts");
+                return false;
+            }
+
+            $transactionNo = 'PAYMENT-' . $invoice_no;
+
+            // Debit: Cash/Bank Account
+            $db->createCommand()->insert('inventory_transactions', [
+                'transaction_no' => $transactionNo . '-DR',
+                'transaction_date' => date('Y-m-d'),
+                'reference_type' => 'Sale',
+                'reference_id' => $sales_order_id,
+                'account_id' => $cashAccountId,
+                'transaction_type' => 'Debit',
+                'amount' => $paid_amount,
+                'remarks' => 'Sale Payment Received - Invoice: ' . $invoice_no,
+                'created_at' => date('Y-m-d H:i:s'),
+                'created_by' => $user_id,
+                'is_active' => 1,
+                'is_deleted' => 0
+            ])->execute();
+
+            // Credit: Accounts Receivable (reduce AR)
+            $db->createCommand()->insert('inventory_transactions', [
+                'transaction_no' => $transactionNo . '-CR',
+                'transaction_date' => date('Y-m-d'),
+                'reference_type' => 'Sale',
+                'reference_id' => $sales_order_id,
+                'account_id' => $arAccountId,
+                'transaction_type' => 'Credit',
+                'amount' => $paid_amount,
+                'remarks' => 'Sale Payment - Reduce AR - Invoice: ' . $invoice_no,
+                'created_at' => date('Y-m-d H:i:s'),
+                'created_by' => $user_id,
+                'is_active' => 1,
+                'is_deleted' => 0
+            ])->execute();
+
+            // Update account balances
+            $db->createCommand()->update('inventory_accounts', [
+                'current_balance' => new \yii\db\Expression('current_balance + ' . $paid_amount)
+            ], ['id' => $cashAccountId])->execute();
+
+            $db->createCommand()->update('inventory_accounts', [
+                'current_balance' => new \yii\db\Expression('current_balance - ' . $paid_amount)
+            ], ['id' => $arAccountId])->execute();
 
             return true;
         } catch (\Exception $e) {
+            \Yii::error("postSalePaymentToGL error: " . $e->getMessage());
             return false;
         }
     }
@@ -120,7 +278,7 @@ class SaleController extends Controller
         $status = ($paid_amount >= $grand_total) ? 'Paid' : (($paid_amount > 0) ? 'Partial' : 'Unpaid');
 
         $db->createCommand()->insert(
-            'inventory_sale_invoices',
+            'inventory_sales_invoices',
             [
                 'sales_order_id' => null,
                 'invoice_no' => $invoice_no,
@@ -156,12 +314,24 @@ class SaleController extends Controller
                     'created_by' => $user_id
                 ]
             )->execute();
+
+            // Post POS payment to GL
+            $this->postSalePaymentToGL($pos_sales_id, $invoice_no, $paid_amount, $user_id);
+        }
+
+        // Auto-update invoice status if fully paid (for POS, invoice status updates to Paid when balance is zero)
+        if ($remaining_balance <= 0) {
+            $db->createCommand()->update(
+                'inventory_sales_invoices',
+                ['status' => 'Paid', 'updated_at' => date('Y-m-d H:i:s')],
+                ['id' => $invoice_id]
+            )->execute();
         }
 
         return $invoice_no;
     }
 
-    private function createSaleInvoiceFromSalesOrder($sales_order_id, $subtotal, $discount_amount, $tax_amount, $grand_total, $user_id)
+    private function createSaleInvoiceFromSalesOrder($sales_order_id, $subtotal, $discount_amount, $tax_amount, $grand_total, $user_id, $paid_amount = 0)
     {
         $db = Yii::$app->db;
 
@@ -175,10 +345,11 @@ class SaleController extends Controller
         }
 
         $invoice_no = $this->generateSaleInvoiceNumber();
-        $status = 'Unpaid';
+        $remaining_balance = $grand_total - $paid_amount;
+        $status = ($paid_amount >= $grand_total) ? 'Paid' : (($paid_amount > 0) ? 'Partially Paid' : 'Draft');
 
         $db->createCommand()->insert(
-            'inventory_sale_invoices',
+            'inventory_sales_invoices',
             [
                 'sales_order_id' => $sales_order_id,
                 'invoice_no' => $invoice_no,
@@ -186,13 +357,13 @@ class SaleController extends Controller
                 'invoice_date' => $order['order_date'],
                 'due_date' => $order['delivery_date'] ?? date('Y-m-d', strtotime('+30 days')),
                 'subtotal' => $subtotal,
-                'discount_amount' => $discount_amount,
-                'tax_amount' => $tax_amount,
+                'discount' => $discount_amount,
+                'tax' => $tax_amount,
                 'grand_total' => $grand_total,
-                'paid_amount' => 0,
-                'remaining_balance' => $grand_total,
+                'paid_amount' => $paid_amount,
+                'remaining_balance' => max(0, $remaining_balance),
                 'status' => $status,
-                'remarks' => 'Auto-generated from Sales Order ID: ' . $sales_order_id,
+                'notes' => 'Auto-generated from Sales Order ID: ' . $sales_order_id,
                 'created_at' => date('Y-m-d H:i:s'),
                 'is_active' => 1,
                 'is_deleted' => 0
@@ -201,8 +372,31 @@ class SaleController extends Controller
 
         $invoice_id = $db->getLastInsertID();
 
-        // Post to GL when invoice is created
+        // Create payment history record if there's an initial payment
+        if ($paid_amount > 0) {
+            $this->recordInvoicePayment($invoice_id, $paid_amount, 0, 'Initial Payment - Sales Order', $user_id);
+
+            // Post payment to GL (reduce AR, increase cash)
+            $this->postSalePaymentToGL($sales_order_id, $invoice_no, $paid_amount, $user_id);
+        }
+
+        // Post sale to GL when invoice is created
         $this->postSaleToGL($sales_order_id, $invoice_no, $grand_total, $user_id);
+
+        // Auto-update sales order and invoice status if fully paid (remaining balance is zero)
+        if ($remaining_balance <= 0) {
+            $db->createCommand()->update(
+                'inventory_sales_orders',
+                ['order_status' => 'Completed', 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $user_id],
+                ['id' => $sales_order_id]
+            )->execute();
+
+            $db->createCommand()->update(
+                'inventory_sales_invoices',
+                ['status' => 'Paid', 'updated_at' => date('Y-m-d H:i:s')],
+                ['id' => $invoice_id]
+            )->execute();
+        }
 
         return $invoice_no;
     }
@@ -281,16 +475,16 @@ class SaleController extends Controller
 
                 // Update linked invoice if paid_amount changed
                 if ($paidAmount > 0) {
-                    $invoice = $db->createCommand(
-                        "SELECT id, paid_amount FROM inventory_sale_invoices WHERE sales_order_id = :id AND is_deleted = 0 LIMIT 1"
+                    $invoice =Yii::$app->db->createCommand(
+                        "SELECT id, paid_amount FROM inventory_sales_invoices WHERE sales_order_id = :id AND is_deleted = 0 LIMIT 1"
                     )->bindValue(':id', $sales_order_id)->queryOne();
 
                     if ($invoice) {
                         $oldPaidAmount = (float)($invoice['paid_amount'] ?? 0);
                         $remainingBalance = $grandTotal - $paidAmount;
 
-                        $db->createCommand()->update(
-                            'inventory_sale_invoices',
+                        Yii::$app->db->createCommand()->update(
+                            'inventory_sales_invoices',
                             [
                                 'paid_amount' => $paidAmount,
                                 'remaining_balance' => max(0, $remainingBalance),
@@ -303,7 +497,7 @@ class SaleController extends Controller
                         // Create payment history record if payment increased
                         $paymentDifference = $paidAmount - $oldPaidAmount;
                         if ($paymentDifference > 0) {
-                            $db->createCommand()->insert(
+                            Yii::$app->db->createCommand()->insert(
                                 'inventory_sale_invoice_payments',
                                 [
                                     'sale_invoice_id' => $invoice['id'],
@@ -314,6 +508,15 @@ class SaleController extends Controller
                                     'created_by' => $user_id
                                 ]
                             )->execute();
+
+                            // Auto-update sales order status to Completed if fully paid
+                            if ($remainingBalance <= 0) {
+                                Yii::$app->db->createCommand()->update(
+                                    'inventory_sales_orders',
+                                    ['order_status' => 'Completed', 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $user_id],
+                                    ['id' => $sales_order_id]
+                                )->execute();
+                            }
                         }
                     }
                 }
@@ -419,8 +622,8 @@ class SaleController extends Controller
 
             // Auto-generate or update Sale Invoice
             if ($isNewOrder) {
-                // This is a new order - create invoice
-                $invoiceNo = $this->createSaleInvoiceFromSalesOrder($sales_order_id, $subtotal, $discountTotal, $taxTotal, $grandTotal, $user_id);
+                // This is a new order - create invoice with initial payment if provided
+                $invoiceNo = $this->createSaleInvoiceFromSalesOrder($sales_order_id, $subtotal, $discountTotal, $taxTotal, $grandTotal, $user_id, $paidAmount);
 
                 // Get the sales order number
                 $orderData = Yii::$app->db->createCommand("
@@ -438,14 +641,14 @@ class SaleController extends Controller
             } else {
                 // This is an update - update or create invoice
                 $existingInvoice = Yii::$app->db->createCommand("
-                    SELECT id FROM inventory_sale_invoices
+                    SELECT id FROM inventory_sales_invoices
                     WHERE sales_order_id = :sales_order_id AND is_deleted = 0 LIMIT 1
                 ")->bindValue(':sales_order_id', $originalSalesOrderId)->queryOne();
 
                 if ($existingInvoice) {
                     // Update existing invoice
                     Yii::$app->db->createCommand()->update(
-                        'inventory_sale_invoices',
+                        'inventory_sales_invoices',
                         [
                             'subtotal' => $subtotal,
                             'discount_amount' => $discountTotal,
@@ -457,7 +660,7 @@ class SaleController extends Controller
                     )->execute();
                 } else {
                     // Create new invoice if it doesn't exist
-                    $this->createSaleInvoiceFromSalesOrder($originalSalesOrderId, $subtotal, $discountTotal, $taxTotal, $grandTotal, $user_id);
+                    $this->createSaleInvoiceFromSalesOrder($originalSalesOrderId, $subtotal, $discountTotal, $taxTotal, $grandTotal, $user_id, $paidAmount);
                 }
 
                 $trans->commit();
@@ -466,7 +669,7 @@ class SaleController extends Controller
                 $orderData = Yii::$app->db->createCommand("
                     SELECT so.order_number, si.invoice_no
                     FROM inventory_sales_orders so
-                    LEFT JOIN inventory_sale_invoices si ON si.sales_order_id = so.id
+                    LEFT JOIN inventory_sales_invoices si ON si.sales_order_id = so.id
                     WHERE so.id = :id
                 ")->bindValue(':id', $originalSalesOrderId)->queryOne();
 
@@ -1029,20 +1232,20 @@ class SaleController extends Controller
 
             $stats['total_invoices'] = (int)$db->createCommand("
                 SELECT COUNT(*)
-                FROM inventory_sale_invoices
+                FROM inventory_sales_invoices
                 WHERE is_deleted=0
             ")->queryScalar();
 
             $stats['unpaid_invoices'] = (int)$db->createCommand("
                 SELECT COUNT(*)
-                FROM inventory_sale_invoices
+                FROM inventory_sales_invoices
                 WHERE is_deleted=0
                 AND status IN ('Unpaid','Partial')
             ")->queryScalar();
 
             $stats['unpaid_invoice_amount'] = (float)$db->createCommand("
                 SELECT IFNULL(SUM(grand_total),0)
-                FROM inventory_sale_invoices
+                FROM inventory_sales_invoices
                 WHERE is_deleted=0
                 AND status IN ('Unpaid','Partial')
             ")->queryScalar();
@@ -1257,6 +1460,21 @@ class SaleController extends Controller
 
                         $id = (int)($post['id'] ?? 0);
 
+                        if ($id > 0) {
+                            // Check if order is confirmed - prevent updates
+                            $existingOrder = $db->createCommand(
+                                "SELECT order_status FROM inventory_sales_orders WHERE id = :id"
+                            )->bindValue(':id', $id)->queryOne();
+
+                            if ($existingOrder && $existingOrder['order_status'] === 'Confirmed') {
+                                $transaction->rollBack();
+                                return [
+                                    'success' => false,
+                                    'message' => 'This Sales Order is Confirmed and cannot be edited.'
+                                ];
+                            }
+                        }
+
                         $data = [
                             'customer_id' => $post['customer_id'],
                             'warehouse_id' => $post['warehouse_id'],
@@ -1452,6 +1670,7 @@ class SaleController extends Controller
                 $tax = (float)($postData['tax'] ?? 0);
                 $shipping = (float)($postData['shipping'] ?? 0);
                 $grandTotal = (float)($postData['grand_total'] ?? 0);
+                $paidAmount = (float)($postData['paid_amount'] ?? 0);
                 $notes = $postData['notes'] ?? '';
                 $items = json_decode($postData['items'] ?? '[]', true);
 
@@ -1476,7 +1695,17 @@ class SaleController extends Controller
                 }
 
                 if ($isEdit) {
+                    // Check if order is Completed - prevent updates
+                    $order = $db->createCommand(
+                        "SELECT order_status FROM inventory_sales_orders WHERE id = :id AND is_deleted = 0"
+                    )->bindValue(':id', $id)->queryOne();
+
+                    if ($order && $order['order_status'] === 'Completed') {
+                        return ['success' => false, 'message' => 'Cannot update a Completed sales order. Please create a new order or contact admin.'];
+                    }
+
                     // Update existing order
+                    $remainingBalance = $grandTotal - $paidAmount;
                     $db->createCommand()->update('inventory_sales_orders', [
                         'customer_id' => $customerId ?: null,
                         'warehouse_id' => $warehouseId,
@@ -1484,10 +1713,13 @@ class SaleController extends Controller
                         'delivery_date' => $deliveryDate ?: null,
                         'order_status' => $orderStatus,
                         'payment_status' => $paymentStatus,
+                        'subtotal' => $grandTotal - $tax - $shipping + $discount,
                         'discount' => $discount,
                         'tax' => $tax,
                         'shipping' => $shipping,
                         'grand_total' => $grandTotal,
+                        'paid_amount' => $paidAmount,
+                        'remaining_balance' => $remainingBalance,
                         'notes' => $notes,
                         'updated_at' => date('Y-m-d H:i:s'),
                         'updated_by' => $userId
@@ -1511,11 +1743,30 @@ class SaleController extends Controller
                         ])->execute();
                     }
 
-                    return ['success' => true, 'message' => 'Sale Order updated successfully'];
+                    // Update or create invoice
+                    $invoiceNumber = '';
+                    try {
+                        $this->ensureInvoiceTables($db);
+                        $this->updateSalesInvoice($db, $id);
+                        $invoiceData = $db->createCommand("
+                            SELECT invoice_no FROM inventory_sales_invoices WHERE sales_order_id = :order_id AND is_deleted = 0 LIMIT 1
+                        ")->bindValue(':order_id', $id)->queryOne();
+                        $invoiceNumber = $invoiceData['invoice_no'] ?? '';
+                    } catch (\Exception $invoiceError) {
+                        \Yii::warning('Invoice update failed: ' . $invoiceError->getMessage());
+                    }
+
+                    $soData = $db->createCommand("SELECT order_number FROM inventory_sales_orders WHERE id = :id")->bindValue(':id', $id)->queryOne();
+                    $message = 'Sale Order ' . ($soData['order_number'] ?? '') . ' updated successfully';
+                    if ($invoiceNumber) {
+                        $message .= ' | Invoice: ' . $invoiceNumber;
+                    }
+                    return ['success' => true, 'message' => $message, 'order_number' => $soData['order_number'] ?? '', 'invoice_no' => $invoiceNumber];
                 } else {
                     // Create new order
                     $orderNumber = 'SO-' . date('YmdHis') . '-' . rand(100, 999);
 
+                    $remainingBalance = $grandTotal - $paidAmount;
                     $db->createCommand()->insert('inventory_sales_orders', [
                         'order_number' => $orderNumber,
                         'customer_id' => $customerId ?: null,
@@ -1529,8 +1780,8 @@ class SaleController extends Controller
                         'tax' => $tax,
                         'shipping' => $shipping,
                         'grand_total' => $grandTotal,
-                        'paid_amount' => 0,
-                        'remaining_balance' => $grandTotal,
+                        'paid_amount' => $paidAmount,
+                        'remaining_balance' => $remainingBalance,
                         'notes' => $notes,
                         'created_at' => date('Y-m-d H:i:s'),
                         'created_by' => $userId,
@@ -1554,7 +1805,25 @@ class SaleController extends Controller
                         ])->execute();
                     }
 
-                    return ['success' => true, 'message' => 'Sale Order created successfully', 'order_id' => $orderId];
+                    // Create invoice for the sales order
+                    $invoiceNumber = '';
+                    try {
+                        $invoiceId = $this->createSalesInvoice($db, $orderId);
+                        if ($invoiceId) {
+                            $invoiceData = $db->createCommand("
+                                SELECT invoice_no FROM inventory_sales_invoices WHERE id = :id
+                            ")->bindValue(':id', $invoiceId)->queryOne();
+                            $invoiceNumber = $invoiceData['invoice_no'] ?? '';
+                        }
+                    } catch (\Exception $invoiceError) {
+                        \Yii::warning('Invoice creation failed: ' . $invoiceError->getMessage());
+                    }
+
+                    $message = 'Sale Order ' . $orderNumber . ' created successfully';
+                    if ($invoiceNumber) {
+                        $message .= ' | Invoice: ' . $invoiceNumber;
+                    }
+                    return ['success' => true, 'message' => $message, 'order_id' => $orderId, 'order_number' => $orderNumber, 'invoice_no' => $invoiceNumber];
                 }
             }
 
@@ -1563,6 +1832,186 @@ class SaleController extends Controller
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
+    } 
+    private function createSalesInvoice($db, $salesOrderId)
+    {
+        $so = $db->createCommand("
+            SELECT * FROM inventory_sales_orders WHERE id=:id
+        ")->bindValue(':id', $salesOrderId)->queryOne();
+
+        if (!$so) return false;
+
+        // Check if invoice already exists - if so, return it
+        $existingInvoice = $db->createCommand("
+            SELECT id FROM inventory_sales_invoices
+            WHERE sales_order_id = :order_id AND is_deleted = 0 LIMIT 1
+        ")->bindValue(':order_id', $salesOrderId)->queryScalar();
+
+        if ($existingInvoice) {
+            return $existingInvoice;
+        }
+
+        // Get default sales account from settings
+        $accountId = $db->createCommand(
+            "SELECT setting_value FROM inventory_settings WHERE setting_key='default_sales_account' AND is_deleted=0"
+        )->queryScalar();
+
+        $invoiceNumber = 'INV-' . date('YmdHis') . '-' . rand(100, 999);
+
+        $invoiceData = [
+            'invoice_no' => $invoiceNumber,
+            'sales_order_id' => $salesOrderId,
+            'customer_id' => $so['customer_id'] ?: null,
+            'warehouse_id' => $so['warehouse_id'],
+            'account_id' => $accountId ?: null,
+            'invoice_date' => $so['order_date'],
+            'due_date' => date('Y-m-d', strtotime($so['order_date'] . ' + 30 days')),
+            'subtotal' => $so['subtotal'],
+            'discount' => $so['discount'],
+            'tax' => $so['tax'],
+            'shipping' => $so['shipping'],
+            'grand_total' => $so['grand_total'],
+            'paid_amount' => $so['paid_amount'],
+            'remaining_balance' => $so['remaining_balance'],
+            'status' => $this->getInvoiceStatus($so['paid_amount'], $so['grand_total']),
+            'notes' => $so['notes'],
+            'created_at' => date('Y-m-d H:i:s'),
+            'created_by' => $this->currentUserId(),
+            'is_deleted' => 0
+        ];
+
+        $db->createCommand()->insert('inventory_sales_invoices', $invoiceData)->execute();
+        $invoiceId = $db->getLastInsertID();
+
+        // Copy SO items to invoice items
+        $soItems = $db->createCommand("
+            SELECT * FROM inventory_sales_order_items
+            WHERE sales_order_id=:id AND is_deleted=0
+        ")->bindValue(':id', $salesOrderId)->queryAll();
+
+        foreach ($soItems as $item) {
+            $invoiceItemData = [
+                'sales_invoice_id' => $invoiceId,
+                'product_id' => $item['product_id'],
+                'quantity' => $item['quantity'],
+                'unit_price' => $item['unit_price'],
+                'discount' => $item['discount'],
+                'tax' => $item['tax'],
+                'total' => $item['total'],
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+                'is_deleted' => 0
+            ];
+            $db->createCommand()->insert('inventory_sales_invoice_items', $invoiceItemData)->execute();
+        }
+
+        // Create payment history if there's an initial payment
+        $userId = $this->currentUserId();
+        if ($so['paid_amount'] > 0) {
+            $this->recordInvoicePayment($invoiceId, $so['paid_amount'], 0, 'Initial Payment - Sales Order', $userId);
+        }
+
+        // Auto-update sales order and invoice status if fully paid
+        if ($so['remaining_balance'] <= 0) {
+            $db->createCommand()->update(
+                'inventory_sales_orders',
+                ['order_status' => 'Completed', 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $userId],
+                ['id' => $salesOrderId]
+            )->execute();
+
+            $db->createCommand()->update(
+                'inventory_sales_invoices',
+                ['status' => 'Paid', 'updated_at' => date('Y-m-d H:i:s')],
+                ['id' => $invoiceId]
+            )->execute();
+        }
+
+        return $invoiceId;
+    }
+
+    private function updateSalesInvoice($db, $salesOrderId)
+    {
+        $so = $db->createCommand("
+            SELECT * FROM inventory_sales_orders WHERE id=:id
+        ")->bindValue(':id', $salesOrderId)->queryOne();
+
+        if (!$so) return false;
+
+        // Get existing invoice
+        $existingInvoice = $db->createCommand("
+            SELECT id FROM inventory_sales_invoices
+            WHERE sales_order_id = :order_id AND is_deleted = 0
+        ")->bindValue(':order_id', $salesOrderId)->queryScalar();
+
+        if ($existingInvoice) {
+            // Update invoice header
+            $db->createCommand()->update('inventory_sales_invoices', [
+                'customer_id' => $so['customer_id'] ?: null,
+                'warehouse_id' => $so['warehouse_id'],
+                'invoice_date' => $so['order_date'],
+                'due_date' => date('Y-m-d', strtotime($so['order_date'] . ' + 30 days')),
+                'subtotal' => $so['subtotal'],
+                'discount' => $so['discount'],
+                'tax' => $so['tax'],
+                'shipping' => $so['shipping'],
+                'grand_total' => $so['grand_total'],
+                'paid_amount' => $so['paid_amount'],
+                'remaining_balance' => $so['remaining_balance'],
+                'status' => $this->getInvoiceStatus($so['paid_amount'], $so['grand_total']),
+                'notes' => $so['notes'],
+                'updated_at' => date('Y-m-d H:i:s'),
+                'updated_by' => $this->currentUserId()
+            ], ['id' => $existingInvoice])->execute();
+
+            // Delete and re-add invoice items
+            $db->createCommand()->update('inventory_sales_invoice_items', ['is_deleted' => 1], ['sales_invoice_id' => $existingInvoice])->execute();
+
+            // Copy SO items to invoice items
+            $soItems = $db->createCommand("
+                SELECT * FROM inventory_sales_order_items
+                WHERE sales_order_id=:id AND is_deleted=0
+            ")->bindValue(':id', $salesOrderId)->queryAll();
+
+            foreach ($soItems as $item) {
+                $invoiceItemData = [
+                    'sales_invoice_id' => $existingInvoice,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'discount' => $item['discount'],
+                    'tax' => $item['tax'],
+                    'total' => $item['total'],
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                    'is_deleted' => 0
+                ];
+                $db->createCommand()->insert('inventory_sales_invoice_items', $invoiceItemData)->execute();
+            }
+
+            // Auto-update sales order status if fully paid
+            $userId = $this->currentUserId();
+            if ($so['remaining_balance'] <= 0) {
+                $db->createCommand()->update(
+                    'inventory_sales_orders',
+                    ['order_status' => 'Completed', 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $userId],
+                    ['id' => $salesOrderId]
+                )->execute();
+            }
+
+            return $existingInvoice;
+        }
+
+        return false;
+    }
+
+    private function getInvoiceStatus($paidAmount, $grandTotal)
+    {
+        if ($paidAmount >= $grandTotal) {
+            return 'Paid';
+        } elseif ($paidAmount > 0) {
+            return 'Partially Paid';
+        }
+        return 'Draft';
     }
 
     public function actionCreatesale()
@@ -1619,7 +2068,7 @@ class SaleController extends Controller
                             ON c.id=so.customer_id
                         INNER JOIN inventory_warehouses w
                             ON w.id=so.warehouse_id
-                        LEFT JOIN inventory_sale_invoices si
+                        LEFT JOIN inventory_sales_invoices si
                             ON si.sales_order_id=so.id AND si.is_deleted=0
                         WHERE $where
                         ORDER BY so.id DESC
@@ -1671,6 +2120,15 @@ class SaleController extends Controller
                         return $this->jsonResponse(false, 'Record id is required.');
                     }
 
+                    // Check if order is Completed - prevent updates
+                    $order = Yii::$app->db->createCommand(
+                        "SELECT order_status FROM inventory_sales_orders WHERE id = :id AND is_deleted = 0"
+                    )->bindValue(':id', $post['id'])->queryOne();
+
+                    if ($order && $order['order_status'] === 'Completed') {
+                        return $this->jsonResponse(false, 'Cannot update a Completed sales order. Please create a new order or contact admin.');
+                    }
+
                     return $this->saveSalesOrder($post, $user_id, $post['id']);
                 }
 
@@ -1678,6 +2136,15 @@ class SaleController extends Controller
 
                     if (empty($post['id'])) {
                         return $this->jsonResponse(false, 'Record id is required.');
+                    }
+
+                    // Check if order is Completed - prevent deletion
+                    $order = Yii::$app->db->createCommand(
+                        "SELECT order_status FROM inventory_sales_orders WHERE id = :id AND is_deleted = 0"
+                    )->bindValue(':id', $post['id'])->queryOne();
+
+                    if ($order && $order['order_status'] === 'Completed') {
+                        return $this->jsonResponse(false, 'Cannot delete a Completed sales order. Please contact admin if needed.');
                     }
 
                     return $this->deleteSalesOrder($post['id'], $user_id);
@@ -1899,14 +2366,14 @@ class SaleController extends Controller
 
                     // Update linked Sale Invoice by searching for POS number in remarks
                     $invoice = $db->createCommand("
-                        SELECT id FROM inventory_sale_invoices
+                        SELECT id FROM inventory_sales_invoices
                         WHERE remarks LIKE :pos_no AND is_deleted = 0
                         ORDER BY id DESC LIMIT 1
                     ", [':pos_no' => '%' . $pos['pos_no'] . '%'])->queryOne();
 
                     if ($invoice) {
                         $db->createCommand("
-                            UPDATE inventory_sale_invoices
+                            UPDATE inventory_sales_invoices
                             SET subtotal = :subtotal,
                                 discount_amount = :discount_amount,
                                 tax_amount = :tax_amount,
@@ -2032,7 +2499,7 @@ class SaleController extends Controller
 
                     $total = Yii::$app->db->createCommand("
                         SELECT COUNT(*)
-                        FROM inventory_sale_invoices si
+                        FROM inventory_sales_invoices si
                         {$where}
                     ", $params)->queryScalar();
 
@@ -2040,10 +2507,12 @@ class SaleController extends Controller
                         SELECT
                             si.*,
                             so.order_number,
+                            so.order_status,
+                            so.payment_status,
                             c.company_name,
                             c.first_name,
                             c.last_name
-                        FROM inventory_sale_invoices si
+                        FROM inventory_sales_invoices si
                         LEFT JOIN inventory_sales_orders so
                             ON so.id=si.sales_order_id
                         LEFT JOIN inventory_customers c
@@ -2063,6 +2532,30 @@ class SaleController extends Controller
                     ];
                 }
 
+                // Get invoice data for sales order modal
+                if (isset($post['flag']) && $post['flag'] == 'get_invoice') {
+                    $salesOrderId = (int)($post['sales_order_id'] ?? 0);
+
+                    if ($salesOrderId > 0) {
+                        $invoice = Yii::$app->db->createCommand(
+                            "SELECT id, invoice_no, status, paid_amount, remaining_balance, grand_total, subtotal, discount, tax FROM inventory_sales_invoices WHERE sales_order_id = :sales_order_id AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1"
+                        )->bindValue(':sales_order_id', $salesOrderId)->queryOne();
+
+                        if ($invoice) {
+                            return [
+                                'success' => true,
+                                'invoice' => $invoice,
+                                'message' => 'Invoice data loaded successfully'
+                            ];
+                        }
+                    }
+
+                    return [
+                        'success' => false,
+                        'message' => 'No invoice found for this sales order'
+                    ];
+                }
+
                 if (isset($post['flag']) && $post['flag'] == 'save') {
 
                     $db = Yii::$app->db;
@@ -2071,36 +2564,26 @@ class SaleController extends Controller
                     try {
 
                         $id = (int)($post['id'] ?? 0);
-
-                        $grandTotal = (float)$post['grand_total'];
                         $paidAmount = (float)($post['paid_amount'] ?? 0);
-                        $remainingBalance = $grandTotal - $paidAmount;
-
-                        $data = [
-                            'sales_order_id' => $post['sales_order_id'],
-                            'customer_id' => $post['customer_id'],
-                            'invoice_date' => $post['invoice_date'],
-                            'due_date' => $post['due_date'],
-                            'subtotal' => $post['subtotal'],
-                            'discount_amount' => $post['discount_amount'] ?? 0,
-                            'tax_amount' => $post['tax_amount'] ?? 0,
-                            'grand_total' => $grandTotal,
-                            'paid_amount' => $paidAmount,
-                            'remaining_balance' => $remainingBalance,
-                            'status' => $post['status'],
-                            'remarks' => $post['remarks'] ?? null,
-                            'updated_at' => date('Y-m-d H:i:s')
-                        ];
 
                         if ($id > 0) {
 
-                            // Get the old invoice data for validation
+                            // Get the old invoice data for validation (on UPDATE)
                             $oldInvoice = $db->createCommand(
-                                "SELECT paid_amount, remaining_balance FROM inventory_sale_invoices WHERE id = :id"
+                                "SELECT id, status, paid_amount, remaining_balance, grand_total, sales_order_id, invoice_no FROM inventory_sales_invoices WHERE id = :id"
                             )->bindValue(':id', $id)->queryOne();
+
+                            // Use database grand_total for UPDATE, form grand_total for CREATE
+                            $grandTotal = (float)($oldInvoice['grand_total'] ?? 0);
+
+                            // Check if invoice is Paid - prevent updates
+                            if ($oldInvoice && $oldInvoice['status'] === 'Paid') {
+                                throw new \Exception('Cannot update a Paid invoice. Please create a new invoice or contact admin.');
+                            }
 
                             $oldPaidAmount = (float)($oldInvoice['paid_amount'] ?? 0);
                             $existingRemainingBalance = (float)($oldInvoice['remaining_balance'] ?? 0);
+                            $dbGrandTotal = (float)($oldInvoice['grand_total'] ?? 0);
 
                             // VALIDATION 1: Previously paid amount cannot decrease
                             if ($paidAmount < $oldPaidAmount) {
@@ -2108,56 +2591,121 @@ class SaleController extends Controller
                             }
 
                             // VALIDATION 2: Paid amount cannot exceed grand total
-                            if ($paidAmount > $grandTotal) {
-                                throw new \Exception('Error: Paid amount (' . number_format($paidAmount, 2) . ') cannot exceed invoice total (' . number_format($grandTotal, 2) . ')');
+                            if ($paidAmount > $dbGrandTotal) {
+                                throw new \Exception('Error: Paid amount (' . number_format($paidAmount, 2) . ') cannot exceed invoice total (' . number_format($dbGrandTotal, 2) . ')');
                             }
 
                             // VALIDATION 3: Remaining balance cannot be negative
-                            if ($remainingBalance < 0) {
+                            $calculatedRemaining = $dbGrandTotal - $paidAmount;
+                            if ($calculatedRemaining < 0) {
                                 throw new \Exception('Error: Remaining balance cannot be negative. Balance cannot go below 0');
                             }
 
                             // VALIDATION 4: Remaining balance must not be greater than existing balance
-                            if ($remainingBalance > $existingRemainingBalance) {
-                                throw new \Exception('Error: Remaining balance cannot increase. Current remaining: ' . number_format($existingRemainingBalance, 2) . '. New remaining: ' . number_format($remainingBalance, 2) . '. The total paid must only increase or stay the same');
+                            if ($calculatedRemaining > $existingRemainingBalance) {
+                                throw new \Exception('Error: Remaining balance cannot increase. Current remaining: ' . number_format($existingRemainingBalance, 2) . '. New remaining: ' . number_format($calculatedRemaining, 2) . '. The total paid must only increase or stay the same');
                             }
 
+                            // UPDATE: Only update payment-related fields on update
+                            $updateData = [
+                                'paid_amount' => $paidAmount,
+                                'remaining_balance' => $calculatedRemaining,
+                                'status' => ($paidAmount >= $dbGrandTotal) ? 'Paid' : (($paidAmount > 0) ? 'Partially Paid' : 'Unpaid'),
+                                'notes' => $post['notes'] ?? $post['remarks'] ?? null,
+                                'updated_at' => date('Y-m-d H:i:s')
+                            ];
+
                             $db->createCommand()->update(
-                                'inventory_sale_invoices',
-                                $data,
+                                'inventory_sales_invoices',
+                                $updateData,
                                 ['id' => $id]
                             )->execute();
 
                             // If paid amount changed, create a payment history record for the difference
                             $paymentDifference = $paidAmount - $oldPaidAmount;
+                            $this->recordInvoicePayment($id, $paidAmount, $oldPaidAmount, 'Partial Payment - Invoice Update');
+
+                            // Post payment to GL if amount changed
                             if ($paymentDifference > 0) {
-                                $db->createCommand()->insert(
-                                    'inventory_sale_invoice_payments',
-                                    [
-                                        'sale_invoice_id' => $id,
-                                        'paid_amount' => $paymentDifference,
-                                        'payment_date' => date('Y-m-d'),
-                                        'remarks' => 'Partial Payment - Invoice Update',
-                                        'created_at' => date('Y-m-d H:i:s'),
-                                        'created_by' => $this->currentUserId()
-                                    ]
+                                $this->postSalePaymentToGL($oldInvoice['sales_order_id'], $oldInvoice['invoice_no'], $paymentDifference, $this->currentUserId());
+                            }
+
+                            // Auto-update sales order paid amount and order status
+                            if (!empty($oldInvoice['sales_order_id'])) {
+                                $updateSalesOrderData = [
+                                    'paid_amount' => $paidAmount,
+                                    'updated_at' => date('Y-m-d H:i:s'),
+                                    'updated_by' => $this->currentUserId()
+                                ];
+
+                                // Auto-set order status to Completed if fully paid
+                                if ($calculatedRemaining <= 0) {
+                                    $updateSalesOrderData['order_status'] = 'Completed';
+                                }
+
+                                $db->createCommand()->update(
+                                    'inventory_sales_orders',
+                                    $updateSalesOrderData,
+                                    ['id' => $oldInvoice['sales_order_id']]
                                 )->execute();
                             }
 
                             $invoiceId = $id;
                         } else {
 
-                            $data['invoice_no'] = $this->generateDocNo('SINV');
-                            $data['created_at'] = date('Y-m-d H:i:s');
-                            $data['is_active'] = 1;
-                            $data['is_deleted'] = 0;
+                            // CREATE: Get grand_total from form for new invoice
+                            $grandTotal = (float)($post['grand_total'] ?? 0);
+                            $remainingBalance = $grandTotal - $paidAmount;
+
+                            // CREATE: Build data array for new invoice
+                            $data = [
+                                'sales_order_id' => $post['sales_order_id'],
+                                'customer_id' => $post['customer_id'],
+                                'invoice_date' => $post['invoice_date'],
+                                'due_date' => $post['due_date'],
+                                'subtotal' => $post['subtotal'],
+                                'discount' => $post['discount'] ?? $post['discount_amount'] ?? 0,
+                                'tax' => $post['tax'] ?? $post['tax_amount'] ?? 0,
+                                'grand_total' => $grandTotal,
+                                'paid_amount' => $paidAmount,
+                                'remaining_balance' => $remainingBalance,
+                                'status' => ($paidAmount >= $grandTotal) ? 'Paid' : (($paidAmount > 0) ? 'Partially Paid' : 'Unpaid'),
+                                'notes' => $post['notes'] ?? $post['remarks'] ?? null,
+                                'invoice_no' => $this->generateDocNo('SINV'),
+                                'created_at' => date('Y-m-d H:i:s'),
+                                'is_active' => 1,
+                                'is_deleted' => 0
+                            ];
 
                             $db->createCommand()->insert(
-                                'inventory_sale_invoices',
+                                'inventory_sales_invoices',
                                 $data
                             )->execute();
 
                             $invoiceId = $db->getLastInsertID();
+
+                            // Get invoice number for GL posting
+                            $invoiceNo = $data['invoice_no'];
+
+                            // Create initial payment record if there's an initial payment
+                            $this->recordInvoicePayment($invoiceId, $paidAmount, 0, 'Initial Payment - Invoice Created');
+
+                            // Post sale to GL (record sale revenue and AR)
+                            $this->postSaleToGL($post['sales_order_id'] ?? null, $invoiceNo, $grandTotal, $this->currentUserId());
+
+                            // Post payment to GL if there's initial payment
+                            if ($paidAmount > 0) {
+                                $this->postSalePaymentToGL($post['sales_order_id'] ?? null, $invoiceNo, $paidAmount, $this->currentUserId());
+                            }
+
+                            // Auto-update sales order status if fully paid
+                            if ($remainingBalance <= 0 && !empty($post['sales_order_id'])) {
+                                $db->createCommand()->update(
+                                    'inventory_sales_orders',
+                                    ['order_status' => 'Completed', 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $this->currentUserId()],
+                                    ['id' => $post['sales_order_id']]
+                                )->execute();
+                            }
                         }
 
                         $transaction->commit();
@@ -2181,7 +2729,7 @@ class SaleController extends Controller
                 if (isset($post['flag']) && $post['flag'] == 'delete') {
 
                     Yii::$app->db->createCommand()->update(
-                        'inventory_sale_invoices',
+                        'inventory_sales_invoices',
                         [
                             'is_deleted' => 1,
                             'updated_at' => date('Y-m-d H:i:s')
@@ -2192,6 +2740,69 @@ class SaleController extends Controller
                     return [
                         'success' => true,
                         'message' => 'Sales Invoice deleted successfully.'
+                    ];
+                }
+
+                if (isset($post['flag']) && $post['flag'] == 'get_items') {
+
+                    $db = Yii::$app->db;
+                    $invoiceId = (int)($post['id'] ?? 0);
+
+                    if ($invoiceId <= 0) {
+                        return [
+                            'success' => false,
+                            'message' => 'Invalid invoice ID.'
+                        ];
+                    }
+
+                    // First, try to get items from invoice items table
+                    $items = $db->createCommand("
+                        SELECT
+                            sii.id,
+                            sii.product_id,
+                            p.product_name,
+                            sii.quantity,
+                            sii.unit_price,
+                            sii.discount,
+                            sii.tax,
+                            sii.total
+                        FROM inventory_sale_invoice_items sii
+                        LEFT JOIN inventory_products p ON sii.product_id = p.id
+                        WHERE sii.sales_invoice_id = :invoice_id
+                        AND sii.is_deleted = 0
+                        ORDER BY sii.id ASC
+                    ")->bindValue(':invoice_id', $invoiceId)->queryAll();
+
+                    // If no items in invoice_items table, fallback to sales order items
+                    if (empty($items)) {
+                        $invoice = $db->createCommand("
+                            SELECT sales_order_id FROM inventory_sales_invoices
+                            WHERE id = :invoice_id AND is_deleted = 0
+                        ")->bindValue(':invoice_id', $invoiceId)->queryOne();
+
+                        if ($invoice && $invoice['sales_order_id']) {
+                            $items = $db->createCommand("
+                                SELECT
+                                    soi.id,
+                                    soi.product_id,
+                                    p.product_name,
+                                    soi.quantity,
+                                    soi.unit_price,
+                                    soi.discount,
+                                    soi.tax,
+                                    soi.total
+                                FROM inventory_sales_order_items soi
+                                LEFT JOIN inventory_products p ON soi.product_id = p.id
+                                WHERE soi.sales_order_id = :sales_order_id
+                                AND soi.is_deleted = 0
+                                ORDER BY soi.id ASC
+                            ")->bindValue(':sales_order_id', $invoice['sales_order_id'])->queryAll();
+                        }
+                    }
+
+                    return [
+                        'success' => true,
+                        'items' => $items
                     ];
                 }
 
@@ -2230,7 +2841,7 @@ class SaleController extends Controller
                 c.company_name,
                 c.first_name,
                 c.last_name
-            FROM inventory_sale_invoices si
+            FROM inventory_sales_invoices si
             LEFT JOIN inventory_sales_orders so
                 ON so.id=si.sales_order_id
             LEFT JOIN inventory_customers c
@@ -2792,7 +3403,7 @@ class SaleController extends Controller
                             c.first_name,
                             c.last_name
                         FROM inventory_sales_returns sr
-                        LEFT JOIN inventory_sale_invoices si
+                        LEFT JOIN inventory_sales_invoices si
                             ON si.id=sr.sales_invoice_id
                         LEFT JOIN inventory_customers c
                             ON c.id=sr.customer_id
@@ -2915,7 +3526,7 @@ class SaleController extends Controller
 
         $salesInvoices = Yii::$app->db->createCommand("
             SELECT id,invoice_no
-            FROM inventory_sale_invoices
+            FROM inventory_sales_invoices
             WHERE is_deleted=0
             ORDER BY invoice_no
         ")->queryAll();
@@ -2928,7 +3539,7 @@ class SaleController extends Controller
                 c.first_name,
                 c.last_name
             FROM inventory_sales_returns sr
-            LEFT JOIN inventory_sale_invoices si
+            LEFT JOIN inventory_sales_invoices si
                 ON si.id=sr.sales_invoice_id
             LEFT JOIN inventory_customers c
                 ON c.id=sr.customer_id
@@ -3526,7 +4137,7 @@ class SaleController extends Controller
             ")->execute();
 
             $db->createCommand("
-            CREATE TABLE IF NOT EXISTS inventory_sale_invoices (
+            CREATE TABLE IF NOT EXISTS inventory_sales_invoices (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 invoice_no VARCHAR(100) UNIQUE,
                 sales_order_id INT NOT NULL,
@@ -3634,7 +4245,7 @@ class SaleController extends Controller
                 INDEX(sales_invoice_id),
                 INDEX(customer_id),
                 FOREIGN KEY(sales_invoice_id)
-                    REFERENCES inventory_sale_invoices(id)
+                    REFERENCES inventory_sales_invoices(id)
                     ON UPDATE CASCADE,
                 FOREIGN KEY(customer_id)
                     REFERENCES inventory_customers(id)

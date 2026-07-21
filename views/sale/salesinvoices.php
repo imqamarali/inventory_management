@@ -14,10 +14,10 @@
  * - Update invoice payment status
  *
  * DATA MANAGEMENT:
- * - Stores invoices in: inventory_sale_invoices table
+ * - Stores invoices in: inventory_sales_invoices table
  * - Foreign key: references inventory_sales_orders (sales_order_id)
  * - Records: invoice_no, sales_order_id, customer_id, invoice_date, due_date,
- *            subtotal, discount_amount, tax_amount, grand_total, status
+ *            subtotal, discount, tax, grand_total, status
  * - Status values: Unpaid, Partial, Paid
  *
  * FINANCE INTEGRATION:
@@ -113,15 +113,14 @@ if (!isset($customers)) $customers = [];
                             <th>Invoice No</th>
                             <th>Order Number</th>
                             <th>Customer</th>
-                            <th>Invoice Date</th>
-                            <th>Due Date</th>
+                            <th>Invoice Date</th> 
                             <th>Subtotal</th>
                             <th>Discount</th>
                             <th>Tax</th>
                             <th>Total</th>
                             <th>Paid</th>
                             <th>Remaining</th>
-                            <th>Status</th>
+                            <th>Invoice Status</th> 
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -132,22 +131,21 @@ if (!isset($customers)) $customers = [];
                                 <td><?= Html::encode($item['invoice_no']) ?></td>
                                 <td><?= Html::encode($item['order_number']) ?></td>
                                 <td><?= Html::encode($item['company_name'] ?: trim(($item['first_name'] ?? '') . ' ' . ($item['last_name'] ?? ''))) ?></td>
-                                <td><?= Html::encode($item['invoice_date']) ?></td>
-                                <td><?= Html::encode($item['due_date']) ?></td>
+                                <td><?= Html::encode($item['invoice_date']) ?></td> 
                                 <td><?= number_format($item['subtotal'] ?? 0, 2) ?></td>
-                                <td><?= number_format($item['discount_amount'] ?? 0, 2) ?></td>
-                                <td><?= number_format($item['tax_amount'] ?? 0, 2) ?></td>
+                                <td><?= number_format($item['discount'] ?? 0, 2) ?></td>
+                                <td><?= number_format($item['tax'] ?? 0, 2) ?></td>
                                 <td><strong><?= number_format($item['grand_total'] ?? 0, 2) ?></strong></td>
                                 <td><?= number_format($item['paid_amount'] ?? 0, 2) ?></td>
                                 <td><?= number_format(($item['grand_total'] ?? 0) - ($item['paid_amount'] ?? 0), 2) ?></td>
-                                <td><?= invoiceStatusBadgeServer($item['status']) ?></td>
+                                <td><?= invoiceStatusBadgeServer($item['status']) ?></td> 
                                 <td>
                                     <button onclick='openInvoiceModal(<?= json_encode($item) ?>)'>
                                         <i class="fa fa-pencil"></i>
                                     </button>
                                     |
                                     <button>
-                                        <a href="index.php?r=documents/salesinvoice&id=<?= $item['id'] ?>" target="_blank" class="btn btn-xs btn-info">
+                                        <a href="index.php?r=documents/salesinvoice&id=<?= $item['id'] ?>" target="_blank">
                                             <i class="fa fa-print" style="color: #27ae60;"></i>
                                         </a>
                                     </button>
@@ -173,7 +171,7 @@ if (!isset($customers)) $customers = [];
 <?php
 function invoiceStatusBadgeServer($status)
 {
-    $map = ['Unpaid' => 'danger', 'Partial' => 'warning', 'Paid' => 'success', 'Cancelled' => 'default'];
+    $map = ['Draft' => 'warning', 'Issued' => 'info', 'Paid' => 'success', 'Partially Paid' => 'warning', 'Cancelled' => 'default'];
     $cls = $map[$status] ?? 'default';
     return '<span class="label label-' . $cls . '">' . Html::encode($status) . '</span>';
 }
@@ -251,9 +249,10 @@ function invoiceStatusBadgeServer($status)
 
     function invoiceStatusBadge(status) {
         const map = {
-            'Unpaid': 'danger',
-            'Partial': 'warning',
+            'Draft': 'warning',
+            'Issued': 'info',
             'Paid': 'success',
+            'Partially Paid': 'warning',
             'Cancelled': 'default'
         };
         const cls = map[status] || 'default';
@@ -277,8 +276,8 @@ function invoiceStatusBadgeServer($status)
 
             rows.forEach(function(item, index) {
                 const subtotal = parseFloat(item.subtotal) || 0;
-                const discount = parseFloat(item.discount_amount) || 0;
-                const tax = parseFloat(item.tax_amount) || 0;
+                const discount = parseFloat(item.discount) || 0;
+                const tax = parseFloat(item.tax) || 0;
                 const grandTotal = parseFloat(item.grand_total) || 0;
                 const paidAmount = parseFloat(item.paid_amount) || 0;
                 const remainingAmount = grandTotal - paidAmount;
@@ -289,15 +288,14 @@ function invoiceStatusBadgeServer($status)
                 <td>${item.invoice_no}</td>
                 <td>${item.order_number??''}</td>
                 <td>${customerName(item)}</td>
-                <td>${item.invoice_date??''}</td>
-                <td>${item.due_date??''}</td>
+                <td>${item.invoice_date??''}</td> 
                 <td>${subtotal.toFixed(2)}</td>
                 <td>${discount.toFixed(2)}</td>
                 <td>${tax.toFixed(2)}</td>
                 <td><strong>${grandTotal.toFixed(2)}</strong></td>
                 <td>${paidAmount.toFixed(2)}</td>
                 <td>${remainingAmount.toFixed(2)}</td>
-                <td>${invoiceStatusBadge(item.status)}</td>
+                <td>${invoiceStatusBadge(item.status)}</td> 
                 <td>
                     <button onclick='openInvoiceModal(${JSON.stringify(item)})'>
                         <i class="fa fa-pencil"></i>
@@ -336,28 +334,41 @@ function invoiceStatusBadgeServer($status)
     }
 
     function calcInvoiceGrandTotal() {
-        let subtotal = parseFloat($('#swal_subtotal').val()) || 0;
-        let discount = parseFloat($('#swal_discount').val()) || 0;
-        let tax = parseFloat($('#swal_tax').val()) || 0;
+        let subtotal = parseFloat($('#si_subtotal').val()) || 0;
+        let discount = parseFloat($('#si_discount').val()) || 0;
+        let tax = parseFloat($('#si_tax').val()) || 0;
         let grand = subtotal - discount + tax;
-        $('#swal_grand_total').val(grand.toFixed(2));
+        $('#si_grand_total').val(grand.toFixed(2));
     }
 
     function openInvoiceModal(invoiceData = null) {
-        const isEdit = invoiceData !== null;
+        const isEdit = invoiceData !== null && invoiceData.id;
         const id = isEdit ? invoiceData.id : '';
         const orderId = isEdit ? invoiceData.sales_order_id : '';
         const customerId = isEdit ? invoiceData.customer_id : '';
-        const invoiceDate = isEdit ? invoiceData.invoice_date : '';
-        const dueDate = isEdit ? invoiceData.due_date : '';
-        const subtotal = isEdit ? invoiceData.subtotal : 0;
-        const discount = isEdit ? invoiceData.discount_amount : 0;
-        const tax = isEdit ? invoiceData.tax_amount : 0;
-        const grandTotal = isEdit ? invoiceData.grand_total : 0;
-        const paidAmount = isEdit ? (invoiceData.paid_amount ?? 0) : 0;
-        const remainingBalance = isEdit ? (invoiceData.remaining_balance ?? 0) : 0;
-        const status = isEdit ? invoiceData.status : 'Unpaid';
-        const remarks = isEdit ? (invoiceData.remarks ?? '') : '';
+        const invoiceDate = isEdit ? (invoiceData.invoice_date || '') : '';
+        const dueDate = isEdit ? (invoiceData.due_date || '') : '';
+        const subtotal = parseFloat(isEdit ? (invoiceData.subtotal || 0) : 0);
+        const discount = parseFloat(isEdit ? (invoiceData.discount || 0) : 0);
+        const tax = parseFloat(isEdit ? (invoiceData.tax || 0) : 0);
+        const grandTotal = parseFloat(isEdit ? (invoiceData.grand_total || 0) : 0);
+        const paidAmount = parseFloat(isEdit ? (invoiceData.paid_amount || 0) : 0);
+        const remainingBalance = parseFloat(isEdit ? (invoiceData.remaining_balance || 0) : (grandTotal - paidAmount));
+        const invoiceStatus = isEdit ? (invoiceData.status || 'Draft') : 'Draft';
+        const orderStatus = isEdit ? (invoiceData.order_status || 'N/A') : 'N/A';
+        const paymentStatus = isEdit ? (invoiceData.payment_status || 'N/A') : 'N/A';
+        const notes = isEdit ? (invoiceData.notes || '') : '';
+
+        // Prevent editing if invoice is paid
+        if (isEdit && invoiceStatus === 'Paid') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cannot Edit',
+                text: 'This Sales Invoice is Paid and cannot be edited.',
+                confirmButtonColor: '#87B87F'
+            });
+            return;
+        }
 
         let orderOptions = '<option value="">Select Sales Order</option>';
         (salesOrdersList ?? []).forEach(function(item) {
@@ -369,10 +380,10 @@ function invoiceStatusBadgeServer($status)
             customerOptions += `<option value="${item?.id??''}" ${(item?.id??'')==customerId?'selected':''}>${customerName(item)}</option>`;
         });
 
-        const statusList = ['Unpaid', 'Partial', 'Paid', 'Cancelled'];
+        const statusList = ['Draft', 'Issued', 'Paid', 'Partially Paid', 'Cancelled'];
         let statusOptions = '';
         statusList.forEach(function(s) {
-            statusOptions += `<option value="${s}" ${s==status?'selected':''}>${s}</option>`;
+            statusOptions += `<option value="${s}" ${s==invoiceStatus?'selected':''}>${s}</option>`;
         });
 
         Swal.fire({
@@ -382,38 +393,52 @@ function invoiceStatusBadgeServer($status)
                 popup: 'swal-wide-popup'
             },
             didOpen: () => {
-                $('#swal_order').chosen({
+                $('#si_order').chosen({
                     width: '100%',
                     search_contains: true
                 });
-                $('#swal_customer').chosen({
+                $('#si_customer').chosen({
                     width: '100%',
                     search_contains: true
                 });
-                // Calculate remaining balance when paid amount changes
-                $('#swal_paid_amount').on('input', function() {
-                    const grand = parseFloat($('#swal_grand_total').val()) || 0;
+                // Calculate remaining balance when paid amount changes (UPDATE ONLY)
+                $('#si_paid_amount').on('input', function() {
+                    const grand = parseFloat($('#si_grand_total').val()) || 0;
                     const paid = parseFloat($(this).val()) || 0;
+
+                    // Validate paid amount - cannot exceed grand total
+                    if (paid > grand) {
+                        $(this).val(grand.toFixed(2));
+                        const remaining = 0;
+                        $('#si_remaining_balance').val(remaining.toFixed(2));
+                        return;
+                    }
+
+                    // Strict check: Only update remaining balance, no other fields
                     const remaining = Math.max(0, grand - paid);
-                    $('#swal_remaining_balance').val(remaining.toFixed(2));
+                    $('#si_remaining_balance').val(remaining.toFixed(2));
                 });
+                // Load invoice items if editing
+                if (isEdit  && invoiceData.id) {
+                    loadInvoiceItems(invoiceData.id);
+                }
             },
             html: `
-                <form id="invoiceForm">
+                <form id="si_invoiceForm">
 
-                <input type="hidden" id="swal_id" value="${id}">
+                <input type="hidden" id="si_id" value="${id}">
 
                 <div class="row">
                 <div class="col-md-6">
                 <label>Sales Order</label>
-                <select id="swal_order" class="form-control chzn-select-modal" ${isEdit ? 'disabled' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
+                <select id="si_order" class="form-control chzn-select-modal" ${isEdit ? 'disabled' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
                 ${orderOptions}
                 </select>
                 </div>
 
                 <div class="col-md-6">
                 <label>Customer</label>
-                <select id="swal_customer" class="form-control chzn-select-modal" ${isEdit ? 'disabled' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
+                <select id="si_customer" class="form-control chzn-select-modal" ${isEdit ? 'disabled' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
                 ${customerOptions}
                 </select>
                 </div>
@@ -422,58 +447,93 @@ function invoiceStatusBadgeServer($status)
                 <div class="row">
                 <div class="col-md-6">
                 <label>Invoice Date</label>
-                <input type="date" id="swal_invoice_date" class="form-control" value="${invoiceDate}" ${isEdit ? 'readonly' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
+                <input type="date" id="si_invoice_date" class="form-control" value="${invoiceDate}" ${isEdit ? 'readonly' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
                 </div>
 
                 <div class="col-md-6">
                 <label>Due Date</label>
-                <input type="date" id="swal_due_date" class="form-control" value="${dueDate}" ${isEdit ? 'readonly' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
-                </div>
-                </div>
-
-                <div class="row">
-                <div class="col-md-2">
-                <label>Subtotal</label>
-                <input type="number" step="0.01" id="swal_subtotal" class="form-control" readonly value="${subtotal}" style="background:#f5f5f5;">
-                </div>
-
-                <div class="col-md-2">
-                <label>Discount (Sum)</label>
-                <input type="number" step="0.01" id="swal_discount" class="form-control" readonly value="${discount}" style="background:#f5f5f5;">
-                </div>
-
-                <div class="col-md-2">
-                <label>Tax (Sum)</label>
-                <input type="number" step="0.01" id="swal_tax" class="form-control" readonly value="${tax}" style="background:#f5f5f5;">
-                </div>
-
-                <div class="col-md-3">
-                <label><strong>Grand Total</strong></label>
-                <input type="number" step="0.01" readonly id="swal_grand_total" class="form-control" value="${grandTotal}" style="background:#fff3cd; font-weight:bold;">
+                <input type="date" id="si_due_date" class="form-control" value="${dueDate}" ${isEdit ? 'readonly' : ''} style="${isEdit ? 'background:#f5f5f5; cursor: not-allowed;' : ''}">
                 </div>
                 </div>
 
                 <div class="row">
                 <div class="col-md-3">
-                <label>Paid Amount</label>
-                <input type="number" step="0.01" id="swal_paid_amount" class="form-control" value="${parseFloat(paidAmount).toFixed(2)}">
+                <label>Subtotal (Read-Only)</label>
+                <input type="number" step="0.01" id="si_subtotal" class="form-control" readonly value="${subtotal.toFixed(2)}" style="background:#f5f5f5;">
                 </div>
 
                 <div class="col-md-3">
-                <label>Remaining Balance</label>
-                <input type="number" step="0.01" readonly id="swal_remaining_balance" class="form-control" value="${parseFloat(remainingBalance).toFixed(2)}" style="background:#f5f5f5;">
+                <label>Discount (Read-Only)</label>
+                <input type="number" step="0.01" id="si_discount" class="form-control" readonly value="${discount.toFixed(2)}" style="background:#f5f5f5;">
                 </div>
 
                 <div class="col-md-3">
-                <label>Status</label>
-                <select id="swal_status" class="form-control">
+                <label>Tax (Read-Only)</label>
+                <input type="number" step="0.01" id="si_tax" class="form-control" readonly value="${tax.toFixed(2)}" style="background:#f5f5f5;">
+                </div>
+
+                <div class="col-md-3">
+                <label><strong>Grand Total (Read-Only)</strong></label>
+                <input type="number" step="0.01" readonly id="si_grand_total" class="form-control" value="${grandTotal.toFixed(2)}" style="background:#fff3cd; font-weight:bold;">
+                </div>
+                </div>
+
+                <div class="row">
+                <div class="col-md-3">
+                <label><strong>Paid Amount (Editable on Update)</strong></label>
+                <input type="number" step="0.01" id="si_paid_amount" class="form-control" value="${paidAmount.toFixed(2)}" style="${isEdit ? 'background:#fff3cd;' : ''}" ${isEdit ? '' : 'readonly'}>
+                </div>
+
+                <div class="col-md-3">
+                <label><strong>Remaining Balance (Auto-Calculated)</strong></label>
+                <input type="number" step="0.01" readonly id="si_remaining_balance" class="form-control" value="${remainingBalance.toFixed(2)}" style="background:#f5f5f5; font-weight:bold; color:#d9534f;">
+                </div>
+
+                <div class="col-md-3">
+                <label>Order Status (Read-Only)</label>
+                <input type="text" readonly id="si_order_status" class="form-control" value="${orderStatus}" style="background:#f5f5f5;">
+                </div>
+
+                <div class="col-md-3">
+                <label>Payment Status (Read-Only)</label>
+                <input type="text" readonly id="si_payment_status" class="form-control" value="${paymentStatus}" style="background:#f5f5f5;">
+                </div>
+                </div>
+
+                <div class="row" style="margin-top:10px;">
+                <div class="col-md-4">
+                <label>Invoice Status</label>
+                <select id="si_status" class="form-control">
                 ${statusOptions}
                 </select>
                 </div>
 
-                <div class="col-md-3">
-                <label>Remarks</label>
-                <input type="text" id="swal_remarks" class="form-control" value="${remarks}">
+                <div class="col-md-8">
+                <label>Remarks/Notes</label>
+                <input type="text" id="si_notes" class="form-control" value="${notes}" placeholder="Add remarks or notes">
+                </div>
+                </div>
+
+                <div class="row" style="margin-top:15px;">
+                <div class="col-md-12">
+                <label><strong>Products in this Invoice</strong></label>
+                <div id="si_invoice_items_container" class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th width="80px">Qty</th>
+                                <th width="100px">Rate</th>
+                                <th width="100px">Discount</th>
+                                <th width="100px">Tax</th>
+                                <th width="100px">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="si_invoice_items_body">
+                            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
                 </div>
                 </div>
 
@@ -488,25 +548,40 @@ function invoiceStatusBadgeServer($status)
 
                 calcInvoiceGrandTotal();
 
-                if ($('#swal_order').val() == '' || $('#swal_customer').val() == '' || $('#swal_invoice_date').val() == '') {
+                const recordId = $('#si_id').val();
+                const isUpdate = recordId !== '' && recordId !== '0';
+
+                if (!isUpdate && ($('#si_order').val() == '' || $('#si_customer').val() == '' || $('#si_invoice_date').val() == '')) {
                     Swal.showValidationMessage('Sales Order, Customer and Invoice Date are required');
                     return false;
                 }
 
+                // STRICT CHECK: For UPDATE: Only send payment-related fields (paid_amount and notes)
+                // Do NOT send other amount-related fields to prevent accidental changes
+                if (isUpdate) {
+                    return {
+                        id: recordId,
+                        paid_amount: parseFloat($('#si_paid_amount').val()) || 0,
+                        notes: $('#si_notes').val(),
+                        flag: 'save'
+                    };
+                }
+
+                // For CREATE: Send all fields
                 return {
-                    id: $('#swal_id').val(),
-                    sales_order_id: $('#swal_order').val(),
-                    customer_id: $('#swal_customer').val(),
-                    invoice_date: $('#swal_invoice_date').val(),
-                    due_date: $('#swal_due_date').val(),
-                    subtotal: $('#swal_subtotal').val(),
-                    discount_amount: $('#swal_discount').val(),
-                    tax_amount: $('#swal_tax').val(),
-                    grand_total: $('#swal_grand_total').val(),
-                    paid_amount: $('#swal_paid_amount').val(),
-                    remaining_balance: $('#swal_remaining_balance').val(),
-                    status: $('#swal_status').val(),
-                    remarks: $('#swal_remarks').val(),
+                    id: recordId,
+                    sales_order_id: $('#si_order').val(),
+                    customer_id: $('#si_customer').val(),
+                    invoice_date: $('#si_invoice_date').val(),
+                    due_date: $('#si_due_date').val(),
+                    subtotal: $('#si_subtotal').val(),
+                    discount: $('#si_discount').val(),
+                    tax: $('#si_tax').val(),
+                    grand_total: $('#si_grand_total').val(),
+                    paid_amount: parseFloat($('#si_paid_amount').val()) || 0,
+                    remaining_balance: $('#si_remaining_balance').val(),
+                    status: $('#si_status').val(),
+                    notes: $('#si_notes').val(),
                     flag: 'save'
                 };
 
@@ -626,5 +701,42 @@ function invoiceStatusBadgeServer($status)
 
         });
 
+    }
+
+    function loadInvoiceItems(invoiceId) {
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'get_items');
+        data.append('id', invoiceId);
+
+        fetch('index.php?r=sale/salesinvoices', {
+            method: 'POST',
+            body: data
+        })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success && res.items) {
+                    let html = '';
+                    res.items.forEach(item => {
+                        html += `
+                            <tr>
+                                <td>${item.product_name || 'N/A'}</td>
+                                <td>${parseFloat(item.quantity || 0).toFixed(2)}</td>
+                                <td>${parseFloat(item.unit_price || 0).toFixed(2)}</td>
+                                <td>${parseFloat(item.discount || 0).toFixed(2)}</td>
+                                <td>${parseFloat(item.tax || 0).toFixed(2)}</td>
+                                <td>${parseFloat(item.total || 0).toFixed(2)}</td>
+                            </tr>
+                        `;
+                    });
+                    $('#si_invoice_items_body').html(html);
+                } else {
+                    $('#si_invoice_items_body').html('<tr><td colspan="6" class="text-center">No items found</td></tr>');
+                }
+            })
+            .catch(e => {
+                console.error(e);
+                $('#si_invoice_items_body').html('<tr><td colspan="6" class="text-center">Error loading items</td></tr>');
+            });
     }
 </script>

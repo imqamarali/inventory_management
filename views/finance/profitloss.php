@@ -13,34 +13,31 @@ use yii\helpers\Url;
                 <small>Income and Expense Report</small>
             </h3>
         </div>
-
-        <div>
-            <a href="<?= Url::to(['finance/finance']) ?>" class="btn btn-secondary btn-sm">
-                <i class="fa fa-arrow-left"></i> Back
-            </a>
+        <div style="display: flex; gap: 10px;">
+            <button id="refreshProfitLoss">
+                <i class="fa fa-refresh"></i>
+                Refresh
+            </button>
         </div>
     </div>
 
+    <!-- Top Stat Cards -->
     <div class="stats-grid">
         <div class="stat-card green">
             <div class="stat-header">
                 <span class="stat-title">Total Income</span>
-                <div class="stat-icon"><i class="fa fa-arrow-circle-down"></i></div>
+                <div class="stat-icon"><i class="fa fa-arrow-circle-up"></i></div>
             </div>
-            <div class="stat-value">
-                PKR <?= number_format($total_income ?? 0, 0) ?>
-            </div>
+            <div class="stat-value" id="total_income_value">...</div>
             <div class="stat-subtitle">Revenue & Income</div>
         </div>
 
         <div class="stat-card red">
             <div class="stat-header">
                 <span class="stat-title">Total Expense</span>
-                <div class="stat-icon"><i class="fa fa-arrow-circle-up"></i></div>
+                <div class="stat-icon"><i class="fa fa-arrow-circle-down"></i></div>
             </div>
-            <div class="stat-value">
-                PKR <?= number_format($total_expense ?? 0, 0) ?>
-            </div>
+            <div class="stat-value" id="total_expense_value">...</div>
             <div class="stat-subtitle">All Expenses</div>
         </div>
 
@@ -49,10 +46,7 @@ use yii\helpers\Url;
                 <span class="stat-title">Gross Profit</span>
                 <div class="stat-icon"><i class="fa fa-dollar"></i></div>
             </div>
-            <div class="stat-value">
-                <?php $gp = ($total_income ?? 0) - ($total_expense ?? 0); ?>
-                PKR <?= number_format($gp, 0) ?>
-            </div>
+            <div class="stat-value" id="gross_profit_value">...</div>
             <div class="stat-subtitle">Income - Expenses</div>
         </div>
 
@@ -61,21 +55,17 @@ use yii\helpers\Url;
                 <span class="stat-title">Profit Margin</span>
                 <div class="stat-icon"><i class="fa fa-percent"></i></div>
             </div>
-            <div class="stat-value">
-                <?php
-                    $margin = ($total_income ?? 0) > 0 ? (($gp / ($total_income ?? 0)) * 100) : 0;
-                    echo number_format($margin, 1) . '%';
-                ?>
-            </div>
+            <div class="stat-value" id="profit_margin_value">...</div>
             <div class="stat-subtitle">Profit Ratio</div>
         </div>
     </div>
 
+    <!-- Income and Expense Tables -->
     <div class="row" style="margin-top: 20px;">
         <div class="col-md-6">
             <div class="dashboard-box">
                 <h4>
-                    <i class="fa fa-arrow-circle-down"></i>
+                    <i class="fa fa-arrow-circle-up"></i>
                     Income & Revenue
                 </h4>
 
@@ -87,50 +77,10 @@ use yii\helpers\Url;
                                 <th width="30%">Amount</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php
-                            $income = $income ?? [];
-                            $totalIncome = 0;
-                            if (empty($income)): ?>
-                                <tr>
-                                    <td colspan="2" style="text-align: center; padding: 20px;">
-                                        <small style="color: #999;">No income accounts</small>
-                                    </td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($income as $item): ?>
-                                    <?php $totalIncome += (float)($item['total'] ?? 0); ?>
-                                    <tr>
-                                        <td>
-                                            <?= Html::encode($item['account_name'] ?? '-') ?>
-                                        </td>
-                                        <td>
-                                            <strong class="text-success">
-                                                PKR <?= number_format((float)($item['total'] ?? 0), 2) ?>
-                                            </strong>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                            <?php
-                            $salesTotal = $sales_total ?? 0;
-                            $totalIncome += $salesTotal;
-                            if ($salesTotal > 0): ?>
-                                <tr style="border-top: 2px solid #e9ecef;">
-                                    <td><strong>Sales Orders</strong></td>
-                                    <td>
-                                        <strong class="text-success">
-                                            PKR <?= number_format($salesTotal, 2) ?>
-                                        </strong>
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
-                            <tr style="background: #f8f9fa; font-weight: bold;">
-                                <td>TOTAL INCOME</td>
-                                <td>
-                                    <span class="text-success">
-                                        PKR <?= number_format($totalIncome, 2) ?>
-                                    </span>
+                        <tbody id="income_tbody">
+                            <tr>
+                                <td colspan="2" style="text-align: center; padding: 20px;">
+                                    <small style="color: #999;">Loading...</small>
                                 </td>
                             </tr>
                         </tbody>
@@ -143,7 +93,7 @@ use yii\helpers\Url;
         <div class="col-md-6">
             <div class="dashboard-box">
                 <h4>
-                    <i class="fa fa-arrow-circle-up"></i>
+                    <i class="fa fa-arrow-circle-down"></i>
                     Expenses & Costs
                 </h4>
 
@@ -155,50 +105,10 @@ use yii\helpers\Url;
                                 <th width="30%">Amount</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php
-                            $expense = $expense ?? [];
-                            $totalExpense = 0;
-                            if (empty($expense)): ?>
-                                <tr>
-                                    <td colspan="2" style="text-align: center; padding: 20px;">
-                                        <small style="color: #999;">No expense accounts</small>
-                                    </td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($expense as $item): ?>
-                                    <?php $totalExpense += (float)($item['total'] ?? 0); ?>
-                                    <tr>
-                                        <td>
-                                            <?= Html::encode($item['account_name'] ?? '-') ?>
-                                        </td>
-                                        <td>
-                                            <strong class="text-danger">
-                                                PKR <?= number_format((float)($item['total'] ?? 0), 2) ?>
-                                            </strong>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                            <?php
-                            $purchaseTotal = $purchase_total ?? 0;
-                            $totalExpense += $purchaseTotal;
-                            if ($purchaseTotal > 0): ?>
-                                <tr style="border-top: 2px solid #e9ecef;">
-                                    <td><strong>Purchase Orders</strong></td>
-                                    <td>
-                                        <strong class="text-danger">
-                                            PKR <?= number_format($purchaseTotal, 2) ?>
-                                        </strong>
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
-                            <tr style="background: #f8f9fa; font-weight: bold;">
-                                <td>TOTAL EXPENSE</td>
-                                <td>
-                                    <span class="text-danger">
-                                        PKR <?= number_format($totalExpense, 2) ?>
-                                    </span>
+                        <tbody id="expense_tbody">
+                            <tr>
+                                <td colspan="2" style="text-align: center; padding: 20px;">
+                                    <small style="color: #999;">Loading...</small>
                                 </td>
                             </tr>
                         </tbody>
@@ -209,6 +119,7 @@ use yii\helpers\Url;
         </div>
     </div>
 
+    <!-- Net Profit Summary -->
     <div class="row" style="margin-top: 20px;">
         <div class="col-md-12">
             <div class="dashboard-box">
@@ -224,8 +135,8 @@ use yii\helpers\Url;
                                 <strong>Total Income</strong>
                             </td>
                             <td style="padding: 10px 20px; text-align: right; width: 30%;">
-                                <strong class="text-success">
-                                    PKR <?= number_format($total_income ?? 0, 2) ?>
+                                <strong class="text-success" id="summary_income">
+                                    PKR 0.00
                                 </strong>
                             </td>
                         </tr>
@@ -234,8 +145,8 @@ use yii\helpers\Url;
                                 <strong>Less: Total Expense</strong>
                             </td>
                             <td style="padding: 10px 20px; text-align: right; border-top: 1px solid #e9ecef;">
-                                <strong class="text-danger">
-                                    PKR <?= number_format($total_expense ?? 0, 2) ?>
+                                <strong class="text-danger" id="summary_expense">
+                                    PKR 0.00
                                 </strong>
                             </td>
                         </tr>
@@ -244,14 +155,7 @@ use yii\helpers\Url;
                                 <strong>NET PROFIT / LOSS</strong>
                             </td>
                             <td style="padding: 10px 20px; text-align: right; border-top: 2px solid #2d3748; border-bottom: 2px solid #2d3748; background: #f8f9fa;">
-                                <?php
-                                $netProfit = ($total_income ?? 0) - ($total_expense ?? 0);
-                                if ($netProfit >= 0) {
-                                    echo '<strong class="text-success" style="font-size: 18px;">PKR ' . number_format($netProfit, 2) . '</strong>';
-                                } else {
-                                    echo '<strong class="text-danger" style="font-size: 18px;">PKR (' . number_format(abs($netProfit), 2) . ')</strong>';
-                                }
-                                ?>
+                                <strong id="summary_netprofit" style="font-size: 18px;">PKR 0.00</strong>
                             </td>
                         </tr>
                     </table>
@@ -262,6 +166,218 @@ use yii\helpers\Url;
     </div>
 
 </div>
+
+<script>
+    $(function() {
+        loadProfitLoss();
+
+        $("#refreshProfitLoss").click(function() {
+            loadProfitLoss();
+        });
+    });
+
+    function loadProfitLoss() {
+        showLoadingState();
+        $.ajax({
+            url: "<?= Yii::$app->urlManager->createUrl('finance/profitloss') ?>",
+            type: "POST",
+            dataType: "json",
+            data: {
+                flag: "search",
+                from_date: '<?= $from_date ?? date("Y-m-01") ?>',
+                to_date: '<?= $to_date ?? date("Y-m-d") ?>'
+            },
+            timeout: 5000,
+            success: function(response) {
+                hideLoadingState();
+                if (response.success) {
+                    loadProfitLossData(response);
+                } else {
+                    showError(response.message || 'Failed to load profit & loss data');
+                }
+            },
+            error: function(xhr, status, error) {
+                hideLoadingState();
+                if (status === 'timeout') {
+                    showError('Request timed out. Please try again.');
+                } else {
+                    showError('Network error: ' + (xhr.status || 'Unknown error'));
+                }
+            }
+        });
+    }
+
+    function showLoadingState() {
+        $("#total_income_value, #total_expense_value, #gross_profit_value, #profit_margin_value").each(function() {
+            $(this).addClass("loading").html("...");
+        });
+    }
+
+    function hideLoadingState() {
+        $("#total_income_value, #total_expense_value, #gross_profit_value, #profit_margin_value").removeClass("loading");
+    }
+
+    function loadProfitLossData(data) {
+        // Animate stat card values
+        animateCurrency("#total_income_value", data.total_income);
+        animateCurrency("#total_expense_value", data.total_expense);
+
+        // Calculate and display gross profit
+        var grossProfit = data.total_income - data.total_expense;
+        animateCurrency("#gross_profit_value", grossProfit);
+
+        // Calculate and display profit margin
+        var profitMargin = data.total_income > 0 ? ((grossProfit / data.total_income) * 100) : 0;
+        animatePercentage("#profit_margin_value", profitMargin);
+
+        // Load income table
+        loadIncomeTable(data.income, data.sales_total, data.total_income);
+
+        // Load expense table
+        loadExpenseTable(data.expense, data.purchase_total, data.total_expense);
+
+        // Update net profit summary
+        updateNetProfitSummary(data.total_income, data.total_expense, grossProfit);
+    }
+
+    function loadIncomeTable(income, salesTotal, totalIncome) {
+        var html = '';
+
+        if (!income || income.length === 0) {
+            html += '<tr><td colspan="2" style="text-align: center; padding: 20px;"><small style="color: #999;">No income accounts</small></td></tr>';
+        } else {
+            income.forEach(function(item) {
+                html += '<tr>';
+                html += '<td>' + (item.account_name || '-') + '</td>';
+                html += '<td><strong class="text-success">PKR ' + Number(item.total || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+                html += '</tr>';
+            });
+        }
+
+        if (salesTotal && salesTotal > 0) {
+            html += '<tr style="border-top: 2px solid #e9ecef;">';
+            html += '<td><strong>Sales Orders</strong></td>';
+            html += '<td><strong class="text-success">PKR ' + Number(salesTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+            html += '</tr>';
+        }
+
+        html += '<tr style="background: #f8f9fa; font-weight: bold;">';
+        html += '<td>TOTAL INCOME</td>';
+        html += '<td><span class="text-success">PKR ' + Number(totalIncome).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span></td>';
+        html += '</tr>';
+
+        $("#income_tbody").html(html);
+    }
+
+    function loadExpenseTable(expense, purchaseTotal, totalExpense) {
+        var html = '';
+
+        if (!expense || expense.length === 0) {
+            html += '<tr><td colspan="2" style="text-align: center; padding: 20px;"><small style="color: #999;">No expense accounts</small></td></tr>';
+        } else {
+            expense.forEach(function(item) {
+                html += '<tr>';
+                html += '<td>' + (item.account_name || '-') + '</td>';
+                html += '<td><strong class="text-danger">PKR ' + Number(item.total || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+                html += '</tr>';
+            });
+        }
+
+        if (purchaseTotal && purchaseTotal > 0) {
+            html += '<tr style="border-top: 2px solid #e9ecef;">';
+            html += '<td><strong>Purchase Orders</strong></td>';
+            html += '<td><strong class="text-danger">PKR ' + Number(purchaseTotal).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+            html += '</tr>';
+        }
+
+        html += '<tr style="background: #f8f9fa; font-weight: bold;">';
+        html += '<td>TOTAL EXPENSE</td>';
+        html += '<td><span class="text-danger">PKR ' + Number(totalExpense).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span></td>';
+        html += '</tr>';
+
+        $("#expense_tbody").html(html);
+    }
+
+    function updateNetProfitSummary(totalIncome, totalExpense, netProfit) {
+        $("#summary_income").text("PKR " + Number(totalIncome).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+        $("#summary_expense").text("PKR " + Number(totalExpense).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+
+        if (netProfit >= 0) {
+            $("#summary_netprofit").html('<span class="text-success" style="font-size: 18px;">PKR ' + Number(netProfit).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>');
+        } else {
+            $("#summary_netprofit").html('<span class="text-danger" style="font-size: 18px;">PKR (' + Number(Math.abs(netProfit)).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ')</span>');
+        }
+    }
+
+    function animateCurrency(id, value) {
+        $({
+            count: 0
+        }).animate({
+                count: value
+
+            },
+
+            {
+
+                duration: 700,
+
+                easing: "swing",
+
+                step: function() {
+
+                    $(id).text("PKR " + Math.floor(this.count).toLocaleString());
+
+                },
+
+                complete: function() {
+
+                    $(id).text("PKR " + Number(value).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}));
+
+                }
+
+            });
+
+    }
+
+    function animatePercentage(id, value) {
+        $({
+            count: 0
+        }).animate({
+                count: value
+
+            },
+
+            {
+
+                duration: 700,
+
+                easing: "swing",
+
+                step: function() {
+
+                    $(id).text(Math.floor(this.count) + '%');
+
+                },
+
+                complete: function() {
+
+                    $(id).text(Number(value).toFixed(1) + '%');
+
+                }
+
+            });
+
+    }
+
+    function showError(message) {
+        const alert = $(`<div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa fa-exclamation-circle"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`);
+        $(document.body).prepend(alert);
+        setTimeout(() => alert.fadeOut(), 5000);
+    }
+</script>
 
 <style>
     .stats-grid {

@@ -10,49 +10,44 @@ use yii\helpers\Url;
             <h3>
                 <i class="fa fa-file-text-o"></i>
                 Balance Sheet
-                <small>Statement of Financial Position</small>
+                <small>Financial Summary</small>
             </h3>
         </div>
-
-        <div>
-            <a href="<?= Url::to(['finance/finance']) ?>" class="btn btn-secondary btn-sm">
-                <i class="fa fa-arrow-left"></i> Back
-            </a>
+        <div style="display: flex; gap: 10px;">
+            <button id="refreshBalanceSheet">
+                <i class="fa fa-refresh"></i>
+                Refresh
+            </button>
         </div>
     </div>
 
+    <!-- Top Stat Cards -->
     <div class="stats-grid">
         <div class="stat-card blue">
             <div class="stat-header">
                 <span class="stat-title">Total Assets</span>
-                <div class="stat-icon"><i class="fa fa-folder-open"></i></div>
+                <div class="stat-icon"><i class="fa fa-briefcase"></i></div>
             </div>
-            <div class="stat-value">
-                PKR <?= number_format($total_assets ?? 0, 0) ?>
-            </div>
-            <div class="stat-subtitle">What We Own</div>
+            <div class="stat-value" id="total_assets_value">...</div>
+            <div class="stat-subtitle">Asset Value</div>
         </div>
 
         <div class="stat-card red">
             <div class="stat-header">
-                <span class="stat-title">Total Liabilities</span>
-                <div class="stat-icon"><i class="fa fa-credit-card"></i></div>
+                <span class="stat-title">Total Expenses</span>
+                <div class="stat-icon"><i class="fa fa-arrow-circle-down"></i></div>
             </div>
-            <div class="stat-value">
-                PKR <?= number_format($total_liabilities ?? 0, 0) ?>
-            </div>
-            <div class="stat-subtitle">What We Owe</div>
+            <div class="stat-value" id="total_expenses_value">...</div>
+            <div class="stat-subtitle">Total Expenses</div>
         </div>
 
         <div class="stat-card green">
             <div class="stat-header">
-                <span class="stat-title">Total Equity</span>
-                <div class="stat-icon"><i class="fa fa-dollar"></i></div>
+                <span class="stat-title">Total Income</span>
+                <div class="stat-icon"><i class="fa fa-arrow-circle-up"></i></div>
             </div>
-            <div class="stat-value">
-                PKR <?= number_format($total_equity ?? 0, 0) ?>
-            </div>
-            <div class="stat-subtitle">Net Worth</div>
+            <div class="stat-value" id="total_income_value">...</div>
+            <div class="stat-subtitle">Income Generated</div>
         </div>
 
         <div class="stat-card purple">
@@ -60,61 +55,32 @@ use yii\helpers\Url;
                 <span class="stat-title">Balance Status</span>
                 <div class="stat-icon"><i class="fa fa-check-circle"></i></div>
             </div>
-            <div class="stat-value">
-                <?php
-                $diff = abs(($total_assets ?? 0) - (($total_liabilities ?? 0) + ($total_equity ?? 0)));
-                echo $diff < 0.01 ? '✓ OK' : '✗ Diff';
-                ?>
-            </div>
-            <div class="stat-subtitle">Assets = L + E</div>
+            <div class="stat-value" id="balance_status_value">...</div>
+            <div class="stat-subtitle">Financial Health</div>
         </div>
     </div>
 
+    <!-- Sales and Purchase Accounts Section -->
     <div class="row" style="margin-top: 20px;">
         <div class="col-md-6">
             <div class="dashboard-box">
                 <h4>
-                    <i class="fa fa-folder-open"></i>
-                    Assets
+                    <i class="fa fa-shopping-cart"></i>
+                    Sales Accounts
                 </h4>
 
                 <div style="overflow-x: auto;">
                     <table class="table table-striped table-hover compact-table">
                         <thead>
                             <tr>
-                                <th width="70%">Asset Account</th>
+                                <th width="70%">Account Name</th>
                                 <th width="30%">Amount</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php
-                            $assets = $assets ?? [];
-                            if (empty($assets)): ?>
-                                <tr>
-                                    <td colspan="2" style="text-align: center; padding: 20px;">
-                                        <small style="color: #999;">No asset accounts</small>
-                                    </td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($assets as $asset): ?>
-                                    <tr>
-                                        <td>
-                                            <?= Html::encode($asset['account_name'] ?? '-') ?>
-                                        </td>
-                                        <td>
-                                            <strong class="text-info">
-                                                PKR <?= number_format((float)($asset['current_balance'] ?? 0), 2) ?>
-                                            </strong>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                            <tr style="background: #f8f9fa; font-weight: bold; border-top: 2px solid #e9ecef;">
-                                <td>TOTAL ASSETS</td>
-                                <td>
-                                    <span class="text-info">
-                                        PKR <?= number_format($total_assets ?? 0, 2) ?>
-                                    </span>
+                        <tbody id="sales_accounts_tbody">
+                            <tr>
+                                <td colspan="2" style="text-align: center; padding: 20px;">
+                                    <small style="color: #999;">Loading...</small>
                                 </td>
                             </tr>
                         </tbody>
@@ -127,91 +93,22 @@ use yii\helpers\Url;
         <div class="col-md-6">
             <div class="dashboard-box">
                 <h4>
-                    <i class="fa fa-credit-card"></i>
-                    Liabilities & Equity
+                    <i class="fa fa-shopping-bag"></i>
+                    Purchase Accounts
                 </h4>
 
                 <div style="overflow-x: auto;">
                     <table class="table table-striped table-hover compact-table">
                         <thead>
                             <tr>
-                                <th width="70%">Account</th>
+                                <th width="70%">Account Name</th>
                                 <th width="30%">Amount</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <?php
-                            $liabilities = $liabilities ?? [];
-                            if (empty($liabilities)): ?>
-                                <tr>
-                                    <td colspan="2" style="text-align: center; padding: 10px;">
-                                        <small style="color: #999;">No liability accounts</small>
-                                    </td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($liabilities as $liability): ?>
-                                    <tr>
-                                        <td>
-                                            <?= Html::encode($liability['account_name'] ?? '-') ?>
-                                        </td>
-                                        <td>
-                                            <strong class="text-danger">
-                                                PKR <?= number_format((float)($liability['current_balance'] ?? 0), 2) ?>
-                                            </strong>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                            <tr style="background: #f8f9fa; font-weight: bold;">
-                                <td>TOTAL LIABILITIES</td>
-                                <td>
-                                    <span class="text-danger">
-                                        PKR <?= number_format($total_liabilities ?? 0, 2) ?>
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr style="border-top: 2px solid #e9ecef;">
-                                <td colspan="2" style="padding: 5px;"></td>
-                            </tr>
-                            <?php
-                            $equity = $equity ?? [];
-                            if (!empty($equity)):
-                                foreach ($equity as $eq):
-                            ?>
-                                    <tr>
-                                        <td>
-                                            <?= Html::encode($eq['account_name'] ?? '-') ?>
-                                        </td>
-                                        <td>
-                                            <strong class="text-success">
-                                                PKR <?= number_format((float)($eq['current_balance'] ?? 0), 2) ?>
-                                            </strong>
-                                        </td>
-                                    </tr>
-                            <?php
-                                endforeach;
-                            else:
-                            ?>
-                                <tr>
-                                    <td colspan="2" style="text-align: center; padding: 10px;">
-                                        <small style="color: #999;">No equity accounts</small>
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
-                            <tr style="background: #f8f9fa; font-weight: bold;">
-                                <td>TOTAL EQUITY</td>
-                                <td>
-                                    <span class="text-success">
-                                        PKR <?= number_format($total_equity ?? 0, 2) ?>
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr style="background: #f8f9fa; font-weight: bold;">
-                                <td>TOTAL LIABILITIES + EQUITY</td>
-                                <td>
-                                    <span class="text-success">
-                                        PKR <?= number_format($total_liabilities_equity ?? 0, 2) ?>
-                                    </span>
+                        <tbody id="purchase_accounts_tbody">
+                            <tr>
+                                <td colspan="2" style="text-align: center; padding: 20px;">
+                                    <small style="color: #999;">Loading...</small>
                                 </td>
                             </tr>
                         </tbody>
@@ -222,6 +119,7 @@ use yii\helpers\Url;
         </div>
     </div>
 
+    <!-- Balance Sheet Equation -->
     <div class="row" style="margin-top: 20px;">
         <div class="col-md-12">
             <div class="dashboard-box">
@@ -231,44 +129,40 @@ use yii\helpers\Url;
                 </h4>
 
                 <div style="padding: 30px;">
-                    <table class="summary-table" style="width: 100%; margin: 0 auto; max-width: 600px;">
+                    <table class="summary-table" style="width: 100%; margin: 0 auto; max-width: 800px;">
                         <tr>
-                            <td style="padding: 10px 0; text-align: center; width: 33%;">
+                            <td style="padding: 10px 0; text-align: center; width: 30%;">
                                 <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">ASSETS</div>
-                                <div style="font-size: 18px; font-weight: bold; color: #3498db;">
-                                    PKR <?= number_format($total_assets ?? 0, 0) ?>
+                                <div style="font-size: 18px; font-weight: bold; color: #3498db;" id="equation_assets">
+                                    PKR 0
                                 </div>
                             </td>
-                            <td style="padding: 10px 0; text-align: center; width: 33%;">
+                            <td style="padding: 10px 0; text-align: center; width: 10%;">
                                 <div style="font-size: 16px; font-weight: bold;">
                                     =
                                 </div>
                             </td>
-                            <td style="padding: 10px 0;">
-                                <div style="text-align: center;">
-                                    <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">LIABILITIES</div>
-                                    <div style="font-size: 14px; font-weight: bold; color: #e74c3c;">
-                                        PKR <?= number_format($total_liabilities ?? 0, 0) ?>
-                                    </div>
+                            <td style="padding: 10px 0; text-align: center; width: 30%;">
+                                <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">INCOME</div>
+                                <div style="font-size: 14px; font-weight: bold; color: #2ecc71;" id="equation_income">
+                                    PKR 0
                                 </div>
-                                <div style="text-align: center; margin-top: 10px;">
-                                    <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">+ EQUITY</div>
-                                    <div style="font-size: 14px; font-weight: bold; color: #2ecc71;">
-                                        PKR <?= number_format($total_equity ?? 0, 0) ?>
-                                    </div>
+                            </td>
+                            <td style="padding: 10px 0; text-align: center; width: 10%;">
+                                <div style="font-size: 16px; font-weight: bold;">
+                                    -
+                                </div>
+                            </td>
+                            <td style="padding: 10px 0; text-align: center; width: 20%;">
+                                <div style="font-size: 12px; color: #7f8c8d; margin-bottom: 5px;">EXPENSES</div>
+                                <div style="font-size: 14px; font-weight: bold; color: #e74c3c;" id="equation_expenses">
+                                    PKR 0
                                 </div>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="3" style="padding-top: 20px; text-align: center; border-top: 2px solid #e9ecef;">
-                                <?php
-                                $diff = abs(($total_assets ?? 0) - (($total_liabilities ?? 0) + ($total_equity ?? 0)));
-                                if ($diff < 0.01) {
-                                    echo '<span style="color: #2ecc71; font-weight: bold;">✓ Balance Sheet is Balanced</span>';
-                                } else {
-                                    echo '<span style="color: #e74c3c; font-weight: bold;">✗ Balance Sheet Imbalance: ' . number_format($diff, 2) . '</span>';
-                                }
-                                ?>
+                            <td colspan="5" style="padding-top: 20px; text-align: center; border-top: 2px solid #e9ecef;">
+                                <span id="balance_equation_status" style="font-weight: bold;">Loading...</span>
                             </td>
                         </tr>
                     </table>
@@ -279,6 +173,186 @@ use yii\helpers\Url;
     </div>
 
 </div>
+
+<script>
+    $(function() {
+        loadBalanceSheet();
+
+        $("#refreshBalanceSheet").click(function() {
+            loadBalanceSheet();
+        });
+    });
+
+    function loadBalanceSheet() {
+        showLoadingState();
+        $.ajax({
+            url: "<?= Yii::$app->urlManager->createUrl('finance/financedashboard-data') ?>",
+            type: "POST",
+            dataType: "json",
+            data: { flag: "load_dashboard" },
+            timeout: 5000,
+            success: function(response) {
+                hideLoadingState();
+                if (response.success) {
+                    loadBalanceSheetData(response);
+                } else {
+                    showError(response.message || 'Failed to load balance sheet');
+                }
+            },
+            error: function(xhr, status, error) {
+                hideLoadingState();
+                if (status === 'timeout') {
+                    showError('Request timed out. Please try again.');
+                } else {
+                    showError('Network error: ' + (xhr.status || 'Unknown error'));
+                }
+            }
+        });
+    }
+
+    function showLoadingState() {
+        $("#total_assets_value, #total_expenses_value, #total_income_value, #balance_status_value").each(function() {
+            $(this).addClass("loading").html("...");
+        });
+    }
+
+    function hideLoadingState() {
+        $("#total_assets_value, #total_expenses_value, #total_income_value, #balance_status_value").removeClass("loading");
+    }
+
+    function loadBalanceSheetData(data) {
+        // Load stat card values with animation
+        animateCurrency("#total_assets_value", data.stats.total_assets);
+        animateCurrency("#total_expenses_value", data.stats.total_expense);
+        animateCurrency("#total_income_value", data.stats.total_income);
+
+        // Load balance status based on income vs expenses
+        var profit = data.stats.total_income - data.stats.total_expense;
+        if (profit >= 0) {
+            $("#balance_status_value").text("✓ Profitable");
+        } else {
+            $("#balance_status_value").text("✗ Loss");
+        }
+
+        // Load sales accounts
+        loadSalesAccountsTable(data.salesStats);
+
+        // Load purchase accounts
+        loadPurchaseAccountsTable(data.purchaseStats);
+
+        // Load balance sheet equation
+        animateCurrency("#equation_assets", data.stats.total_assets);
+        animateCurrency("#equation_income", data.stats.total_income);
+        animateCurrency("#equation_expenses", data.stats.total_expense);
+
+        // Load balance equation status
+        var profit = data.stats.total_income - data.stats.total_expense;
+        if (profit >= 0) {
+            $("#balance_equation_status").html('<span style="color: #2ecc71; font-weight: bold;">✓ Assets = ' + Number(profit).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' (Profit)</span>');
+        } else {
+            $("#balance_equation_status").html('<span style="color: #e74c3c; font-weight: bold;">✗ Assets = ' + Number(profit).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' (Loss)</span>');
+        }
+    }
+
+    function loadSalesAccountsTable(salesStats) {
+        var html = '';
+
+        if (!salesStats) {
+            html = '<tr><td colspan="2" style="text-align: center; padding: 20px;"><small style="color: #999;">No sales data</small></td></tr>';
+        } else {
+            html += '<tr>';
+            html += '<td>Total Sales Invoices</td>';
+            html += '<td><strong class="text-success">' + (salesStats.total_sales_invoices || 0) + '</strong></td>';
+            html += '</tr>';
+
+            html += '<tr>';
+            html += '<td>Total Sales Amount</td>';
+            html += '<td><strong class="text-success">PKR ' + Number(salesStats.total_sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+            html += '</tr>';
+
+            html += '<tr>';
+            html += '<td>Paid Sales</td>';
+            html += '<td><strong class="text-success">PKR ' + Number(salesStats.paid_sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+            html += '</tr>';
+
+            html += '<tr style="background: #f8f9fa; font-weight: bold;">';
+            html += '<td>Outstanding Sales</td>';
+            html += '<td><span class="text-info">PKR ' + Number(salesStats.unpaid_sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span></td>';
+            html += '</tr>';
+        }
+
+        $("#sales_accounts_tbody").html(html);
+    }
+
+    function loadPurchaseAccountsTable(purchaseStats) {
+        var html = '';
+
+        if (!purchaseStats) {
+            html = '<tr><td colspan="2" style="text-align: center; padding: 20px;"><small style="color: #999;">No purchase data</small></td></tr>';
+        } else {
+            html += '<tr>';
+            html += '<td>Total Purchase Invoices</td>';
+            html += '<td><strong class="text-danger">' + (purchaseStats.total_purchase_invoices || 0) + '</strong></td>';
+            html += '</tr>';
+
+            html += '<tr>';
+            html += '<td>Total Purchase Amount</td>';
+            html += '<td><strong class="text-danger">PKR ' + Number(purchaseStats.total_purchase_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+            html += '</tr>';
+
+            html += '<tr>';
+            html += '<td>Paid Purchases</td>';
+            html += '<td><strong class="text-danger">PKR ' + Number(purchaseStats.paid_purchase_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>';
+            html += '</tr>';
+
+            html += '<tr style="background: #f8f9fa; font-weight: bold;">';
+            html += '<td>Outstanding Purchases</td>';
+            html += '<td><span class="text-danger">PKR ' + Number(purchaseStats.unpaid_purchase_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span></td>';
+            html += '</tr>';
+        }
+
+        $("#purchase_accounts_tbody").html(html);
+    }
+
+    function animateCurrency(id, value) {
+        $({
+            count: 0
+        }).animate({
+                count: value
+
+            },
+
+            {
+
+                duration: 700,
+
+                easing: "swing",
+
+                step: function() {
+
+                    $(id).text("PKR " + Math.floor(this.count).toLocaleString());
+
+                },
+
+                complete: function() {
+
+                    $(id).text("PKR " + Number(value).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}));
+
+                }
+
+            });
+
+    }
+
+    function showError(message) {
+        const alert = $(`<div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa fa-exclamation-circle"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`);
+        $(document.body).prepend(alert);
+        setTimeout(() => alert.fadeOut(), 5000);
+    }
+</script>
 
 <style>
     .stats-grid {

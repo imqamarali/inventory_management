@@ -124,7 +124,12 @@ if (!isset($warehouses)) $warehouses = [];
                             <th>Order Date</th>
                             <th>Status</th>
                             <th>Payment</th>
-                            <th>Grand Total</th>
+                            <th class="text-right">Subtotal</th>
+                            <th class="text-right">Discount</th>
+                            <th class="text-right">Tax</th>
+                            <th class="text-right">Grand Total</th>
+                            <th class="text-right">Paid</th>
+                            <th class="text-right">Remaining</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -137,8 +142,18 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td><?= Html::encode($item['warehouse_name']) ?></td>
                                 <td><?= Html::encode($item['order_date']) ?></td>
                                 <td><?= statusBadgeServer($item['order_status']) ?></td>
-                                <td><?= paymentBadgeServer($item['payment_status']) ?></td>
-                                <td><?= number_format($item['grand_total'], 2) ?></td>
+                                <td>
+                                    <span id="invoice-status-<?= $item['id'] ?>"><?= invoiceStatusBadgeServer($item['invoice_status'] ?? 'N/A') ?></span>
+                                    <button class="btn btn-xs btn-info" onclick="syncInvoiceData(<?= $item['id'] ?>, this)" title="Sync from Invoice" style="margin-left: 5px; padding: 2px 6px;">
+                                        <i class="fa fa-refresh"></i>
+                                    </button>
+                                </td>
+                                <td class="text-right"><span id="subtotal-<?= $item['id'] ?>"><?= number_format($item['subtotal'] ?? 0, 2) ?></span></td>
+                                <td class="text-right"><span id="discount-<?= $item['id'] ?>"><?= number_format($item['discount'] ?? 0, 2) ?></span></td>
+                                <td class="text-right"><span id="tax-<?= $item['id'] ?>"><?= number_format($item['tax'] ?? 0, 2) ?></span></td>
+                                <td class="text-right"><strong><span id="grand-total-<?= $item['id'] ?>"><?= number_format($item['grand_total'], 2) ?></span></strong></td>
+                                <td class="text-right"><span id="paid-amount-<?= $item['id'] ?>"><?= number_format($item['paid_amount'] ?? 0, 2) ?></span></td>
+                                <td class="text-right"><span id="remaining-<?= $item['id'] ?>"><?= number_format($item['remaining_balance'] ?? 0, 2) ?></span></td>
                                 <td>
                                     <button onclick='showOrderModal(<?= json_encode($item) ?>)' title="Edit">
                                         <i class="fa fa-pencil"></i>
@@ -183,6 +198,20 @@ function statusBadgeServer($status)
 function paymentBadgeServer($status)
 {
     $map = ['Pending' => 'danger', 'Partial' => 'warning', 'Paid' => 'success'];
+    $cls = $map[$status] ?? 'default';
+    return '<span class="label label-' . $cls . '">' . Html::encode($status) . '</span>';
+}
+
+function invoiceStatusBadgeServer($status)
+{
+    $map = [
+        'Draft' => 'default',
+        'Issued' => 'info',
+        'Paid' => 'success',
+        'Partially Paid' => 'warning',
+        'Cancelled' => 'danger',
+        'N/A' => 'secondary'
+    ];
     $cls = $map[$status] ?? 'default';
     return '<span class="label label-' . $cls . '">' . Html::encode($status) . '</span>';
 }
@@ -301,7 +330,7 @@ function paymentBadgeServer($status)
 
             html = `
         <tr>
-            <td colspan="9" class="text-center">
+            <td colspan="14" class="text-center">
                 No Sales Orders Found
             </td>
         </tr>`;
@@ -309,6 +338,12 @@ function paymentBadgeServer($status)
         } else {
 
             rows.forEach(function(item, index) {
+                const subtotal = parseFloat(item.subtotal || 0).toFixed(2);
+                const discount = parseFloat(item.discount || 0).toFixed(2);
+                const tax = parseFloat(item.tax || 0).toFixed(2);
+                const grandTotal = parseFloat(item.grand_total).toFixed(2);
+                const paidAmount = parseFloat(item.paid_amount || 0).toFixed(2);
+                const remaining = parseFloat(item.remaining_balance || 0).toFixed(2);
 
                 html += `
             <tr>
@@ -319,7 +354,12 @@ function paymentBadgeServer($status)
                 <td>${item.order_date??''}</td>
                 <td>${statusBadge(item.order_status)}</td>
                 <td>${paymentBadge(item.payment_status)}</td>
-                <td>${parseFloat(item.grand_total).toFixed(2)}</td>
+                <td class="text-right">${subtotal}</td>
+                <td class="text-right">${discount}</td>
+                <td class="text-right">${tax}</td>
+                <td class="text-right"><strong>${grandTotal}</strong></td>
+                <td class="text-right">${paidAmount}</td>
+                <td class="text-right">${remaining}</td>
                 <td>
                     <button onclick='showSaleOrderModal(${JSON.stringify(item)})' title="Edit">
                         <i class="fa fa-pencil"></i>
@@ -417,12 +457,17 @@ function paymentBadgeServer($status)
     }
 
     function calcOrderGrandTotal() {
-        let subtotal = parseFloat($('#swal_subtotal').val()) || 0;
-        let discount = parseFloat($('#swal_discount').val()) || 0;
-        let tax = parseFloat($('#swal_tax').val()) || 0;
-        let shipping = parseFloat($('#swal_shipping').val()) || 0;
+        let subtotal = parseFloat($('#so_subtotal').val()) || 0;
+        let discount = parseFloat($('#so_discount').val()) || 0;
+        let tax = parseFloat($('#so_tax').val()) || 0;
+        let shipping = parseFloat($('#so_shipping').val()) || 0;
         let grand = subtotal - discount + tax + shipping;
-        $('#swal_grand_total').val(grand.toFixed(2));
+        $('#so_grand_total').val(grand.toFixed(2));
+
+        // Auto-calculate remaining amount
+        let paidAmount = parseFloat($('#so_paid_amount').val()) || 0;
+        let remaining = Math.max(0, grand - paidAmount);
+        $('#so_remaining_amount').val(remaining.toFixed(2));
     }
 
     function showSaleOrderModal(orderData = null) {
@@ -431,7 +476,7 @@ function paymentBadgeServer($status)
         const customerId = isEdit ? orderData.customer_id : '';
         const warehouseId = isEdit ? orderData.warehouse_id : '';
         const orderDate = isEdit ? orderData.order_date : '<?= date('Y-m-d') ?>';
-        const deliveryDate = isEdit ? (orderData.delivery_date || '') : '';
+        const deliveryDate = isEdit ? orderData.delivery_date : '<?= date('Y-m-d') ?>';
         const orderStatus = isEdit ? orderData.order_status : 'Draft';
         const paymentStatus = isEdit ? orderData.payment_status : 'Pending';
         const subtotal = isEdit ? orderData.subtotal : 0;
@@ -439,7 +484,19 @@ function paymentBadgeServer($status)
         const tax = isEdit ? orderData.tax : 0;
         const shipping = isEdit ? orderData.shipping : 0;
         const grandTotal = isEdit ? orderData.grand_total : 0;
+        const paidAmount = isEdit ? (orderData.paid_amount || 0) : 0;
         const notes = isEdit ? (orderData.notes || '') : '';
+
+        // Prevent editing if order is confirmed
+        if (isEdit && orderStatus === 'Confirmed') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cannot Edit',
+                text: 'This Sales Order is Confirmed and cannot be edited.',
+                confirmButtonColor: '#87B87F'
+            });
+            return;
+        }
 
         let customerOptions = '<option value="">Walk-in Customer</option>';
         window.saleOrderViewData.customers.forEach(c => {
@@ -465,82 +522,91 @@ function paymentBadgeServer($status)
 
         Swal.fire({
             title: isEdit ? 'Edit Sale Order' : 'New Sale Order',
-            width: '1300px',
+            width: 'auto',
+            maxWidth: '95%',
             customClass: { popup: 'swal-wide-popup' },
+            didOpen: () => {
+                const popup = document.querySelector('.swal2-popup');
+                if (popup) {
+                    popup.style.width = '96vw';
+                    popup.style.maxWidth = '96vw';
+                    popup.style.maxHeight = '96vh';
+                }
+                setupSaleOrderModal(isEdit, id);
+            },
             html: `
                 <form id="saleOrderForm">
-                <input type="hidden" id="swal_id" value="${id}">
+                <input type="hidden" id="so_id" value="${id}">
 
                 <div class="row">
                 <div class="col-md-3">
                 <label>Warehouse<span style="color:red;">*</span></label>
-                <select id="swal_warehouse" class="form-control">
+                <select id="so_warehouse" class="form-control">
                 ${warehouseOptions}
                 </select>
                 </div>
 
                 <div class="col-md-4">
                 <label>Customer<span style="color:red;">*</span></label>
-                <select id="swal_customer" class="form-control">
+                <select id="so_customer" class="form-control">
                 ${customerOptions}
                 </select>
                 </div>
 
                 <div class="col-md-2">
                 <label>Order Date</label>
-                <input type="date" id="swal_order_date" class="form-control" value="${orderDate}">
+                <input type="date" id="so_order_date" class="form-control" value="${orderDate}">
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-md-3" style="display:none">
                 <label>Delivery Date</label>
-                <input type="date" id="swal_delivery_date" class="form-control" value="${deliveryDate}">
+                <input type="date" id="so_delivery_date" class="form-control" value="${deliveryDate}">
+                </div>
+                <div class="col-md-3">
+                <label>Order Status</label>
+                <select id="so_order_status" class="form-control">
+                ${statusOptions}
+                </select>
                 </div>
                 </div>
 
                 <div class="row" style="margin-top:10px;">
+
                 <div class="col-md-3">
-                <label>Order Status</label>
-                <select id="swal_order_status" class="form-control">
-                ${statusOptions}
-                </select>
-                </div>
-                <div class="col-md-3">
-                <label>Payment Status</label>
-                <select id="swal_payment_status" class="form-control">
+                <label>Payment Status (Auto from Invoice)</label>
+                <select id="so_payment_status" class="form-control" readonly style="background:#f5f5f5;">
                 ${paymentStatusOptions}
                 </select>
                 </div>
                 <div class="col-md-6">
                 <label>Notes</label>
-                <input type="text" id="swal_notes" class="form-control" placeholder="Add notes or remarks" value="${notes}">
+                <input type="text" id="so_notes" class="form-control" placeholder="Add notes or remarks" value="${notes}">
+                </div>
+                <div class="col-md-2" style="margin-top: 25px;">
+                <button type="button" id="btnAddItem" style="width:100%;padding: 6px;">Add Item</button>
                 </div>
                 </div>
 
-                <div class="row" style="margin-top:10px;">
-                <div class="col-md-11"></div>
-                <div class="col-md-1">
-                <button type="button" id="btnAddItem" class="btn btn-primary" style="width:100%;">Add Item</button>
-                </div>
-                </div>
+                
 
                 <!-- Walk-in Customer Details -->
                 <div id="walkinFields" style="display:none; margin-top:15px; padding:15px; background:#f9f9f9; border:1px solid #ddd; border-radius:4px;">
                 <div class="row">
                 <div class="col-md-3">
                 <label>Customer Name<span style="color:red;">*</span></label>
-                <input type="text" id="swal_customer_name" class="form-control" placeholder="Enter name">
+                <input type="text" id="so_customer_name" class="form-control" placeholder="Enter name">
                 </div>
                 <div class="col-md-3">
                 <label>Email</label>
-                <input type="email" id="swal_customer_email" class="form-control" placeholder="email@example.com">
+                <input type="email" id="so_customer_email" class="form-control" placeholder="email@example.com">
                 </div>
                 <div class="col-md-3">
                 <label>Phone<span style="color:red;">*</span></label>
-                <input type="text" id="swal_customer_phone" class="form-control" placeholder="Phone number">
+                <input type="text" id="so_customer_phone" class="form-control" placeholder="Phone number">
                 </div>
                 <div class="col-md-3">
                 <label>Reference</label>
-                <input type="text" id="swal_customer_reference" class="form-control" placeholder="Reference no">
+                <input type="text" id="so_customer_reference" class="form-control" placeholder="Reference no">
                 </div>
                 </div>
                 </div>
@@ -560,7 +626,7 @@ function paymentBadgeServer($status)
                 <thead>
                 <tr>
                 <th>Product</th>
-                <th width="80px">Available Qty</th>
+                <th width="80px">Available</th>
                 <th width="80px">Qty</th>
                 <th width="100px">Rate</th>
                 <th width="100px">Discount</th>
@@ -574,31 +640,39 @@ function paymentBadgeServer($status)
 
                 <div class="row" style="margin-top:15px;">
                 <div class="col-md-2">
-                <label>Subtotal</label>
-                <input type="number" id="swal_subtotal" class="form-control" readonly value="0" style="background:#f5f5f5;">
+                <label>Subtotal (Read-Only)</label>
+                <input type="number" id="so_subtotal" class="form-control" readonly value="0" style="background:#f5f5f5;">
                 </div>
                 <div class="col-md-2">
                 <label>Discount</label>
-                <input type="number" id="swal_discount" class="form-control" value="${discount}" step="0.01">
+                <input type="number" id="so_discount" class="form-control" value="${discount}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label>Tax</label>
-                <input type="number" id="swal_tax" class="form-control" value="${tax}" step="0.01">
+                <input type="number" id="so_tax" class="form-control" value="${tax}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label>Shipping</label>
-                <input type="number" id="swal_shipping" class="form-control" value="${shipping}" step="0.01">
+                <input type="number" id="so_shipping" class="form-control" value="${shipping}" step="0.01" placeholder="0.00">
                 </div>
-                <div class="col-md-4">
-                <label><strong>Grand Total</strong></label>
-                <input type="number" id="swal_grand_total" class="form-control" readonly value="0" style="background:#fff3cd; font-weight:bold;">
+                <div class="col-md-2">
+                <label><strong>Grand Total (Read-Only)</strong></label>
+                <input type="number" id="so_grand_total" class="form-control" readonly value="0" style="background:#fff3cd; font-weight:bold;">
+                </div>
+                </div>
+
+                <div class="row" style="margin-top:10px;">
+                <div class="col-md-3">
+                <label>Paid Amount (Auto from Invoice)</label>
+                <input type="number" id="so_paid_amount" class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00" readonly style="background:#e8f4f8;">
+                </div>
+                <div class="col-md-3">
+                <label><strong>Remaining Amount (Auto from Invoice)</strong></label>
+                <input type="number" id="so_remaining_amount" class="form-control" readonly value="${(grandTotal - paidAmount).toFixed(2)}" style="background:#e8f4f8; font-weight:bold;">
                 </div>
                 </div>
                 </form>
             `,
-            didOpen: () => {
-                setupSaleOrderModal(isEdit, id);
-            },
             showCancelButton: true,
             confirmButtonText: isEdit ? 'Update Order' : 'Save Order',
             confirmButtonColor: '#87B87F',
@@ -611,12 +685,12 @@ function paymentBadgeServer($status)
 
     function setupSaleOrderModal(isEdit, orderId) {
         // Load products on warehouse change
-        $('#swal_warehouse').on('change', function() {
+        $('#so_warehouse').on('change', function() {
             loadProductsForWarehouse($(this).val());
         });
 
         // Handle customer selection
-        $('#swal_customer').on('change', function() {
+        $('#so_customer').on('change', function() {
             const customerId = $(this).val();
             if (customerId === '') {
                 $('#walkinFields').show();
@@ -638,14 +712,14 @@ function paymentBadgeServer($status)
         document.getElementById('btnAddItem').onclick = function(e) {
             e.preventDefault();
             addSaleOrderRow();
-            calculateSaleOrderTotals();
+            calcOrderGrandTotal();
         };
 
         // Event handlers for rows
         $(document).off('change', '#saleItemTable .item-product');
         $(document).off('input', '#saleItemTable .item-qty, #saleItemTable .item-rate, #saleItemTable .item-discount, #saleItemTable .item-tax');
         $(document).off('click', '#saleItemTable .remove-item');
-        $(document).off('input', '#swal_discount, #swal_tax');
+        $(document).off('input', '#so_discount, #so_tax, #so_shipping, #so_paid_amount');
 
         // Product change
         $(document).on('change', '#saleItemTable .item-product', function() {
@@ -664,27 +738,35 @@ function paymentBadgeServer($status)
         $(document).on('input', '#saleItemTable .item-qty, #saleItemTable .item-rate, #saleItemTable .item-discount, #saleItemTable .item-tax', function() {
             let tr = $(this).closest('tr');
             calculateSaleOrderRow(tr);
-            calculateSaleOrderTotals();
+            calcOrderGrandTotal();
         });
 
-        $(document).on('input', '#swal_discount, #swal_tax, #swal_shipping', calculateSaleOrderTotals);
+        $(document).on('input', '#so_shipping', calcOrderGrandTotal);
+        // Note: Paid amount is now read-only and auto-populated from invoice
 
         // Delete row
         $(document).on('click', '#saleItemTable .remove-item', function() {
             $(this).closest('tr').remove();
-            calculateSaleOrderTotals();
+            calcOrderGrandTotal();
         });
 
         // Load existing items if editing
         if (isEdit && orderId) {
             loadSaleOrderItems(orderId);
+            // Auto-load invoice data when editing
+            loadInvoiceDataForSalesOrder(orderId);
         } else {
-            addSaleOrderRow();
+            // addSaleOrderRow();
         }
 
+        // Initialize Chosen on customer select
+        setTimeout(() => {
+            $('#so_customer').not('.chzn-done').chosen({ width: '100%', search_contains: true });
+        }, 100);
+
         // Initial warehouse load
-        if ($('#swal_warehouse').val()) {
-            loadProductsForWarehouse($('#swal_warehouse').val());
+        if ($('#so_warehouse').val()) {
+            loadProductsForWarehouse($('#so_warehouse').val());
         }
     }
 
@@ -722,12 +804,12 @@ function paymentBadgeServer($status)
         let productOptions = '<option value="">-- Select Product --</option>';
         window.saleOrderViewData.products.forEach(p => {
             const available = parseFloat(p.available_quantity || 0).toFixed(2);
-            productOptions += `<option value="${p.id}" data-price="${p.selling_price}" data-qty="${available}" ${p.id == (item.product_id||'') ? 'selected' : ''}>${p.product_name} (${p.sku}) - Avail: ${available}</option>`;
+            productOptions += `<option value="${p.id}" data-price="${p.selling_price}" data-qty="${available}">${p.product_name} (${p.sku}) - Avail: ${available}</option>`;
         });
 
         $('#saleItemTable tbody').append(`
             <tr>
-            <td><select class="form-control item-product" style="width:100%;">
+            <td><select class="form-control item-product chzn-select" style="width:100%;">
                 ${productOptions}
             </select></td>
             <td><span class="available-qty">${item.available_qty || 0}</span></td>
@@ -736,8 +818,29 @@ function paymentBadgeServer($status)
             <td><input type="number" class="form-control item-discount" value="${item.discount||0}" step="0.01"></td>
             <td><input type="number" class="form-control item-tax" value="${item.tax||0}" step="0.01"></td>
             <td><input type="number" class="form-control item-total" readonly value="${item.total||0}" step="0.01"></td>
-            <td><button type="button" class="btn btn-danger btn-xs remove-item"><i class="fa fa-trash"></i></button></td>
+            <td><button type="button" class="remove-item"><i class="fa fa-trash"></i></button></td>
             </tr>`);
+
+        // Get the newly added select and set its value if editing
+        const newSelect = $('#saleItemTable tbody tr:last').find('.item-product');
+        if (item.product_id) {
+            newSelect.val(item.product_id);
+        }
+
+        // Initialize Chosen on the new select
+        setTimeout(() => {
+            const $select = $('.item-product').not('.chzn-done');
+            $select.chosen({ width: '100%', search_contains: true });
+
+            // Update available quantity display after setting product
+            if (item.product_id) {
+                const product = window.saleOrderViewData.products.find(p => p.id == item.product_id);
+                if (product) {
+                    $('#saleItemTable tbody tr:last').find('.available-qty').text(parseFloat(product.available_quantity || 0).toFixed(2));
+                    $('#saleItemTable tbody tr:last').find('.item-qty').attr('max', parseFloat(product.available_quantity || 0));
+                }
+            }
+        }, 100);
     }
 
     function calculateSaleOrderRow(tr) {
@@ -762,17 +865,31 @@ function paymentBadgeServer($status)
 
     function calculateSaleOrderTotals() {
         let subtotal = 0;
+        let rowDiscount = 0;
+        let rowTax = 0;
+
         $('#saleItemTable tbody tr').each(function() {
             subtotal += parseFloat($(this).find('.item-total').val()) || 0;
+            rowDiscount += parseFloat($(this).find('.item-discount').val()) || 0;
+            rowTax += parseFloat($(this).find('.item-tax').val()) || 0;
         });
 
-        let discount = parseFloat($('#swal_discount').val()) || 0;
-        let tax = parseFloat($('#swal_tax').val()) || 0;
-        let shipping = parseFloat($('#swal_shipping').val()) || 0;
+        // Update order-level discount and tax fields from row sums
+        $('#so_discount').val(rowDiscount.toFixed(2));
+        $('#so_tax').val(rowTax.toFixed(2));
+
+        let discount = rowDiscount;
+        let tax = rowTax;
+        let shipping = parseFloat($('#so_shipping').val()) || 0;
         let grand = subtotal + tax + shipping - discount;
 
-        $('#swal_subtotal').val(Math.max(0, subtotal).toFixed(2));
-        $('#swal_grand_total').val(Math.max(0, grand).toFixed(2));
+        $('#so_subtotal').val(Math.max(0, subtotal).toFixed(2));
+        $('#so_grand_total').val(Math.max(0, grand).toFixed(2));
+
+        // Calculate remaining amount
+        let paidAmount = parseFloat($('#so_paid_amount').val()) || 0;
+        let remaining = grand - paidAmount;
+        $('#so_remaining_amount').val(Math.max(0, remaining).toFixed(2));
     }
 
     function loadSaleOrderItems(orderId) {
@@ -788,10 +905,46 @@ function paymentBadgeServer($status)
             .catch(e => console.error(e));
     }
 
+    function loadInvoiceDataForSalesOrder(orderId) {
+        // Fetch invoice data for this sales order
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'get_invoice');
+        data.append('sales_order_id', orderId);
+
+        fetch('index.php?r=sale/salesinvoices', {
+            method: 'POST',
+            body: data
+        })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success && res.invoice) {
+                    const invoice = res.invoice;
+                    // Auto-populate from invoice
+                    $('#so_paid_amount').val(parseFloat(invoice.paid_amount || 0).toFixed(2));
+                    $('#so_remaining_amount').val(parseFloat(invoice.remaining_balance || 0).toFixed(2));
+
+                    // Set payment status based on invoice status
+                    const statusMap = {
+                        'Draft': 'Unpaid',
+                        'Issued': 'Unpaid',
+                        'Partially Paid': 'Partial',
+                        'Paid': 'Paid',
+                        'Cancelled': 'Cancelled'
+                    };
+                    const paymentStatus = statusMap[invoice.status] || invoice.status;
+                    $('#so_payment_status').val(paymentStatus);
+                }
+            })
+            .catch(e => {
+                console.error('Error loading invoice data:', e);
+            });
+    }
+
     function validateAndSubmitOrder(isEdit) {
-        const customerId = $('#swal_customer').val();
-        const warehouseId = $('#swal_warehouse').val();
-        const orderDate = $('#swal_order_date').val();
+        const customerId = $('#so_customer').val();
+        const warehouseId = $('#so_warehouse').val();
+        const orderDate = $('#so_order_date').val();
         const items = [];
 
         if (!warehouseId || !orderDate) {
@@ -800,8 +953,8 @@ function paymentBadgeServer($status)
         }
 
         if (!customerId) {
-            const name = $('#swal_customer_name').val().trim();
-            const phone = $('#swal_customer_phone').val().trim();
+            const name = $('#so_customer_name').val().trim();
+            const phone = $('#so_customer_phone').val().trim();
             if (!name || !phone) {
                 Swal.showValidationMessage('Walk-in customer requires Name and Phone');
                 return false;
@@ -831,22 +984,23 @@ function paymentBadgeServer($status)
         }
 
         return {
-            id: $('#swal_id').val(),
+            id: $('#so_id').val(),
             customer_id: customerId,
-            customer_name: $('#swal_customer_name').val(),
-            customer_email: $('#swal_customer_email').val(),
-            customer_phone: $('#swal_customer_phone').val(),
-            customer_reference: $('#swal_customer_reference').val(),
+            customer_name: $('#so_customer_name').val(),
+            customer_email: $('#so_customer_email').val(),
+            customer_phone: $('#so_customer_phone').val(),
+            customer_reference: $('#so_customer_reference').val(),
             warehouse_id: warehouseId,
             order_date: orderDate,
-            delivery_date: $('#swal_delivery_date').val(),
-            order_status: $('#swal_order_status').val(),
-            payment_status: $('#swal_payment_status').val(),
-            discount: $('#swal_discount').val(),
-            tax: $('#swal_tax').val(),
-            shipping: $('#swal_shipping').val(),
-            grand_total: $('#swal_grand_total').val(),
-            notes: $('#swal_notes').val(),
+            delivery_date: $('#so_delivery_date').val(),
+            order_status: $('#so_order_status').val(),
+            payment_status: $('#so_payment_status').val(),
+            discount: $('#so_discount').val(),
+            tax: $('#so_tax').val(),
+            shipping: $('#so_shipping').val(),
+            grand_total: $('#so_grand_total').val(),
+            paid_amount: $('#so_paid_amount').val(),
+            notes: $('#so_notes').val(),
             items: JSON.stringify(items),
             flag: isEdit ? 'update' : 'create'
         };
@@ -874,7 +1028,15 @@ function paymentBadgeServer($status)
         .then(res => {
             Swal.close();
             if (res.success) {
-                Swal.fire('Success', res.message, 'success').then(() => searchform());
+                let message = res.message;
+                if (res.order_number && res.invoice_no) {
+                    message = `<strong>Sale Order:</strong> ${res.order_number}<br><strong>Invoice:</strong> ${res.invoice_no}<br><br>${res.message}`;
+                }
+                Swal.fire({
+                    title: 'Success',
+                    html: message,
+                    icon: 'success'
+                }).then(() => searchform());
             } else {
                 Swal.fire('Error', res.message || 'Failed to save order', 'error');
             }
@@ -934,5 +1096,85 @@ function paymentBadgeServer($status)
                 Swal.fire('Error', 'Unable to save data.', 'error');
             });
 
+    }
+
+    function syncInvoiceData(orderId, btn) {
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'get_invoice');
+        data.append('sales_order_id', orderId);
+
+        fetch('index.php?r=sale/salesinvoices', {
+            method: 'POST',
+            body: data
+        })
+            .then(res => res.json())
+            .then(res => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+
+                if (res.success && res.invoice) {
+                    const invoice = res.invoice;
+
+                    // Update all financial fields
+                    document.getElementById(`subtotal-${orderId}`).textContent = formatCurrency(invoice.subtotal || 0);
+                    document.getElementById(`discount-${orderId}`).textContent = formatCurrency(invoice.discount || 0);
+                    document.getElementById(`tax-${orderId}`).textContent = formatCurrency(invoice.tax || 0);
+                    document.getElementById(`grand-total-${orderId}`).textContent = formatCurrency(invoice.grand_total || 0);
+                    document.getElementById(`paid-amount-${orderId}`).textContent = formatCurrency(invoice.paid_amount || 0);
+                    document.getElementById(`remaining-${orderId}`).textContent = formatCurrency(invoice.remaining_balance || 0);
+
+                    // Update invoice status badge
+                    const statusMap = {
+                        'Draft': '<span class="label label-default">Draft</span>',
+                        'Issued': '<span class="label label-info">Issued</span>',
+                        'Paid': '<span class="label label-success">Paid</span>',
+                        'Partially Paid': '<span class="label label-warning">Partially Paid</span>',
+                        'Cancelled': '<span class="label label-danger">Cancelled</span>'
+                    };
+                    const statusHtml = statusMap[invoice.status] || '<span class="label label-secondary">' + invoice.status + '</span>';
+                    document.getElementById(`invoice-status-${orderId}`).innerHTML = statusHtml;
+
+                    // Show success message if Swal is available
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Synced!',
+                            text: 'Invoice data synced successfully',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        alert('Invoice data synced successfully');
+                    }
+                } else {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire('Info', res.message || 'No invoice found for this sales order', 'info');
+                    } else {
+                        alert(res.message || 'No invoice found for this sales order');
+                    }
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                console.error('Error:', err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Error', 'Failed to sync invoice data', 'error');
+                } else {
+                    alert('Failed to sync invoice data');
+                }
+            });
+    }
+
+    function formatCurrency(value) {
+        return parseFloat(value || 0).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
     }
 </script>

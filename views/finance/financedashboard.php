@@ -80,30 +80,6 @@ use yii\helpers\Url;
         </div>
 
 
-        <!-- Total Equity -->
-        <div class="stat-card green">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Equity
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-percent"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="total_equity">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Owner's Equity
-            </div>
-
-        </div>
 
 
         <!-- Total Income -->
@@ -158,82 +134,6 @@ use yii\helpers\Url;
         </div>
 
 
-        <!-- Total Receipts -->
-        <div class="stat-card teal">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Total Receipts
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-inbox"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="total_receipts">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Cash Received
-            </div>
-
-        </div>
-
-
-        <!-- Total Payouts -->
-        <div class="stat-card pink">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Total Payouts
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-send"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="total_payouts">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Cash Paid Out
-            </div>
-
-        </div>
-
-
-        <!-- Cash Balance -->
-        <div class="stat-card indigo">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Cash Balance
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-wallet"></i>
-                </div>
-
-            </div>
-
-            <div class="stat-value" id="cash_balance">
-                ...
-            </div>
-
-            <div class="stat-subtitle">
-                Current Cash Balance
-            </div>
-
-        </div>
 
 
         <!-- Total Accounts -->
@@ -315,6 +215,104 @@ use yii\helpers\Url;
 
     </div>
 
+    <!-- Sales Invoice Stats -->
+    <div class="section-title">
+        <h4><i class="fa fa-shopping-cart"></i> Sales Performance</h4>
+    </div>
+
+    <div class="stats-grid">
+
+        <!-- Total Sales Invoices -->
+        <div class="stat-card blue">
+            <div class="stat-header">
+                <span class="stat-title">Total Sales</span>
+                <div class="stat-icon"><i class="fa fa-file-text"></i></div>
+            </div>
+            <div class="stat-value" id="total_sales_invoices">...</div>
+            <div class="stat-subtitle">Invoices Count</div>
+        </div>
+
+        <!-- Total Sales Amount -->
+        <div class="stat-card green">
+            <div class="stat-header">
+                <span class="stat-title">Sales Amount</span>
+                <div class="stat-icon"><i class="fa fa-money"></i></div>
+            </div>
+            <div class="stat-value" id="total_sales_amount">...</div>
+            <div class="stat-subtitle">Total Invoiced</div>
+        </div>
+
+        <!-- Paid Sales Amount -->
+        <div class="stat-card teal">
+            <div class="stat-header">
+                <span class="stat-title">Paid Sales</span>
+                <div class="stat-icon"><i class="fa fa-check-circle"></i></div>
+            </div>
+            <div class="stat-value" id="paid_sales_amount">...</div>
+            <div class="stat-subtitle">Amount Received</div>
+        </div>
+
+        <!-- Unpaid Sales Amount -->
+        <div class="stat-card orange">
+            <div class="stat-header">
+                <span class="stat-title">Outstanding Sales</span>
+                <div class="stat-icon"><i class="fa fa-exclamation-circle"></i></div>
+            </div>
+            <div class="stat-value" id="unpaid_sales_amount">...</div>
+            <div class="stat-subtitle">Remaining Balance</div>
+        </div>
+
+    </div>
+
+    <!-- Purchase Invoice Stats -->
+    <div class="section-title">
+        <h4><i class="fa fa-shopping-bag"></i> Purchase Performance</h4>
+    </div>
+
+    <div class="stats-grid">
+
+        <!-- Total Purchase Invoices -->
+        <div class="stat-card purple">
+            <div class="stat-header">
+                <span class="stat-title">Total Purchases</span>
+                <div class="stat-icon"><i class="fa fa-file-text"></i></div>
+            </div>
+            <div class="stat-value" id="total_purchase_invoices">...</div>
+            <div class="stat-subtitle">Invoices Count</div>
+        </div>
+
+        <!-- Total Purchase Amount -->
+        <div class="stat-card indigo">
+            <div class="stat-header">
+                <span class="stat-title">Purchase Amount</span>
+                <div class="stat-icon"><i class="fa fa-money"></i></div>
+            </div>
+            <div class="stat-value" id="total_purchase_amount">...</div>
+            <div class="stat-subtitle">Total Invoiced</div>
+        </div>
+
+        <!-- Paid Purchase Amount -->
+        <div class="stat-card blue">
+            <div class="stat-header">
+                <span class="stat-title">Paid Purchases</span>
+                <div class="stat-icon"><i class="fa fa-check-circle"></i></div>
+            </div>
+            <div class="stat-value" id="paid_purchase_amount">...</div>
+            <div class="stat-subtitle">Amount Paid</div>
+        </div>
+
+        <!-- Unpaid Purchase Amount -->
+        <div class="stat-card red">
+            <div class="stat-header">
+                <span class="stat-title">Outstanding Purchases</span>
+                <div class="stat-icon"><i class="fa fa-exclamation-circle"></i></div>
+            </div>
+            <div class="stat-value" id="unpaid_purchase_amount">...</div>
+            <div class="stat-subtitle">Remaining Balance</div>
+        </div>
+
+    </div>
+
     <!-- Charts -->
 
     <div class="row">
@@ -357,6 +355,26 @@ use yii\helpers\Url;
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+    .section-title {
+        margin-top: 30px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+        padding-bottom: 10px;
+    }
+
+    .section-title h4 {
+        color: #333;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .section-title i {
+        margin-right: 8px;
+        color: #007bff;
+    }
+</style>
+
 <script>
     var accountTypeChart = null;
     var cashflowChart = null;
@@ -391,6 +409,8 @@ use yii\helpers\Url;
                 hideDashboardLoading();
                 if (response.success) {
                     loadStatistics(response.stats);
+                    loadSalesStats(response.salesStats);
+                    loadPurchaseStats(response.purchaseStats);
                     if (typeof Chart === 'function' || typeof Chart === 'object') {
                         loadAccountTypeChart(response.accountTypeChart);
                         loadCashflowChart(response.monthlyCashflow);
@@ -438,24 +458,30 @@ use yii\helpers\Url;
 
         animateCurrency("#total_liabilities", stats.total_liabilities);
 
-        animateCurrency("#total_equity", stats.total_equity);
-
         animateCurrency("#total_income", stats.total_income);
 
         animateCurrency("#total_expense", stats.total_expense);
 
         animateCounter("#total_accounts", stats.total_accounts);
 
-        animateCurrency("#total_receipts", stats.total_receipts);
-
-        animateCurrency("#total_payouts", stats.total_payouts);
-
-        animateCurrency("#cash_balance", stats.cash_balance);
-
         animateCurrency("#customer_receivable", stats.customer_receivable);
 
         animateCurrency("#supplier_payable", stats.supplier_payable);
 
+    }
+
+    function loadSalesStats(salesStats) {
+        animateCounter("#total_sales_invoices", salesStats.total_sales_invoices);
+        animateCurrency("#total_sales_amount", salesStats.total_sales_amount);
+        animateCurrency("#paid_sales_amount", salesStats.paid_sales_amount);
+        animateCurrency("#unpaid_sales_amount", salesStats.unpaid_sales_amount);
+    }
+
+    function loadPurchaseStats(purchaseStats) {
+        animateCounter("#total_purchase_invoices", purchaseStats.total_purchase_invoices);
+        animateCurrency("#total_purchase_amount", purchaseStats.total_purchase_amount);
+        animateCurrency("#paid_purchase_amount", purchaseStats.paid_purchase_amount);
+        animateCurrency("#unpaid_purchase_amount", purchaseStats.unpaid_purchase_amount);
     }
 
 

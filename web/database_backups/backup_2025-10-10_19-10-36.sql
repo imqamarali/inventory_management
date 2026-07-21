@@ -895,7 +895,7 @@ CREATE TABLE `expense_list` (
   `id` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
-  `invoice_number` varchar(50) DEFAULT NULL,
+  `invoice_no` varchar(50) DEFAULT NULL,
   `expense_date` date NOT NULL,
   `expense_head` int(11) NOT NULL,
   `amount` decimal(10,2) DEFAULT NULL,
@@ -912,7 +912,7 @@ CREATE TABLE `expense_list` (
 
 LOCK TABLES `expense_list` WRITE;
 /*!40000 ALTER TABLE `expense_list` DISABLE KEYS */;
-INSERT INTO `expense_list` (`id`, `name`, `description`, `invoice_number`, `expense_date`, `expense_head`, `amount`, `session_id`, `created_at`, `updated_at`, `school_id`) VALUES (61,'CBSE NEW BOOKS','NCRT Books are essential materials for students of all classes.','222','2024-12-31',1,180.00,1,'2024-12-20 11:46:37','2025-03-13 17:51:24',1),
+INSERT INTO `expense_list` (`id`, `name`, `description`, `invoice_no`, `expense_date`, `expense_head`, `amount`, `session_id`, `created_at`, `updated_at`, `school_id`) VALUES (61,'CBSE NEW BOOKS','NCRT Books are essential materials for students of all classes.','222','2024-12-31',1,180.00,1,'2024-12-20 11:46:37','2025-03-13 17:51:24',1),
 (62,'EDUCATIONAL TRIP','As informed before our school has organized Educational trip.','6656','2024-12-25',5,200.00,1,'2024-12-20 11:46:37','2025-03-13 17:51:24',1),
 (63,'D.S.Publication','Sales book is a book of original entry or a subsidiary book that is used to record the credit sales of the goods.','342','2024-12-20',1,150.00,1,'2024-12-20 11:46:37','2025-03-13 17:51:24',1),
 (64,'Online Exam Preparation','Online Exam Preparation','3453','2024-12-15',4,180.00,1,'2024-12-20 11:46:37','2025-03-13 17:51:24',1),
@@ -1317,7 +1317,7 @@ CREATE TABLE `income_list` (
   `income_id` int(11) NOT NULL,
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
-  `invoice_number` varchar(50) DEFAULT NULL,
+  `invoice_no` varchar(50) DEFAULT NULL,
   `income_date` date NOT NULL,
   `income_head_id` int(11) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
@@ -1335,7 +1335,7 @@ CREATE TABLE `income_list` (
 
 LOCK TABLES `income_list` WRITE;
 /*!40000 ALTER TABLE `income_list` DISABLE KEYS */;
-INSERT INTO `income_list` (`income_id`, `name`, `description`, `invoice_number`, `income_date`, `income_head_id`, `amount`, `file`, `session_id`, `created_at`, `updated_at`, `school_id`) VALUES (1,'CBSE Books','Distribution refers to the process and logistics of making your book available to the customer.','2342','2024-12-31',4,200.00,NULL,1,'2024-12-17 16:00:44','2025-03-13 17:51:24',1),
+INSERT INTO `income_list` (`income_id`, `name`, `description`, `invoice_no`, `income_date`, `income_head_id`, `amount`, `file`, `session_id`, `created_at`, `updated_at`, `school_id`) VALUES (1,'CBSE Books','Distribution refers to the process and logistics of making your book available to the customer.','2342','2024-12-31',4,200.00,NULL,1,'2024-12-17 16:00:44','2025-03-13 17:51:24',1),
 (2,'School Building Rent','Rental Flats in Velammal Matriculation West School - Searching 1','3523','2024-12-25',2,200.00,NULL,1,'2024-12-17 16:00:44','2025-03-13 17:51:24',1),
 (3,'Sports Games','Extra curricular activates programs.','675','2024-12-20',3,200.00,NULL,1,'2024-12-17 16:00:44','2025-03-13 17:51:24',1),
 (4,'New Books Publication','NCRT Books are essential materials for students of all classes.','2342','2024-12-15',4,150.00,NULL,1,'2024-12-17 16:00:44','2025-03-13 17:51:24',1),
