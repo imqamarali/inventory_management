@@ -624,9 +624,9 @@ if (!isset($products)) $products = [];
 
         Swal.fire({
             title: 'Product Details',
-            width: '700px',
+            width: '1000px',
             html: `
-                <div style="text-align: left; padding: 20px;">
+                <div style="text-align: left; padding: 20px; max-height: 70vh; overflow-y: auto;">
                     <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
                         <h4 style="margin-top: 0; margin-bottom: 10px;">${htmlEscape(stockData.product_name)}</h4>
                         <p style="margin: 5px 0;"><strong>SKU:</strong> ${htmlEscape(stockData.sku ?? 'N/A')}</p>
@@ -635,46 +635,48 @@ if (!isset($products)) $products = [];
                         <p style="margin: 5px 0;"><strong>Brand:</strong> ${htmlEscape(stockData.brand_name ?? 'N/A')}</p>
                     </div>
 
-                    <div style="margin-bottom: 20px;">
-                        <h5 style="margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Stock Information</h5>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Current Quantity</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">${parseFloat(stockData.quantity ?? 0).toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Reserved</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #ff9800;">${parseFloat(stockData.reserved_quantity ?? 0).toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Available</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #4caf50;">${parseFloat(stockData.available_quantity ?? 0).toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Average Cost</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #333;">PKR ${parseFloat(stockData.average_cost ?? 0).toFixed(2)}</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                        <div>
+                            <h5 style="margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Stock Information</h5>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Current Quantity</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">${parseFloat(stockData.quantity ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Reserved</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #ff9800;">${parseFloat(stockData.reserved_quantity ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Available</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #4caf50;">${parseFloat(stockData.available_quantity ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Average Cost</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #333;">PKR ${parseFloat(stockData.average_cost ?? 0).toFixed(2)}</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div style="margin-bottom: 20px;">
-                        <h5 style="margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Sales Statistics</h5>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Quantity</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #2196f3;">${parseFloat(stats.total_sold_qty ?? 0).toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Amount</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #2196f3;">PKR ${parseFloat(stats.total_sold_amount ?? 0).toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Qty</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #673ab7;">${parseFloat(stats.total_purchase_qty ?? 0).toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Amount</p>
-                                <p style="margin: 0; font-size: 18px; font-weight: bold; color: #673ab7;">PKR ${parseFloat(stats.total_purchase_amount ?? 0).toFixed(2)}</p>
+                        <div>
+                            <h5 style="margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 5px;">Sales Statistics</h5>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Qty</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #2196f3;">${parseFloat(stats.total_sold_qty ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Sales Amount</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #2196f3;">PKR ${parseFloat(stats.total_sold_amount ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Qty</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #673ab7;">${parseFloat(stats.total_purchase_qty ?? 0).toFixed(2)}</p>
+                                </div>
+                                <div>
+                                    <p style="margin: 0; color: #666; font-size: 12px;">Total Purchase Amount</p>
+                                    <p style="margin: 0; font-size: 16px; font-weight: bold; color: #673ab7;">PKR ${parseFloat(stats.total_purchase_amount ?? 0).toFixed(2)}</p>
+                                </div>
                             </div>
                         </div>
                     </div>
