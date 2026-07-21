@@ -715,7 +715,7 @@ function invoiceStatusBadgeServer($status)
         document.getElementById('btnAddItem').onclick = function(e) {
             e.preventDefault();
             addSaleOrderRow();
-            calcOrderGrandTotal();
+            calculateSaleOrderTotals();
         };
 
         // Event handlers for rows
@@ -768,7 +768,7 @@ function invoiceStatusBadgeServer($status)
         $(document).on('input', '#saleItemTable .item-qty, #saleItemTable .item-rate, #saleItemTable .item-discount, #saleItemTable .item-tax', function() {
             let tr = $(this).closest('tr');
             calculateSaleOrderRow(tr);
-            calcOrderGrandTotal();
+            calculateSaleOrderTotals();
         });
 
         $(document).on('input', '#so_shipping', calcOrderGrandTotal);
@@ -777,7 +777,7 @@ function invoiceStatusBadgeServer($status)
         // Delete row
         $(document).on('click', '#saleItemTable .remove-item', function() {
             $(this).closest('tr').remove();
-            calcOrderGrandTotal();
+            calculateSaleOrderTotals();
         });
 
         // Load existing items if editing
@@ -1013,6 +1013,7 @@ function invoiceStatusBadgeServer($status)
         const customerId = $('#so_customer').val();
         const warehouseId = $('#so_warehouse').val();
         const orderDate = $('#so_order_date').val();
+        const grandTotal = parseFloat($('#so_grand_total').val()) || 0;
         const items = [];
 
         if (!warehouseId || !orderDate) {
@@ -1030,24 +1031,63 @@ function invoiceStatusBadgeServer($status)
         }
 
         let hasItems = false;
-        $('#saleItemTable tbody tr').each(function() {
+        let invalidItems = [];
+
+        $('#saleItemTable tbody tr').each(function(index) {
             let productId = $(this).find('.item-product').val();
             let qty = parseFloat($(this).find('.item-qty').val()) || 0;
-            if (productId && qty > 0) {
-                items.push({
-                    product_id: productId,
-                    quantity: qty,
-                    unit_price: $(this).find('.item-rate').val(),
-                    discount: $(this).find('.item-discount').val(),
-                    tax: $(this).find('.item-tax').val(),
-                    total: $(this).find('.item-total').val()
-                });
-                hasItems = true;
+            let rate = parseFloat($(this).find('.item-rate').val()) || 0;
+            let availableQty = parseFloat($(this).find('.available-qty').text()) || 0;
+
+            // Validate product is selected
+            if (!productId) {
+                invalidItems.push(`Row ${index + 1}: Please select a product`);
+                return;
             }
+
+            // Validate quantity
+            if (!qty || qty <= 0) {
+                invalidItems.push(`Row ${index + 1}: Quantity must be greater than 0`);
+                return;
+            }
+
+            // Validate quantity doesn't exceed available
+            if (qty > availableQty) {
+                invalidItems.push(`Row ${index + 1}: Quantity (${qty}) exceeds available (${availableQty})`);
+                return;
+            }
+
+            // Validate rate
+            if (!rate || rate < 0) {
+                invalidItems.push(`Row ${index + 1}: Rate must be a valid positive number`);
+                return;
+            }
+
+            items.push({
+                product_id: productId,
+                quantity: qty,
+                unit_price: rate,
+                discount: parseFloat($(this).find('.item-discount').val()) || 0,
+                tax: parseFloat($(this).find('.item-tax').val()) || 0,
+                total: $(this).find('.item-total').val()
+            });
+            hasItems = true;
         });
 
+        // Show validation errors if any
+        if (invalidItems.length > 0) {
+            Swal.showValidationMessage(invalidItems.join('\n'));
+            return false;
+        }
+
         if (!hasItems) {
-            Swal.showValidationMessage('Add at least one product');
+            Swal.showValidationMessage('Add at least one valid product');
+            return false;
+        }
+
+        // Check if Grand Total is greater than 0
+        if (grandTotal <= 0) {
+            Swal.showValidationMessage('Grand Total must be greater than 0. Please add valid items with prices.');
             return false;
         }
 
