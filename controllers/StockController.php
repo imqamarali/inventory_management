@@ -1424,6 +1424,23 @@ class StockController extends Controller
 
             $trans->commit();
 
+            // Log activity
+            $activityType = ($adjustment_id && $post['id'] ?? false) ? 'update' : 'create';
+            $adjustmentNo = $post['adjustment_no'] ?? 'ADJ#' . $adjustment_id;
+
+            \app\controllers\ActivitylogsController::logActivity(
+                ($activityType === 'update' ? 'Updated' : 'Created') . ' stock adjustment: ' . $adjustmentNo,
+                $activityType,
+                $adjustment_id,
+                'Inventory',
+                [
+                    'type' => 'stock_adjustment_' . $activityType,
+                    'warehouse_id' => $post['warehouse_id'],
+                    'adjustment_type' => $post['adjustment_type'],
+                    'reason' => $post['reason'] ?? null
+                ]
+            );
+
             return $this->jsonResponse(
                 true,
                 'Data Saved successfully!',
@@ -1549,6 +1566,16 @@ class StockController extends Controller
 
             $trans->commit();
 
+            // Log activity
+            if ($result) {
+                \app\controllers\ActivitylogsController::logActivity(
+                    'Deleted stock adjustment: ADJ#' . $id,
+                    'delete',
+                    $id,
+                    'Inventory',
+                    ['type' => 'stock_adjustment_delete']
+                );
+            }
 
             return $result
                 ? $this->jsonResponse(true,'Data Deleted successfully!')
@@ -2228,6 +2255,21 @@ class StockController extends Controller
                         }
 
                         $trans->commit();
+
+                        // Log activity
+                        \app\controllers\ActivitylogsController::logActivity(
+                            'Created stock transfer: TRF#' . $transfer_id,
+                            'create',
+                            $transfer_id,
+                            'Inventory',
+                            [
+                                'type' => 'stock_transfer_create',
+                                'from_warehouse' => $post['from_warehouse'],
+                                'to_warehouse' => $post['to_warehouse'],
+                                'status' => $status
+                            ]
+                        );
+
                         return $this->jsonResponse(true, 'Data Saved successfully!', ['id' => $transfer_id]);
                     } catch (\Exception $inner) {
                         $trans->rollBack();
@@ -2263,6 +2305,21 @@ class StockController extends Controller
                         }
 
                         $trans->commit();
+
+                        // Log activity
+                        \app\controllers\ActivitylogsController::logActivity(
+                            'Updated stock transfer: TRF#' . $post['id'],
+                            'update',
+                            $post['id'],
+                            'Inventory',
+                            [
+                                'type' => 'stock_transfer_update',
+                                'from_warehouse' => $transfer['from_warehouse'],
+                                'to_warehouse' => $transfer['to_warehouse'],
+                                'status' => $newStatus
+                            ]
+                        );
+
                         return $this->jsonResponse(true, 'Data Updated successfully!');
                     } catch (\Exception $inner) {
                         $trans->rollBack();
@@ -2294,6 +2351,16 @@ class StockController extends Controller
                         ], ['id' => $post['id']])->execute();
 
                         $trans->commit();
+
+                        // Log activity
+                        \app\controllers\ActivitylogsController::logActivity(
+                            'Deleted stock transfer: TRF#' . $post['id'],
+                            'delete',
+                            $post['id'],
+                            'Inventory',
+                            ['type' => 'stock_transfer_delete']
+                        );
+
                         return $this->jsonResponse(true, 'Data Deleted successfully!');
                     } catch (\Exception $inner) {
                         $trans->rollBack();

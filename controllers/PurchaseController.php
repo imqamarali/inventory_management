@@ -791,6 +791,24 @@ class PurchaseController extends Controller
                         }
 
                         $transaction->commit();
+
+                        // Log activity
+                        $activityType = ($id > 0) ? 'update' : 'create';
+                        $poNumber = ($id > 0) ? $post['po_number'] ?? 'PO#' . $purchaseOrderId : 'PO-' . date('YmdHis') . rand(100, 999);
+
+                        \app\controllers\ActivitylogsController::logActivity(
+                            ($id > 0 ? 'Updated' : 'Created') . ' purchase order: ' . $poNumber,
+                            $activityType,
+                            $purchaseOrderId,
+                            'Purchase',
+                            [
+                                'type' => 'purchase_order_' . $activityType,
+                                'supplier_id' => $post['supplier_id'],
+                                'grand_total' => $post['grand_total'],
+                                'po_status' => $post['status']
+                            ]
+                        );
+
                         return[
                             'success'=>true,
                             'message'=>'Purchase Order saved successfully. Goods Receiving and Invoice auto-created!'
@@ -806,14 +824,25 @@ class PurchaseController extends Controller
 
                 if (isset($post['flag']) && $post['flag'] == 'delete') {
 
+                    $deletePoId = (int)$post['id'];
+
                     Yii::$app->db->createCommand()->update(
                         'inventory_purchase_orders',
                         [
                             'is_deleted' => 1,
                             'updated_at' => date('Y-m-d H:i:s')
                         ],
-                        ['id' => $post['id']]
+                        ['id' => $deletePoId]
                     )->execute();
+
+                    // Log activity
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted purchase order: PO#' . $deletePoId,
+                        'delete',
+                        $deletePoId,
+                        'Purchase',
+                        ['type' => 'purchase_order_delete']
+                    );
 
                     return [
                         'success' => true,
@@ -854,6 +883,16 @@ class PurchaseController extends Controller
                         }
 
                         $transaction->commit();
+
+                        // Log activity
+                        \app\controllers\ActivitylogsController::logActivity(
+                            'Updated purchase order status to: ' . $newStatus,
+                            'update',
+                            $poId,
+                            'Purchase',
+                            ['type' => 'purchase_order_status_update', 'new_status' => $newStatus]
+                        );
+
                         return [
                             'success' => true,
                             'message' => 'Purchase Order status updated successfully.'

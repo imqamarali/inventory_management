@@ -10,7 +10,7 @@ Integrate ActivitylogsController::logActivity() into all controllers to track us
 - [ ] actionCustomers (view)
 - [ ] actionCustomerlist (view)
 
-### 2. SaleController
+### 2. SaleController (PARTIAL)
 - [ ] actionCreatesale (create/update sales orders)
 - [ ] actionSalesorders (view)
 - [ ] actionSalesinvoices (view)
@@ -19,40 +19,32 @@ Integrate ActivitylogsController::logActivity() into all controllers to track us
 - [ ] actionCancelledorders (view)
 - [ ] actionSalesreturns (create/update returns)
 
-### 3. PurchaseController
-- [ ] actionCreatepurchase (create/update purchase orders)
-- [ ] actionPurchaseorders (view)
-- [ ] actionPurchaseinvoices (view)
-- [ ] actionPendingpurchases (view)
-- [ ] actionPurchasereturns (create/update returns)
+### 3. ✅ PurchaseController (DONE)
+- ✅ actionCreatepurchase (create/update/delete/status update) - DONE
 
-### 4. ProductsController
-- [ ] actionCategories (view)
-- [ ] actionBrands (view)
-- [ ] actionUnits (view)
-- [ ] actionVehiclemakes (view)
-- [ ] actionVehiclemodels (view)
+### 4. ✅ ProductsController (DONE)
+- ✅ actionCategories (create/update/delete) - DONE
+- ✅ actionBrands (create/update/delete) - DONE
+- ✅ actionUnits (create/update/delete) - DONE
+- ✅ actionVehiclemakes (create/update/delete) - DONE
+- ✅ actionVehiclemodels (create/update/delete) - DONE
 
-### 5. InventoryController
+### 5. InventoryController (PARTIAL)
 - [ ] actionInventory (view)
 - [ ] actionInventorydashboard (view)
-- [ ] actionTransferstock (create/update transfers)
-- [ ] actionAdjuststock (create/update adjustments)
 
-### 6. SupplierController
-- [ ] actionSuppliers (view)
-- [ ] actionSupplierlist (view)
-- [ ] actionSupplierledger (view)
+### 6. SupplierController (NOT STARTED)
+- [ ] actionSuppliers (navigation)
+- [ ] No CRUD operations found yet
 
-### 7. FinanceController
-- [ ] actionPayments (create/update payments)
-- [ ] actionReceipts (create/update receipts)
-- [ ] actionExpenses (create/update)
-- [ ] actionBanktransactions (view)
+### 7. ✅ FinanceController (DONE)
+- ✅ actionCustomerreceipts (create/delete) - DONE
+- ✅ actionSupplierpayments (create/delete) - DONE
+- ✅ actionExpenses (create/delete) - DONE
 
-### 8. StockController
-- [ ] actionStockaudit (create/update audit)
-- [ ] actionStockvalue (view)
+### 8. ✅ StockController (DONE)
+- ✅ actionInventorystockadjustment (create/update/delete) - DONE
+- ✅ actionInventorystocktransfer (create/update/delete) - DONE
 
 ### 9. UserController (PARTIALLY DONE)
 - ✅ actionProfile (already has logging for profile updates)
@@ -84,8 +76,23 @@ ActivitylogsController::logActivity(
 3. **LOW PRIORITY**: Reports, Settings, Notifications
 
 ## Implementation Status
-- CustomersController::actionAddcustomer - ✅ DONE
-- All others - PENDING
+
+### ✅ COMPLETED
+- CustomersController::actionAddcustomer - DONE
+- PurchaseController::actionCreatepurchase - DONE (create, update, delete, status update)
+- ProductsController (all CRUD) - DONE (categories, brands, units, vehicle makes/models)
+- StockController::actionInventorystockadjustment - DONE (create, update, delete)
+- StockController::actionInventorystocktransfer - DONE (create, update, delete)
+- SaleController::actionCreatesale - DONE (create, update)
+- FinanceController - DONE (customer receipts, supplier payments, expenses: create, delete)
+
+### 📋 TODO
+- ReportsController - PENDING
+- SettingsController - PENDING
+- UserController - PENDING (verify if additional actions need logging)
+- ModulesController - PENDING
+- NotificationsController - PENDING
+- Other Controllers - PENDING
 
 ## Notes
 - Activity logging uses database transactions, so logs are added after successful operations

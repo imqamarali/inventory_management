@@ -84,34 +84,46 @@ if (!isset($activities)) $activities = [];
     function renderTable(rows, summary, page = 1, perPage = 20, total = 0) {
         let html = '';
         if (summary) {
-            html += `<div class="stats-grid">
-                <div class="stat-card blue">
-                    <div class="stat-header">
-                        <span class="stat-title">Total Logs</span>
-                        <div class="stat-icon"><i class="fa fa-history"></i></div>
-                    </div>
-                    <div class="stat-value">${summary.total_logs || 0}</div>
-                    <div class="stat-subtitle">Activity Records</div>
-                </div>
-                <div class="stat-card orange">
-                    <div class="stat-header">
-                        <span class="stat-title">Modules</span>
-                        <div class="stat-icon"><i class="fa fa-cubes"></i></div>
-                    </div>
-                    <div class="stat-value">${summary.total_modules || 0}</div>
-                    <div class="stat-subtitle">Active Modules</div>
-                </div>
-                <div class="stat-card teal">
-                    <div class="stat-header">
-                        <span class="stat-title">Users</span>
-                        <div class="stat-icon"><i class="fa fa-users"></i></div>
-                    </div>
-                    <div class="stat-value">${summary.total_users || 0}</div>
-                    <div class="stat-subtitle">Active Users</div>
-                </div>
-            </div>`;
+            html += `
+                    <div class="stats-grid">
+                        <div class="stat-card blue">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div class="stat-value">${summary.total_logs || 0}</div>
+                                    <div class="stat-subtitle">Activity Records</div>
+                                </div>
+                                <div style="font-size:36px;color:rgba(255,255,255,0.25);margin-left:15px;">
+                                    <i class="fa fa-history"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card orange">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div class="stat-value">${summary.total_modules || 0}</div>
+                                    <div class="stat-subtitle">Active Modules</div>
+                                </div>
+                                <div style="font-size:36px;color:rgba(255,255,255,0.25);margin-left:15px;">
+                                    <i class="fa fa-cubes"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card teal">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div class="stat-value">${summary.total_users || 0}</div>
+                                    <div class="stat-subtitle">Active Users</div>
+                                </div>
+                                <div style="font-size:36px;color:rgba(255,255,255,0.25);margin-left:15px;">
+                                    <i class="fa fa-users"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
         }
-        html += '<div class="table-responsive"><table class="table table-striped table-bordered table-hover"><thead><tr>';
+        html += '<div class="table-responsive"><table class="table table-striped table-bordered no_items table-hover"><thead><tr>';
         html += '<th style="width:3%;">#</th><th>Date & Time</th><th>User</th><th>Activity</th><th>Module</th><th>Type</th><th>Reference</th><th>Details</th>';
         html += '</tr></thead><tbody>';
         if (rows && rows.length > 0) {

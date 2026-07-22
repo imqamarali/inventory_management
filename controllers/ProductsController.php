@@ -444,12 +444,12 @@ class ProductsController extends Controller
                         [':id' => $category_id]
                     )->execute();
                 if ($result) {
-                    Yii::$app->Component->Activitylog(
-                        'Deleted category ID: ' . $category_id,
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted category: ' . $category['category_name'],
                         'delete',
                         $category_id,
-                        'inventory',
-                        ['is_deleted' => 1]
+                        'Products',
+                        ['type' => 'category_delete']
                     );
                     return [
                         'success' => true,
@@ -487,12 +487,15 @@ class ProductsController extends Controller
                     ->update('inventory_categories', $categoryData, 'id = :id', [':id' => $category_id])
                     ->execute();
                 if ($result) {
-                    Yii::$app->Component->Activitylog(
+                    \app\controllers\ActivitylogsController::logActivity(
                         'Updated category: ' . $category['category_name'],
                         'update',
                         $category_id,
-                        'inventory',
-                        $categoryData
+                        'Products',
+                        [
+                            'type' => 'category_update',
+                            'category_code' => $category['category_code']
+                        ]
                     );
                     return [
                         'success' => true,
@@ -512,12 +515,15 @@ class ProductsController extends Controller
                 ->execute();
             if ($result) {
                 $newCategoryId = Yii::$app->db->getLastInsertID();
-                Yii::$app->Component->Activitylog(
+                \app\controllers\ActivitylogsController::logActivity(
                     'Created category: ' . $category['category_name'],
                     'create',
                     $newCategoryId,
-                    'inventory',
-                    $categoryData
+                    'Products',
+                    [
+                        'type' => 'category_create',
+                        'category_code' => $category['category_code']
+                    ]
                 );
                 return [
                     'success' => true,
@@ -550,7 +556,13 @@ class ProductsController extends Controller
                     ->update('inventory_brands', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => Yii::$app->user->id ?? null], 'id = :id', [':id' => $brand_id])
                     ->execute();
                 if ($result) {
-                    Yii::$app->Component->Activitylog('Deleted brand ID: ' . $brand_id, 'delete', $brand_id, 'inventory', ['is_deleted' => 1]);
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted brand: ' . $brand['brand_name'],
+                        'delete',
+                        $brand_id,
+                        'Products',
+                        ['type' => 'brand_delete']
+                    );
                     return ['success' => true, 'message' => 'Brand deleted successfully.'];
                 }
                 return ['success' => false, 'message' => 'Failed to delete brand.'];
@@ -574,7 +586,16 @@ class ProductsController extends Controller
                     ->update('inventory_brands', $brandData, 'id = :id', [':id' => $brand_id])
                     ->execute();
                 if ($result) {
-                    Yii::$app->Component->Activitylog('Updated brand: ' . $brand['brand_name'], 'update', $brand_id, 'inventory', $brandData);
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Updated brand: ' . $brand['brand_name'],
+                        'update',
+                        $brand_id,
+                        'Products',
+                        [
+                            'type' => 'brand_update',
+                            'brand_code' => $brand['brand_code'] ?? null
+                        ]
+                    );
                     return ['success' => true, 'message' => 'Brand updated successfully.'];
                 }
                 return ['success' => false, 'message' => 'Failed to update brand.'];
@@ -585,7 +606,16 @@ class ProductsController extends Controller
             $result = Yii::$app->db->createCommand()->insert('inventory_brands', $brandData)->execute();
             if ($result) {
                 $newId = Yii::$app->db->getLastInsertID();
-                Yii::$app->Component->Activitylog('Created brand: ' . $brand['brand_name'], 'create', $newId, 'inventory', $brandData);
+                \app\controllers\ActivitylogsController::logActivity(
+                    'Created brand: ' . $brand['brand_name'],
+                    'create',
+                    $newId,
+                    'Products',
+                    [
+                        'type' => 'brand_create',
+                        'brand_code' => $brand['brand_code'] ?? null
+                    ]
+                );
                 return ['success' => true, 'message' => 'Brand created successfully.'];
             }
             return ['success' => false, 'message' => 'Failed to create brand.'];
@@ -607,7 +637,17 @@ class ProductsController extends Controller
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_units', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => Yii::$app->user->id ?? null], 'id = :id', [':id' => $unit_id])
                     ->execute();
-                return $result ? ['success' => true, 'message' => 'Unit deleted successfully.'] : ['success' => false, 'message' => 'Failed to delete unit.'];
+                if ($result) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted unit: ' . $unit['unit_name'],
+                        'delete',
+                        $unit_id,
+                        'Products',
+                        ['type' => 'unit_delete']
+                    );
+                    return ['success' => true, 'message' => 'Unit deleted successfully.'];
+                }
+                return ['success' => false, 'message' => 'Failed to delete unit.'];
             }
             if (empty($unit['unit_name'])) {
                 return ['success' => false, 'message' => 'Unit name is required.'];
@@ -624,13 +664,40 @@ class ProductsController extends Controller
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_units', $unitData, 'id = :id', [':id' => $unit_id])
                     ->execute();
-                return $result ? ['success' => true, 'message' => 'Unit updated successfully.'] : ['success' => false, 'message' => 'Failed to update unit.'];
+                if ($result) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Updated unit: ' . $unit['unit_name'],
+                        'update',
+                        $unit_id,
+                        'Products',
+                        [
+                            'type' => 'unit_update',
+                            'short_name' => $unit['short_name'] ?? null
+                        ]
+                    );
+                    return ['success' => true, 'message' => 'Unit updated successfully.'];
+                }
+                return ['success' => false, 'message' => 'Failed to update unit.'];
             }
             $unitData['created_at'] = date('Y-m-d H:i:s');
             $unitData['created_by'] = Yii::$app->user->id ?? null;
             $unitData['is_deleted'] = 0;
             $result = Yii::$app->db->createCommand()->insert('inventory_units', $unitData)->execute();
-            return $result ? ['success' => true, 'message' => 'Unit created successfully.'] : ['success' => false, 'message' => 'Failed to create unit.'];
+            if ($result) {
+                $newId = Yii::$app->db->getLastInsertID();
+                \app\controllers\ActivitylogsController::logActivity(
+                    'Created unit: ' . $unit['unit_name'],
+                    'create',
+                    $newId,
+                    'Products',
+                    [
+                        'type' => 'unit_create',
+                        'short_name' => $unit['short_name'] ?? null
+                    ]
+                );
+                return ['success' => true, 'message' => 'Unit created successfully.'];
+            }
+            return ['success' => false, 'message' => 'Failed to create unit.'];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
@@ -687,7 +754,17 @@ class ProductsController extends Controller
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_vehicle_makes', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => Yii::$app->user->id ?? null], 'id = :id', [':id' => $vehiclemake_id])
                     ->execute();
-                return $result ? ['success' => true, 'message' => 'Vehicle make deleted successfully.'] : ['success' => false, 'message' => 'Failed to delete vehicle make.'];
+                if ($result) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted vehicle make: ' . $vehiclemake['make_name'],
+                        'delete',
+                        $vehiclemake_id,
+                        'Products',
+                        ['type' => 'vehicle_make_delete']
+                    );
+                    return ['success' => true, 'message' => 'Vehicle make deleted successfully.'];
+                }
+                return ['success' => false, 'message' => 'Failed to delete vehicle make.'];
             }
             if (empty($vehiclemake['make_name'])) {
                 return ['success' => false, 'message' => 'Vehicle make name is required.'];
@@ -706,13 +783,40 @@ class ProductsController extends Controller
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_vehicle_makes', $vehiclemakeData, 'id = :id', [':id' => $vehiclemake_id])
                     ->execute();
-                return $result ? ['success' => true, 'message' => 'Vehicle make updated successfully.'] : ['success' => false, 'message' => 'Failed to update vehicle make.'];
+                if ($result) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Updated vehicle make: ' . $vehiclemake['make_name'],
+                        'update',
+                        $vehiclemake_id,
+                        'Products',
+                        [
+                            'type' => 'vehicle_make_update',
+                            'make_code' => $vehiclemake['make_code'] ?? null
+                        ]
+                    );
+                    return ['success' => true, 'message' => 'Vehicle make updated successfully.'];
+                }
+                return ['success' => false, 'message' => 'Failed to update vehicle make.'];
             }
             $vehiclemakeData['created_at'] = date('Y-m-d H:i:s');
             $vehiclemakeData['created_by'] = Yii::$app->user->id ?? null;
             $vehiclemakeData['is_deleted'] = 0;
             $result = Yii::$app->db->createCommand()->insert('inventory_vehicle_makes', $vehiclemakeData)->execute();
-            return $result ? ['success' => true, 'message' => 'Vehicle make created successfully.'] : ['success' => false, 'message' => 'Failed to create vehicle make.'];
+            if ($result) {
+                $newId = Yii::$app->db->getLastInsertID();
+                \app\controllers\ActivitylogsController::logActivity(
+                    'Created vehicle make: ' . $vehiclemake['make_name'],
+                    'create',
+                    $newId,
+                    'Products',
+                    [
+                        'type' => 'vehicle_make_create',
+                        'make_code' => $vehiclemake['make_code'] ?? null
+                    ]
+                );
+                return ['success' => true, 'message' => 'Vehicle make created successfully.'];
+            }
+            return ['success' => false, 'message' => 'Failed to create vehicle make.'];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
         }
@@ -768,7 +872,17 @@ class ProductsController extends Controller
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_vehicle_models', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => Yii::$app->user->id ?? null], 'id = :id', [':id' => $vehiclemodel_id])
                     ->execute();
-                return $result ? ['success' => true, 'message' => 'Vehicle model deleted successfully.'] : ['success' => false, 'message' => 'Failed to delete vehicle model.'];
+                if ($result) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted vehicle model: ' . $vehiclemodel['model_name'],
+                        'delete',
+                        $vehiclemodel_id,
+                        'Products',
+                        ['type' => 'vehicle_model_delete']
+                    );
+                    return ['success' => true, 'message' => 'Vehicle model deleted successfully.'];
+                }
+                return ['success' => false, 'message' => 'Failed to delete vehicle model.'];
             }
             if (empty($vehiclemodel['model_name'])) {
                 return ['success' => false, 'message' => 'Vehicle model name is required.'];
@@ -794,13 +908,40 @@ class ProductsController extends Controller
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_vehicle_models', $vehiclemodelData, 'id = :id', [':id' => $vehiclemodel_id])
                     ->execute();
-                return $result ? ['success' => true, 'message' => 'Vehicle model updated successfully.'] : ['success' => false, 'message' => 'Failed to update vehicle model.'];
+                if ($result) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Updated vehicle model: ' . $vehiclemodel['model_name'],
+                        'update',
+                        $vehiclemodel_id,
+                        'Products',
+                        [
+                            'type' => 'vehicle_model_update',
+                            'model_year' => $vehiclemodel['model_year'] ?? null
+                        ]
+                    );
+                    return ['success' => true, 'message' => 'Vehicle model updated successfully.'];
+                }
+                return ['success' => false, 'message' => 'Failed to update vehicle model.'];
             }
             $vehiclemodelData['created_at'] = date('Y-m-d H:i:s');
             $vehiclemodelData['created_by'] = Yii::$app->user->id ?? null;
             $vehiclemodelData['is_deleted'] = 0;
             $result = Yii::$app->db->createCommand()->insert('inventory_vehicle_models', $vehiclemodelData)->execute();
-            return $result ? ['success' => true, 'message' => 'Vehicle model created successfully.'] : ['success' => false, 'message' => 'Failed to create vehicle model.'];
+            if ($result) {
+                $newId = Yii::$app->db->getLastInsertID();
+                \app\controllers\ActivitylogsController::logActivity(
+                    'Created vehicle model: ' . $vehiclemodel['model_name'],
+                    'create',
+                    $newId,
+                    'Products',
+                    [
+                        'type' => 'vehicle_model_create',
+                        'model_year' => $vehiclemodel['model_year'] ?? null
+                    ]
+                );
+                return ['success' => true, 'message' => 'Vehicle model created successfully.'];
+            }
+            return ['success' => false, 'message' => 'Failed to create vehicle model.'];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
         }

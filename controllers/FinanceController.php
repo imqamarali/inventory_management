@@ -878,6 +878,18 @@ class FinanceController extends Controller
                 Yii::$app->db->createCommand()->update('inventory_payments',
                     ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $this->currentUserId()],
                     ['id' => $id])->execute();
+
+                // Log activity
+                if ($receipt) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted customer receipt: ' . $receipt['payment_no'],
+                        'delete',
+                        $id,
+                        'Finance',
+                        ['type' => 'customer_receipt_delete', 'amount' => $receipt['amount']]
+                    );
+                }
+
                 return $this->jsonResponse(true, 'Receipt deleted successfully.');
             }
 
@@ -902,6 +914,7 @@ class FinanceController extends Controller
                 'is_deleted' => 0,
             ];
             Yii::$app->db->createCommand()->insert('inventory_payments', $data)->execute();
+            $receiptId = Yii::$app->db->getLastInsertID();
 
             Yii::$app->db->createCommand()->update('inventory_customers',
                 ['current_balance' => new \yii\db\Expression('current_balance-' . $amount)],
@@ -912,6 +925,20 @@ class FinanceController extends Controller
                     ['current_balance' => new \yii\db\Expression('current_balance+' . $amount)],
                     ['id' => $post['account_id']])->execute();
             }
+
+            // Log activity
+            \app\controllers\ActivitylogsController::logActivity(
+                'Created customer receipt: ' . $data['payment_no'],
+                'create',
+                $receiptId,
+                'Finance',
+                [
+                    'type' => 'customer_receipt_create',
+                    'customer_id' => $post['customer_id'],
+                    'amount' => $amount,
+                    'payment_method' => $data['payment_method']
+                ]
+            );
 
             return $this->jsonResponse(true, 'Receipt recorded successfully.');
         } catch (\Exception $e) {
@@ -991,6 +1018,18 @@ class FinanceController extends Controller
                 Yii::$app->db->createCommand()->update('inventory_payments',
                     ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $this->currentUserId()],
                     ['id' => $id])->execute();
+
+                // Log activity
+                if ($payment) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted supplier payment: ' . $payment['payment_no'],
+                        'delete',
+                        $id,
+                        'Finance',
+                        ['type' => 'supplier_payment_delete', 'amount' => $payment['amount']]
+                    );
+                }
+
                 return $this->jsonResponse(true, 'Payment deleted successfully.');
             }
 
@@ -1015,6 +1054,7 @@ class FinanceController extends Controller
                 'is_deleted' => 0,
             ];
             Yii::$app->db->createCommand()->insert('inventory_payments', $data)->execute();
+            $paymentId = Yii::$app->db->getLastInsertID();
 
             Yii::$app->db->createCommand()->update('inventory_suppliers',
                 ['current_balance' => new \yii\db\Expression('current_balance+' . $amount)],
@@ -1025,6 +1065,20 @@ class FinanceController extends Controller
                     ['current_balance' => new \yii\db\Expression('current_balance-' . $amount)],
                     ['id' => $post['account_id']])->execute();
             }
+
+            // Log activity
+            \app\controllers\ActivitylogsController::logActivity(
+                'Created supplier payment: ' . $data['payment_no'],
+                'create',
+                $paymentId,
+                'Finance',
+                [
+                    'type' => 'supplier_payment_create',
+                    'supplier_id' => $post['supplier_id'],
+                    'amount' => $amount,
+                    'payment_method' => $data['payment_method']
+                ]
+            );
 
             return $this->jsonResponse(true, 'Payment recorded successfully.');
         } catch (\Exception $e) {
@@ -1092,9 +1146,22 @@ class FinanceController extends Controller
             $id = $post['id'] ?? null;
 
             if ($id && isset($post['delete']) && $post['delete'] == 1) {
+                $expense = Yii::$app->db->createCommand("SELECT * FROM inventory_transactions WHERE id=:id")->bindValue(':id', $id)->queryOne();
                 Yii::$app->db->createCommand()->update('inventory_transactions',
                     ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => $this->currentUserId()],
                     ['id' => $id])->execute();
+
+                // Log activity
+                if ($expense) {
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted expense: ' . $expense['transaction_no'],
+                        'delete',
+                        $id,
+                        'Finance',
+                        ['type' => 'expense_delete', 'amount' => $expense['amount']]
+                    );
+                }
+
                 return $this->jsonResponse(true, 'Expense deleted successfully.');
             }
 
@@ -1103,8 +1170,9 @@ class FinanceController extends Controller
             }
 
             $amount = (float)$post['amount'];
+            $transactionNo = $this->generateDocNo('EXP');
             Yii::$app->db->createCommand()->insert('inventory_transactions', [
-                'transaction_no' => $this->generateDocNo('EXP'),
+                'transaction_no' => $transactionNo,
                 'transaction_date' => $post['transaction_date'] ?? date('Y-m-d'),
                 'reference_type' => 'Expense',
                 'reference_id' => null,
@@ -1117,10 +1185,24 @@ class FinanceController extends Controller
                 'is_active' => 1,
                 'is_deleted' => 0,
             ])->execute();
+            $expenseId = Yii::$app->db->getLastInsertID();
 
             Yii::$app->db->createCommand()->update('inventory_accounts',
                 ['current_balance' => new \yii\db\Expression('current_balance+' . $amount)],
                 ['id' => $post['account_id']])->execute();
+
+            // Log activity
+            \app\controllers\ActivitylogsController::logActivity(
+                'Created expense: ' . $transactionNo,
+                'create',
+                $expenseId,
+                'Finance',
+                [
+                    'type' => 'expense_create',
+                    'account_id' => $post['account_id'],
+                    'amount' => $amount
+                ]
+            );
 
             return $this->jsonResponse(true, 'Expense recorded successfully.');
         } catch (\Exception $e) {

@@ -632,6 +632,14 @@ class SaleController extends Controller
 
                 $trans->commit();
 
+                \app\controllers\ActivitylogsController::logActivity(
+                    'Created sales order: ' . ($orderData['order_number'] ?? 'SO#' . $sales_order_id),
+                    'create',
+                    $sales_order_id,
+                    'Sales',
+                    ['type' => 'sales_order_create', 'customer_id' => $customer_id, 'grand_total' => $grandTotal, 'invoice_no' => $invoiceNo]
+                );
+
                 $message = 'Sales Order ' . ($orderData['order_number'] ?? 'created') . ' and Invoice ' . ($invoiceNo ?? 'created') . ' successfully!';
                 return $this->jsonResponse(true, $message, [
                     'id' => $sales_order_id,
@@ -672,6 +680,14 @@ class SaleController extends Controller
                     LEFT JOIN inventory_sales_invoices si ON si.sales_order_id = so.id
                     WHERE so.id = :id
                 ")->bindValue(':id', $originalSalesOrderId)->queryOne();
+
+                \app\controllers\ActivitylogsController::logActivity(
+                    'Updated sales order: ' . ($orderData['order_number'] ?? 'SO#' . $originalSalesOrderId),
+                    'update',
+                    $originalSalesOrderId,
+                    'Sales',
+                    ['type' => 'sales_order_update', 'customer_id' => $customer_id, 'grand_total' => $grandTotal]
+                );
 
                 return $this->jsonResponse(true, 'Sales Order ' . ($orderData['order_number'] ?? 'updated') . ' and Invoice updated successfully!', [
                     'id' => $originalSalesOrderId,
