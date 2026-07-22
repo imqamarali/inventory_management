@@ -1,5 +1,4 @@
 <?php
-use yii\helpers\Html;
 
 if (!isset($users)) {
     $users = [];
@@ -7,70 +6,122 @@ if (!isset($users)) {
 if (!isset($roles)) {
     $roles = [];
 }
-if (!isset($keyword)) {
-    $keyword = '';
-}
+
 ?>
-<div class="row" style="margin-top: 20px;">
-    <div class="col-sm-12">
-        <div class="btn-group">
-            <button class="btn btn-sm btn-primary" onclick="openUserModal()">
-                <i class="ace-icon fa fa-plus"></i> Add New User
-            </button>
-            <div class="input-group" style="display: inline-block; margin-left: 10px; width: 250px;">
-                <input type="text" class="form-control input-sm" id="userKeyword" placeholder="Search users..." value="<?= htmlspecialchars($keyword) ?>">
-                <span class="input-group-btn">
-                    <button class="btn btn-sm btn-info" id="userSearchBtn">
-                        <i class="ace-icon fa fa-search"></i>
-                    </button>
-                </span>
-            </div>
+
+<div class="main-content">
+    <div class="main-content-inner">
+        <div class="breadcrumbs ace-save-state" id="breadcrumbs">
+            <ul class="breadcrumb">
+                <li>
+                    <i class="ace-icon fa fa-home home-icon"></i>
+                    <a href="index.php?r=settings/settings">Home</a>
+                </li>
+                <li class="active">Users</li>
+                <div class="nav-search" id="nav-search">
+                    <div class="exam-quick-actions-group">
+                        <a class="btn btn-sm btn-white btn-primary"
+                            style="font-size: 12px; cursor:pointer;"
+                            onclick="openUserModal()">
+                            <i class="ace-icon fa fa-plus"></i>
+                            Add New User
+                        </a>
+                    </div>
+                </div>
+            </ul>
         </div>
 
-        <div id="usersContainer" style="margin-top: 15px;">
-            <?php if (empty($users)): ?>
-            <div class="alert alert-info">
-                <i class="ace-icon fa fa-info-circle"></i>
-                No users found. Click "Add New User" to create one.
-            </div>
-            <?php else: ?>
-            <div class="table-responsive">
-                <table class="table table-striped table-hover table-condensed">
-                    <thead>
-                        <tr>
-                            <th width="18%">Username</th>
-                            <th width="18%">Email</th>
-                            <th width="18%">Full Name</th>
-                            <th width="15%">Role</th>
-                            <th width="15%">Last Login</th>
-                            <th width="16%" class="text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="usersTableBody">
-                        <?php foreach ($users as $user): ?>
-                        <tr data-user-id="<?= $user['id'] ?>">
-                            <td><strong><?= htmlspecialchars($user['username']) ?></strong></td>
-                            <td><?= htmlspecialchars($user['email']) ?></td>
-                            <td><?= htmlspecialchars(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?></td>
-                            <td><span class="label label-info"><?= htmlspecialchars($user['role_name'] ?? 'N/A') ?></span></td>
-                            <td><small class="text-muted"><?= $user['last_login'] ? date('M d, Y H:i', strtotime($user['last_login'])) : 'Never' ?></small></td>
-                            <td class="text-center">
-                                <button class="btn btn-xs btn-info" onclick="editUser(<?= htmlspecialchars(json_encode($user)) ?>)" title="Edit">
-                                    <i class="ace-icon fa fa-pencil"></i>
-                                </button>
-                                <button class="btn btn-xs btn-warning" onclick="resetUserPassword(<?= $user['id'] ?>)" title="Reset Password">
-                                    <i class="ace-icon fa fa-key"></i>
-                                </button>
-                                <button class="btn btn-xs btn-danger" onclick="deleteUser(<?= $user['id'] ?>)" title="Delete">
-                                    <i class="ace-icon fa fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-            <?php endif; ?>
+        <div class="page-content">
+                <div class="row">
+                    <div class="col-xs-12">
+                        <div class="widget-body">
+                            <div class="widget-main padding-12">
+                                <?php if (count($users) == 0) { ?>
+                                    <div class="alert alert-info text-center">
+                                        <i class="ace-icon fa fa-info-circle fa-3x" style="color: #6FB3E0;"></i>
+                                        <h4 style="margin-top: 15px;">No Users Found</h4>
+                                        <p>Start by adding your first user using the button above</p>
+                                    </div>
+                                <?php } else { ?>
+                                    <div class="row" id="users_container">
+                                        <?php foreach ($users as $key => $item):
+                                            $isActive = $item['is_active'] ?? 1;
+                                            $statusClass = $isActive ? 'label-success' : 'label-danger';
+                                        ?>
+                                            <div class="col-md-4 col-sm-6 user-item">
+                                                <div class="class-card">
+                                                    <div class="class-header">
+                                                        <div style="flex: 1;">
+                                                            <div class="class-name">
+                                                                <i class="fa fa-user" style="margin-right: 8px;"></i>
+                                                                <?php echo htmlspecialchars($item['username']); ?>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="btn-group">
+                                                            <button type="button"
+                                                                onclick="openUserModal(<?php echo htmlspecialchars(json_encode($item)); ?>)"
+                                                                title="Edit User">
+                                                                <i class="ace-icon fa fa-pencil"></i>
+                                                            </button>
+                                                            &nbsp;&nbsp;|&nbsp;&nbsp;
+                                                            <button type="button"
+                                                                onclick="deleteUser(<?php echo $item['id']; ?>)"
+                                                                title="Delete User">
+                                                                <i class="ace-icon fa fa-trash"></i>
+                                                            </button>
+                                                        </div>
+
+                                                    </div>
+
+                                                    <div class="class-stats">
+
+                                                        <div class="stat-item">
+                                                            <i class="ace-icon fa fa-envelope"></i>
+                                                            <span>Email: <?php echo htmlspecialchars($item['email']); ?></span>
+                                                        </div>
+
+                                                        <div class="stat-item">
+                                                            <i class="ace-icon fa fa-id-card"></i>
+                                                            <span>Name: <?php echo htmlspecialchars(($item['first_name'] ?? '') . ' ' . ($item['last_name'] ?? '')); ?></span>
+                                                        </div>
+
+                                                        <div class="stat-item">
+                                                            <i class="ace-icon fa fa-shield"></i>
+                                                            <span>Role: <?php echo htmlspecialchars($item['role_name'] ?? 'N/A'); ?></span>
+                                                        </div>
+
+                                                        <div class="stat-item">
+                                                            <i class="ace-icon fa fa-phone"></i>
+                                                            <span>Phone: <?php echo htmlspecialchars($item['phone'] ?? 'N/A'); ?></span>
+                                                        </div>
+
+                                                    </div>
+
+                                                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #E3E9ED;">
+
+                                                        <div class="stat-item">
+                                                            <i class="ace-icon fa fa-calendar"></i>
+                                                            <span>Created: <?php echo date('M d, Y', strtotime($item['created_at'] ?? now())); ?></span>
+                                                        </div>
+
+                                                        <div class="stat-item">
+                                                            <i class="ace-icon fa fa-sign-in"></i>
+                                                            <span>Last Login: <?php echo $item['last_login'] ? date('M d, Y H:i', strtotime($item['last_login'])) : 'Never'; ?></span>
+                                                        </div>
+
+                                                    </div>
+
+                                                </div>
+                                            </div>
+
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php } ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
         </div>
     </div>
 </div>
@@ -78,339 +129,274 @@ if (!isset($keyword)) {
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-const rolesData = <?= json_encode($roles) ?>;
+    const rolesData = <?= json_encode($roles) ?>;
 
-document.getElementById('userSearchBtn').addEventListener('click', function() {
-    searchUsers();
-});
+    function openUserModal(userData = null) {
+        const isEdit = userData !== null;
+        const title = isEdit ? 'Update User' : 'New User';
+        const userId = isEdit ? (userData.id || '') : '';
+        const username = isEdit ? (userData.username || '') : '';
+        const email = isEdit ? (userData.email || '') : '';
+        const firstName = isEdit ? (userData.first_name || '') : '';
+        const lastName = isEdit ? (userData.last_name || '') : '';
+        const phone = isEdit ? (userData.phone || '') : '';
+        const roleId = isEdit ? (userData.role_id || '') : '';
+        const address = isEdit ? (userData.address || '') : '';
 
-document.getElementById('userKeyword').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        searchUsers();
-    }
-});
+        let rolesHtml = '<option value="">Select a role</option>';
+        rolesData.forEach(role => {
+            const selected = roleId == role.id ? 'selected' : '';
+            rolesHtml += `<option value="${role.id}" ${selected}>${role.name}</option>`;
+        });
 
-function searchUsers() {
-    const keyword = document.getElementById('userKeyword').value.trim();
-    const data = new FormData();
-    data.append('flag', 'search');
-    data.append('keyword', keyword);
-    data.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
+        Swal.fire({
 
-    fetch('index.php?r=settings/users', {
-        method: 'POST',
-        body: data
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            updateUsersTable(result.users);
-        } else {
-            Swal.fire('Error', result.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        Swal.fire('Error', 'An error occurred while searching.', 'error');
-    });
-}
+            title: title,
+            html:`
+                    <form id="userForm" style="text-align:left;">
+                    <input type="hidden" id="swal_user_id" value="${userId}">
 
-function openUserModal(userData = null) {
-    const isEdit = userData !== null;
-    const title = isEdit ? 'Edit User' : 'Add New User';
-    const userId = isEdit ? (userData.id || '') : '';
-    const username = isEdit ? (userData.username || '') : '';
-    const email = isEdit ? (userData.email || '') : '';
-    const firstName = isEdit ? (userData.first_name || '') : '';
-    const lastName = isEdit ? (userData.last_name || '') : '';
-    const phone = isEdit ? (userData.phone || '') : '';
-    const roleId = isEdit ? (userData.role_id || '') : '';
+                    <div class="row">
+                    <div class="col-md-6">
+                    <label>Username <span class="text-danger">*</span></label>
+                    <input type="text" id="swal_username" class="form-control" value="${username}" ${isEdit ? 'readonly' : ''}>
+                    </div>
 
-    const roleOptions = rolesData.map(role =>
-        `<option value="${role.id}" ${roleId == role.id ? 'selected' : ''}>${escapeHtml(role.name)}</option>`
-    ).join('');
+                    <div class="col-md-6">
+                    <label>Email <span class="text-danger">*</span></label>
+                    <input type="email" id="swal_email" class="form-control" value="${email}">
+                    </div>
+                    </div>
 
-    Swal.fire({
-        title: title,
-        html: `
-            <form id="userForm" style="text-align:left;">
-            <input type="hidden" id="swal_user_id" value="${userId}">
+                    <div class="row">
+                    <div class="col-md-6">
+                    <label>First Name</label>
+                    <input type="text" id="swal_first_name" class="form-control" value="${firstName}">
+                    </div>
 
-            <div class="row">
-            <div class="col-md-6">
-            <label>Username <span class="text-danger">*</span></label>
-            <input type="text" id="swal_username" class="form-control" value="${escapeHtml(username)}" placeholder="Enter username">
-            </div>
+                    <div class="col-md-6">
+                    <label>Last Name</label>
+                    <input type="text" id="swal_last_name" class="form-control" value="${lastName}">
+                    </div>
+                    </div>
 
-            <div class="col-md-6">
-            <label>Email <span class="text-danger">*</span></label>
-            <input type="email" id="swal_email" class="form-control" value="${escapeHtml(email)}" placeholder="Enter email">
-            </div>
-            </div>
+                    <div class="row">
+                    <div class="col-md-6">
+                    <label>Phone</label>
+                    <input type="text" id="swal_phone" class="form-control" value="${phone}">
+                    </div>
 
-            <div class="row">
-            <div class="col-md-6">
-            <label>First Name</label>
-            <input type="text" id="swal_first_name" class="form-control" value="${escapeHtml(firstName)}" placeholder="First name">
-            </div>
+                    <div class="col-md-6">
+                    <label>Role <span class="text-danger">*</span></label>
+                    <select id="swal_role_id" class="form-control">
+                        ${rolesHtml}
+                    </select>
+                    </div>
+                    </div>
 
-            <div class="col-md-6">
-            <label>Last Name</label>
-            <input type="text" id="swal_last_name" class="form-control" value="${escapeHtml(lastName)}" placeholder="Last name">
-            </div>
-            </div>
+                    <div class="row">
+                    <div class="col-md-12">
+                    <label>Address</label>
+                    <input type="text" id="swal_address" class="form-control" value="${address}">
+                    </div>
+                    </div>
 
-            <div class="row">
-            <div class="col-md-6">
-            <label>Phone</label>
-            <input type="tel" id="swal_phone" class="form-control" value="${escapeHtml(phone)}" placeholder="Phone number">
-            </div>
+                    ${!isEdit ? `
+                    <div class="row" style="margin-top: 10px;">
+                    <div class="col-md-12">
+                    <label>Password <span class="text-danger">*</span></label>
+                    <input type="password" id="swal_password" class="form-control" placeholder="Leave empty for auto-generated">
+                    </div>
+                    </div>
+                    ` : ''}
 
-            <div class="col-md-6">
-            <label>Role</label>
-            <select id="swal_role_id" class="form-control">
-                <option value="">-- Select Role --</option>
-                ${roleOptions}
-            </select>
-            </div>
-            </div>
+                    </form>
+                    `,
+            width: '700px',
 
-            ${!isEdit ? `
-            <div class="row">
-            <div class="col-md-12">
-            <label>Password <span class="text-danger">*</span></label>
-            <input type="password" id="swal_password" class="form-control" placeholder="Enter password (min 8 chars)">
-            </div>
-            </div>
-            ` : ''}
+            showCancelButton: true,
 
-            </form>
-        `,
-        width: '600px',
-        showCancelButton: true,
-        confirmButtonText: isEdit ? '<i class="ace-icon fa fa-save"></i> Update User' : '<i class="ace-icon fa fa-save"></i> Create User',
-        cancelButtonText: '<i class="ace-icon fa fa-times"></i> Cancel',
-        confirmButtonColor: '#87B87F',
-        cancelButtonColor: '#6c757d',
-        focusConfirm: false,
-        preConfirm: () => {
-            const username = document.getElementById('swal_username').value.trim();
-            const email = document.getElementById('swal_email').value.trim();
+            confirmButtonText: isEdit ?
+                '<i class="ace-icon fa fa-save"></i> Update User' :
+                '<i class="ace-icon fa fa-save"></i> Create User',
 
-            if (!username) {
-                Swal.showValidationMessage('Username is required');
-                return false;
-            }
+            cancelButtonText: '<i class="ace-icon fa fa-times"></i> Cancel',
 
-            if (!email) {
-                Swal.showValidationMessage('Email is required');
-                return false;
-            }
+            confirmButtonColor: '#87B87F',
 
-            if (!isEdit) {
-                const password = document.getElementById('swal_password').value.trim();
-                if (!password || password.length < 8) {
-                    Swal.showValidationMessage('Password must be at least 8 characters');
+            cancelButtonColor: '#6c757d',
+
+            focusConfirm: false,
+
+
+            preConfirm: () => {
+
+
+                const username = document.getElementById('swal_username').value.trim();
+
+                const email = document.getElementById('swal_email').value.trim();
+
+                const roleId = document.getElementById('swal_role_id').value;
+
+
+                if (!username) {
+
+                    Swal.showValidationMessage('Username is required');
+
                     return false;
+
                 }
+
+
+                if (!email) {
+
+                    Swal.showValidationMessage('Email is required');
+
+                    return false;
+
+                }
+
+                if (!roleId) {
+
+                    Swal.showValidationMessage('Role is required');
+
+                    return false;
+
+                }
+
+                return {
+
+                    id: document.getElementById('swal_user_id').value,
+
+                    username: username,
+
+                    email: email,
+
+                    first_name: document.getElementById('swal_first_name').value,
+
+                    last_name: document.getElementById('swal_last_name').value,
+
+                    phone: document.getElementById('swal_phone').value,
+
+                    role_id: roleId,
+
+                    address: document.getElementById('swal_address').value,
+
+                    password: document.getElementById('swal_password') ? document.getElementById('swal_password').value : ''
+
+                };
+
             }
 
-            return {
-                id: document.getElementById('swal_user_id').value,
-                username: username,
-                email: email,
-                first_name: document.getElementById('swal_first_name').value.trim(),
-                last_name: document.getElementById('swal_last_name').value.trim(),
-                phone: document.getElementById('swal_phone').value.trim(),
-                role_id: document.getElementById('swal_role_id').value,
-                password: !isEdit ? document.getElementById('swal_password').value : undefined
-            };
-        }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            saveUser(result.value);
-        }
-    });
-}
 
-function saveUser(formData) {
-    Swal.fire({
-        title: 'Processing...',
-        text: 'Please wait',
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
-    });
+        }).then((result) => {
 
-    const data = new FormData();
-    data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-    data.append('id', formData.id);
-    data.append('username', formData.username);
-    data.append('email', formData.email);
-    data.append('first_name', formData.first_name);
-    data.append('last_name', formData.last_name);
-    data.append('phone', formData.phone);
-    data.append('role_id', formData.role_id);
-    if (formData.password) {
-        data.append('password', formData.password);
+            if (result.isConfirmed && result.value) {
+
+                saveUser(result.value);
+
+            }
+
+        });
+
+
     }
 
-    fetch('index.php?r=settings/users', {
-        method: 'POST',
-        body: data
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            Swal.fire({
-                icon: 'success',
-                title: 'Success!',
-                text: result.message,
-                timer: 1500,
-                showConfirmButton: false
-            }).then(() => {
-                location.reload();
-            });
-        } else {
-            Swal.fire('Error', result.message, 'error');
-        }
-    })
-    .catch(error => {
-        Swal.fire('Error', 'An error occurred. Please try again.', 'error');
-        console.error('Error:', error);
-    });
-}
 
-function editUser(user) {
-    openUserModal(user);
-}
 
-function resetUserPassword(userId) {
-    Swal.fire({
-        title: 'Reset Password',
-        html: `
-            <div style="text-align: left;">
-            <label>New Password <span class="text-danger">*</span></label>
-            <input type="password" id="newPassword" class="form-control" placeholder="Enter new password (min 8 chars)" style="margin-bottom: 10px;">
-            <small class="text-muted">Password must be at least 8 characters long.</small>
-            </div>
-        `,
-        showCancelButton: true,
-        confirmButtonText: '<i class="ace-icon fa fa-save"></i> Reset',
-        cancelButtonText: '<i class="ace-icon fa fa-times"></i> Cancel',
-        confirmButtonColor: '#f39c12',
-        cancelButtonColor: '#6c757d',
-        preConfirm: () => {
-            const password = document.getElementById('newPassword').value.trim();
-            if (!password || password.length < 8) {
-                Swal.showValidationMessage('Password must be at least 8 characters');
-                return false;
+    function saveUser(formData) {
+        Swal.fire({
+            title: 'Processing...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
             }
-            return password;
+        });
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('id', formData.id);
+        data.append('username', formData.username);
+        data.append('email', formData.email);
+        data.append('first_name', formData.first_name);
+        data.append('last_name', formData.last_name);
+        data.append('phone', formData.phone);
+        data.append('role_id', formData.role_id);
+        data.append('address', formData.address);
+        if (formData.password) {
+            data.append('password', formData.password);
         }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            const data = new FormData();
-            data.append('flag', 'resetpassword');
-            data.append('id', userId);
-            data.append('new_password', result.value);
-            data.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
-
-            fetch('index.php?r=settings/users', {
+        fetch('index.php?r=settings/users', {
                 method: 'POST',
                 body: data
             })
             .then(response => response.json())
-            .then(res => {
-                if (res.success) {
-                    Swal.fire('Success!', res.message, 'success');
-                } else {
-                    Swal.fire('Error', res.message, 'error');
-                }
-            })
-            .catch(error => {
-                Swal.fire('Error', 'An error occurred.', 'error');
-            });
-        }
-    });
-}
-
-function deleteUser(userId) {
-    Swal.fire({
-        title: 'Delete User?',
-        text: 'This action cannot be undone.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: '<i class="ace-icon fa fa-trash"></i> Yes, delete!',
-        cancelButtonText: '<i class="ace-icon fa fa-times"></i> Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const data = new FormData();
-            data.append('id', userId);
-            data.append('delete', '1');
-            data.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
-
-            fetch('index.php?r=settings/users', {
-                method: 'POST',
-                body: data
-            })
-            .then(response => response.json())
-            .then(res => {
-                if (res.success) {
-                    Swal.fire('Deleted!', res.message, 'success').then(() => {
-                        document.querySelector(`[data-user-id="${userId}"]`).remove();
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    }).then(() => {
+                        window.location.reload();
                     });
                 } else {
-                    Swal.fire('Error', res.message, 'error');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: data.message
+                    });
                 }
             })
             .catch(error => {
-                Swal.fire('Error', 'An error occurred.', 'error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'An error occurred. Please try again.'
+                });
             });
-        }
-    });
-}
-
-function updateUsersTable(users) {
-    const tbody = document.getElementById('usersTableBody');
-    const container = document.getElementById('usersContainer');
-
-    if (!users || users.length === 0) {
-        container.innerHTML = '<div class="alert alert-info"><i class="ace-icon fa fa-info-circle"></i> No users found.</div>';
-        return;
     }
 
-    tbody.innerHTML = '';
-    users.forEach(user => {
-        const row = `<tr data-user-id="${user.id}">
-            <td><strong>${escapeHtml(user.username)}</strong></td>
-            <td>${escapeHtml(user.email)}</td>
-            <td>${escapeHtml((user.first_name || '') + ' ' + (user.last_name || ''))}</td>
-            <td><span class="label label-info">${escapeHtml(user.role_name || 'N/A')}</span></td>
-            <td><small class="text-muted">Never</small></td>
-            <td class="text-center">
-                <button class="btn btn-xs btn-info" onclick="editUser(${JSON.stringify(user).replace(/"/g, '&quot;')})" title="Edit">
-                    <i class="ace-icon fa fa-pencil"></i>
-                </button>
-                <button class="btn btn-xs btn-warning" onclick="resetUserPassword(${user.id})" title="Reset Password">
-                    <i class="ace-icon fa fa-key"></i>
-                </button>
-                <button class="btn btn-xs btn-danger" onclick="deleteUser(${user.id})" title="Delete">
-                    <i class="ace-icon fa fa-trash"></i>
-                </button>
-            </td>
-        </tr>`;
-        tbody.innerHTML += row;
-    });
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+    function deleteUser(id) {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: 'User will be deleted.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const data = new FormData();
+                data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+                data.append('id', id);
+                data.append('delete', '1');
+                fetch('index.php?r=settings/users', {
+                        method: 'POST',
+                        body: data
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success!',
+                                text: data.message,
+                                timer: 1500,
+                                showConfirmButton: false
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire('Error', data.message, 'error');
+                        }
+                    });
+            }
+        });
+    }
 </script>
+
