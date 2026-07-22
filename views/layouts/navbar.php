@@ -92,7 +92,7 @@ if (!empty($user['profile_picture'])) {
                             <li class="divider"></li>
 
                             <li>
-                                <a href="index.php?r=settings/profile">
+                                <a href="index.php?r=user/profile">
                                     <i class="ace-icon fa fa-user"></i>
                                     My Profile
                                 </a>

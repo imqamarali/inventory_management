@@ -642,17 +642,23 @@ class ProductsController extends Controller
 
             foreach ($vehiclemakes as &$vehiclemake) {
                 $vehiclemake['total_products'] = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products p
+                     LEFT JOIN inventory_vehicle_models vm ON vm.id = p.model_id
+                     WHERE vm.make_id = :make_id AND p.is_deleted = 0",
                     [':make_id' => $vehiclemake['id']]
                 )->queryScalar();
 
                 $vehiclemake['active_products'] = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_active = 1 AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products p
+                     LEFT JOIN inventory_vehicle_models vm ON vm.id = p.model_id
+                     WHERE vm.make_id = :make_id AND p.is_active = 1 AND p.is_deleted = 0",
                     [':make_id' => $vehiclemake['id']]
                 )->queryScalar();
 
                 $vehiclemake['inactive_products'] = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_active = 0 AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products p
+                     LEFT JOIN inventory_vehicle_models vm ON vm.id = p.model_id
+                     WHERE vm.make_id = :make_id AND p.is_active = 0 AND p.is_deleted = 0",
                     [':make_id' => $vehiclemake['id']]
                 )->queryScalar();
             }
@@ -665,7 +671,9 @@ class ProductsController extends Controller
             $vehiclemake_id = Yii::$app->request->post('id');
             if ($vehiclemake_id && isset($vehiclemake['delete']) && $vehiclemake['delete'] == 1) {
                 $activeProductCount = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_active = 1 AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products p
+                     LEFT JOIN inventory_vehicle_models vm ON vm.id = p.model_id
+                     WHERE vm.make_id = :make_id AND p.is_active = 1 AND p.is_deleted = 0",
                     [':make_id' => $vehiclemake_id]
                 )->queryScalar();
 
@@ -722,17 +730,17 @@ class ProductsController extends Controller
 
             foreach ($vehiclemodels as &$vehiclemodel) {
                 $vehiclemodel['total_products'] = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products WHERE model_id = :model_id AND is_deleted = 0",
                     [':model_id' => $vehiclemodel['id']]
                 )->queryScalar();
 
                 $vehiclemodel['active_products'] = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_active = 1 AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products WHERE model_id = :model_id AND is_active = 1 AND is_deleted = 0",
                     [':model_id' => $vehiclemodel['id']]
                 )->queryScalar();
 
                 $vehiclemodel['inactive_products'] = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_active = 0 AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products WHERE model_id = :model_id AND is_active = 0 AND is_deleted = 0",
                     [':model_id' => $vehiclemodel['id']]
                 )->queryScalar();
             }
@@ -746,7 +754,7 @@ class ProductsController extends Controller
             $vehiclemodel_id = Yii::$app->request->post('id');
             if ($vehiclemodel_id && isset($vehiclemodel['delete']) && $vehiclemodel['delete'] == 1) {
                 $activeProductCount = Yii::$app->db->createCommand(
-                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_active = 1 AND is_deleted = 0",
+                    "SELECT COUNT(*) FROM inventory_products WHERE model_id = :model_id AND is_active = 1 AND is_deleted = 0",
                     [':model_id' => $vehiclemodel_id]
                 )->queryScalar();
 
