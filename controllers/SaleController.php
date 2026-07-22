@@ -1355,6 +1355,15 @@ class SaleController extends Controller
                 LIMIT 10
             ")->queryAll();
 
+            // Log dashboard access
+            \app\controllers\ActivitylogsController::logActivity(
+                'Accessed Sales Dashboard',
+                'view',
+                null,
+                'Sales',
+                ['type' => 'sales_dashboard_view']
+            );
+
             return [
                 'success' => true,
                 'stats' => $stats,
@@ -1456,6 +1465,25 @@ class SaleController extends Controller
                         ORDER BY so.id DESC
                         LIMIT {$offset},{$perPage}
                     ", $params)->queryAll();
+
+                    // Log search/view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed sales orders list',
+                        'view',
+                        null,
+                        'Sales',
+                        [
+                            'type' => 'sales_orders_view',
+                            'filters' => [
+                                'customer' => $customer_id,
+                                'warehouse' => $warehouse_id,
+                                'status' => $order_status,
+                                'payment_status' => $payment_status
+                            ],
+                            'page' => $page,
+                            'total_records' => $total
+                        ]
+                    );
 
                     return [
                         'success' => true,
@@ -1566,6 +1594,15 @@ class SaleController extends Controller
                         ['id' => $orderId]
                     )->execute();
 
+                    // Log status update
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Updated sales order status to: ' . $newStatus,
+                        'update',
+                        $orderId,
+                        'Sales',
+                        ['type' => 'sales_order_status_update', 'new_status' => $newStatus]
+                    );
+
                     return [
                         'success' => true,
                         'message' => 'Sale Order status updated to ' . $newStatus . ' successfully.'
@@ -1574,14 +1611,25 @@ class SaleController extends Controller
 
                 if (isset($post['flag']) && $post['flag'] == 'delete') {
 
+                    $deleteId = (int)$post['id'];
+
                     Yii::$app->db->createCommand()->update(
                         'inventory_sales_orders',
                         [
                             'is_deleted' => 1,
                             'updated_at' => date('Y-m-d H:i:s')
                         ],
-                        ['id' => $post['id']]
+                        ['id' => $deleteId]
                     )->execute();
+
+                    // Log deletion
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Deleted sales order: SO#' . $deleteId,
+                        'delete',
+                        $deleteId,
+                        'Sales',
+                        ['type' => 'sales_order_delete']
+                    );
 
                     return [
                         'success' => true,

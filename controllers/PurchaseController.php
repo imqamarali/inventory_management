@@ -517,6 +517,15 @@ class PurchaseController extends Controller
             LIMIT 10
         ")->queryAll();
 
+            // Log dashboard access
+            \app\controllers\ActivitylogsController::logActivity(
+                'Accessed Purchase Dashboard',
+                'view',
+                null,
+                'Purchase',
+                ['type' => 'purchase_dashboard_view']
+            );
+
             return [
                 'success' => true,
                 'stats' => $stats,
@@ -616,6 +625,24 @@ class PurchaseController extends Controller
                         ORDER BY po.id DESC
                         LIMIT {$offset},{$perPage}
                     ", $params)->queryAll();
+
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed purchase orders list',
+                        'view',
+                        null,
+                        'Purchase',
+                        [
+                            'type' => 'purchase_orders_view',
+                            'filters' => [
+                                'supplier' => $supplier_id,
+                                'warehouse' => $warehouse_id,
+                                'status' => $status
+                            ],
+                            'page' => $page,
+                            'total_records' => $total
+                        ]
+                    );
 
                     return [
                         'success' => true,

@@ -1119,6 +1119,23 @@ class StockController extends Controller
                         LIMIT $limit OFFSET $offset
                     ")->bindValues($params)->queryAll();
 
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed stock adjustments list',
+                        'view',
+                        null,
+                        'Inventory',
+                        [
+                            'type' => 'stock_adjustments_view',
+                            'filters' => [
+                                'warehouse' => $post['warehouse_id'] ?? null,
+                                'adjustment_type' => $post['adjustment_type'] ?? null
+                            ],
+                            'page' => $page,
+                            'total_records' => $total
+                        ]
+                    );
+
                     if(isset($post['id']) && $post['id']!=''){
 
                         $items=Yii::$app->db->createCommand("
@@ -2188,6 +2205,24 @@ class StockController extends Controller
                         ORDER BY t.transfer_date DESC, t.id DESC
                         LIMIT $limit OFFSET $offset
                     ")->bindValues($params)->queryAll();
+
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed stock transfers list',
+                        'view',
+                        null,
+                        'Inventory',
+                        [
+                            'type' => 'stock_transfers_view',
+                            'filters' => [
+                                'from_warehouse' => $post['from_warehouse'] ?? null,
+                                'to_warehouse' => $post['to_warehouse'] ?? null,
+                                'status' => $post['status'] ?? null
+                            ],
+                            'page' => $page,
+                            'total_records' => $total
+                        ]
+                    );
 
                     if (!empty($post['id'])) {
                         $items = Yii::$app->db->createCommand("
