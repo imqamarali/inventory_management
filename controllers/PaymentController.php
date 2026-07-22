@@ -235,21 +235,18 @@ class PaymentController extends Controller
     private function loadPaymentHistory()
     {
         $db = Yii::$app->db;
-        $page = Yii::$app->request->post('page', 1);
-        $perPage = Yii::$app->request->post('per_page', 20);
+        $page = (int)Yii::$app->request->post('page', 1);
+        $perPage = (int)Yii::$app->request->post('per_page', 20);
         $offset = ($page - 1) * $perPage;
-        $isSuperAdmin = $this->isSuperAdmin();
 
         $query = "SELECT si.*, sc.contract_name
                   FROM system_invoices si
                   JOIN system_contracts sc ON sc.id = si.contract_id
                   WHERE si.is_deleted = 0
-                  ORDER BY si.created_at DESC";
+                  ORDER BY si.created_at DESC
+                  LIMIT " . $perPage . " OFFSET " . $offset;
 
-        $invoices = $db->createCommand($query . " LIMIT :limit OFFSET :offset")
-            ->bindValue(':limit', $perPage)
-            ->bindValue(':offset', $offset)
-            ->queryAll();
+        $invoices = $db->createCommand($query)->queryAll();
 
         $total = $db->createCommand("SELECT COUNT(*) FROM system_invoices WHERE is_deleted = 0")->queryScalar();
         $totalPages = ceil($total / $perPage);

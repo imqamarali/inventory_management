@@ -8,21 +8,27 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
 
 ?>
 
-<div class="main-content">
-    <div class="main-content-inner">
+<div class="page-content">
 
-        <div class="breadcrumbs ace-save-state" id="breadcrumbs">
-            <ul class="breadcrumb" style="width:100%;">
-                <li>
-                    <i class="ace-icon fa fa-home home-icon"></i>
-                    <a href="index.php?r=inventory/dashboard">Home</a>
-                </li>
-                <li class="active">Payment History</li>
-            </ul>
+    <div class="dashboard-header">
+        <div>
+            <h3>
+                <i class="fa fa-credit-card"></i>
+                Payment History
+                <small>Payment Overview & Management</small>
+            </h3>
         </div>
 
-        <!-- Stats Section -->
-        <div class="stats-grid" style="margin: 20px 0; padding: 0 15px;">
+        <div style="display: flex; gap: 10px;">
+            <button id="refreshPayments" onclick="searchPayments()">
+                <i class="fa fa-refresh"></i>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-grid">
 
             <div class="stat-card blue">
                 <div class="stat-header">
@@ -76,34 +82,38 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
 
         </div>
 
+    <!-- Payment Table Section -->
+    <div class="dashboard-box">
+        <h4>
+            <i class="fa fa-table"></i>
+            Payment Records
+        </h4>
+
         <!-- Search & Filter Section -->
-        <div style="padding:10px 15px;">
+        <div class="dashboard-filters" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
             <form id="payment_search" onsubmit="return false;">
 
-                <input type="text" name="invoice_number" id="invoice_number" class="new-input" style="width:20%;" placeholder="Invoice #">
+                <input type="text" name="invoice_number" id="invoice_number" class="new-input" style="width:18%;" placeholder="Invoice #">
 
-                <select name="status" id="status" class="new-input" style="width:18%;">
+                <select name="status" id="status" class="new-input" style="width:15%;">
                     <option value="">All Status</option>
                     <option value="unpaid">Unpaid</option>
                     <option value="partial">Partial</option>
                     <option value="paid">Paid</option>
                 </select>
 
-                <input type="date" name="from_date" id="from_date" class="new-input" style="width:15%;">
-                <input type="date" name="to_date" id="to_date" class="new-input" style="width:15%;">
+                <input type="date" name="from_date" id="from_date" class="new-input" style="width:14%;">
+                <input type="date" name="to_date" id="to_date" class="new-input" style="width:14%;">
 
                 <input type="text" name="per_page" id="per_page" value="20" class="new-input" style="width:6%;" placeholder="Records?">
 
                 <input type="button" class="btn btn-primary"
                     onclick="searchPayments()"
                     value="Search"
-                    style="height:30px;padding:0;margin-top:-3px;" />
+                    style="height:30px;padding:0 10px;margin-top:-3px;margin-left:5px;" />
 
             </form>
         </div>
-
-        <!-- Payment Table -->
-        <div class="widget-main">
 
             <div class="table-responsive">
                 <table class="table table-striped table-bordered table-hover" id="payment_table">
@@ -133,6 +143,7 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
         </div>
 
     </div>
+
 </div>
 
 <!-- Upload Payment Proof Modal -->
@@ -170,11 +181,77 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
 </div>
 
 <style>
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .dashboard-header h3 {
+        margin: 0;
+        color: #333;
+        font-size: 24px;
+    }
+
+    .dashboard-header h3 small {
+        display: block;
+        font-size: 12px;
+        color: #999;
+        font-weight: normal;
+        margin-top: 5px;
+    }
+
+    .dashboard-header button {
+        padding: 10px 15px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.3s;
+    }
+
+    .dashboard-header button:hover {
+        background: #e8e8e8;
+        border-color: #999;
+    }
+
+    .dashboard-header button i {
+        margin-right: 5px;
+    }
+
+    .dashboard-box {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .dashboard-box h4 {
+        margin: 0 0 20px 0;
+        color: #333;
+        font-size: 16px;
+        border-bottom: 2px solid #f0f0f0;
+        padding-bottom: 15px;
+    }
+
+    .dashboard-box h4 i {
+        margin-right: 8px;
+        color: #667eea;
+    }
+
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 20px;
         margin-bottom: 30px;
+        padding: 0 0;
     }
 
     .stat-card {
@@ -207,19 +284,19 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
     }
 
     .stat-icon {
-        font-size: 24px;
-        opacity: 0.7;
+        font-size: 28px;
+        opacity: 0.6;
     }
 
     .stat-value {
-        font-size: 28px;
+        font-size: 26px;
         font-weight: bold;
         margin: 10px 0;
     }
 
     .stat-subtitle {
-        font-size: 12px;
-        opacity: 0.8;
+        font-size: 11px;
+        opacity: 0.85;
         font-weight: 500;
     }
 
@@ -228,8 +305,8 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
         border: 1px solid #ddd;
         border-radius: 4px;
         font-size: 12px;
-        margin-right: 5px;
-        margin-bottom: 8px;
+        margin-right: 8px;
+        margin-bottom: 10px;
     }
 
     .new-input:focus {
@@ -241,6 +318,18 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
     .badge-paid { background-color: #4CAF50; color: white; }
     .badge-unpaid { background-color: #F44336; color: white; }
     .badge-partial { background-color: #FF9800; color: white; }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .table {
+        font-size: 13px;
+    }
+
+    .table tbody tr:hover {
+        background-color: #f9f9f9;
+    }
 </style>
 
 <script>

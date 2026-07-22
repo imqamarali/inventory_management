@@ -40,6 +40,14 @@ $userInitials = strtoupper(substr($userFirstName, 0, 1) . substr($userLastName, 
 if (empty($userInitials) || $userInitials === '') {
     $userInitials = strtoupper(substr($userFirstName, 0, 2));
 }
+
+// Get user role name
+$userRoleName = '';
+if ($loggedIn && isset($user['role_id'])) {
+    $userRoleName = Yii::$app->db->createCommand(
+        "SELECT name FROM roles WHERE id = :role_id LIMIT 1"
+    )->bindValue(':role_id', $user['role_id'])->queryScalar() ?: 'User';
+}
 ?>
 
 <div id="navbar"
@@ -136,20 +144,19 @@ if (empty($userInitials) || $userInitials === '') {
                             <div style="width: 35px; height: 35px; display: inline-flex; align-items: center; justify-content: center; margin-right: 5px; margin-left: -5px;">
                                 <?php if ($showInitials): ?>
                                     <div class="nav-user-photo"
-                                        style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: rgba(255,255,255,0.2); color: white; font-weight: bold; font-size: 14px;">
+                                        style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: transparent; color: white; font-weight: bold; font-size: 14px;">
                                         <?= Html::encode($userInitials) ?>
                                     </div>
                                 <?php else: ?>
                                     <img class="nav-user-photo"
-                                        style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; object-position: center;     margin-top: 10px;"
+                                        style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; object-position: center; margin-top: 10px;"
                                          src="<?= Html::encode($profileImage) ?>"
                                          alt="Profile">
                                 <?php endif; ?>
                             </div>
 
                             <span class="user-info">
-                                <small>Welcome</small>
-                                <?= Html::encode($userFirstName) ?>
+                                <small><?= Html::encode($userFirstName) ?> | <?= Html::encode($userRoleName) ?></small>
                             </span>
 
 
