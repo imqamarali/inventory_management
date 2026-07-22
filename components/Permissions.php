@@ -18,7 +18,10 @@ class Permissions extends Component
     public function getMenus($active = null, $role_id = null)
     {
         // Get role_id from session if not provided
-        $role_id = $role_id ?? Yii::$app->session->get('user_array')['role_id'];
+        if (!$role_id) {
+            $userArray = Yii::$app->session->get('user_array');
+            $role_id = $userArray['role_id'] ?? null;
+        }
 
         // Get sidebar modules (type=1)
         $modules = Yii::$app->db->createCommand(
