@@ -1,330 +1,635 @@
-<?php
-use yii\helpers\Html;
-use yii\helpers\Url;
-?>
+<!--
+================================================================================
+PAYMENT HISTORY VIEW
+================================================================================
+PURPOSE: Comprehensive payment overview with KPIs, trends, and invoice tracking
+
+FUNCTIONALITY:
+- Display key payment metrics and statistics
+- Show payment status distribution
+- Track payment history and trends
+- Display monthly payment information
+- List recent invoices and payment status
+- Track payment amounts and due dates
+- Provide quick navigation to payment modules
+
+DATA DISPLAYED:
+- Total invoice records
+- Paid amount and remaining amount
+- Next payment due date
+- Payment status breakdown
+- Monthly payment trends
+- Recent invoices and payment status
+
+================================================================================
+-->
 
 <div class="page-content">
 
-    <!-- Dashboard Header -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div class="dashboard-header">
         <div>
-            <h3 style="margin: 0; color: #333; font-size: 26px; font-weight: 600;">
-                <i class="fa fa-credit-card" style="margin-right: 10px;"></i>
+            <h3>
+                <i class="fa fa-credit-card"></i>
                 Payment History
-                <span style="font-size: 14px; color: #999; margin-left: 10px;">Payment Overview & Analytics</span>
+                <small>Payment Overview & Analytics</small>
             </h3>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-            <button id="refreshDashboard" onclick="searchPayments()" style="padding: 8px 16px; background: white; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.3s; color: #333;">
-                <i class="fa fa-refresh" style="margin-right: 5px;"></i>
+        <div>
+            <button id="refreshDashboard">
+                <i class="fa fa-refresh"></i>
                 Refresh
             </button>
         </div>
     </div>
 
-    <!-- Stats Cards Section - Horizontal Layout -->
-    <div style="display: flex; gap: 15px; margin-bottom: 40px; overflow-x: auto; padding-bottom: 10px;">
+    <div class="stats-grid">
 
-        <!-- Total Months Card -->
-        <div style="flex: 0 0 auto; width: 180px; background: white; border-left: 4px solid #667eea; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                <span style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px;">Total Months</span>
-                <i class="fa fa-calendar" style="font-size: 20px; color: #667eea; opacity: 0.6;"></i>
+        <div class="stat-card blue">
+            <div class="stat-header">
+                <span class="stat-title">Total Months</span>
+                <div class="stat-icon">
+                    <i class="fa fa-calendar"></i>
+                </div>
             </div>
-            <div style="font-size: 24px; font-weight: bold; color: #333; margin: 10px 0;" id="total_months"><?= $stats['total_months'] ?></div>
-            <div style="font-size: 11px; color: #999;">Invoice Records</div>
+            <div class="stat-value" id="total_months">0</div>
+            <div class="stat-subtitle">Invoice Records</div>
         </div>
 
-        <!-- Paid Amount Card -->
-        <div style="flex: 0 0 auto; width: 180px; background: white; border-left: 4px solid #4CAF50; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                <span style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px;">Paid Amount</span>
-                <i class="fa fa-check-circle" style="font-size: 20px; color: #4CAF50; opacity: 0.6;"></i>
+        <div class="stat-card green">
+            <div class="stat-header">
+                <span class="stat-title">Paid Amount</span>
+                <div class="stat-icon">
+                    <i class="fa fa-check-circle"></i>
+                </div>
             </div>
-            <div style="font-size: 18px; font-weight: bold; color: #333; margin: 10px 0;" id="paid_amount">PKR <?= number_format($stats['paid_amount'], 0) ?></div>
-            <div style="font-size: 11px; color: #999;">Completed Payments</div>
+            <div class="stat-value" id="paid_amount">PKR 0</div>
+            <div class="stat-subtitle">Completed Payments</div>
         </div>
 
-        <!-- Remaining Amount Card -->
-        <div style="flex: 0 0 auto; width: 180px; background: white; border-left: 4px solid #ff9800; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                <span style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px;">Remaining</span>
-                <i class="fa fa-hourglass" style="font-size: 20px; color: #ff9800; opacity: 0.6;"></i>
+        <div class="stat-card orange">
+            <div class="stat-header">
+                <span class="stat-title">Remaining Amount</span>
+                <div class="stat-icon">
+                    <i class="fa fa-hourglass"></i>
+                </div>
             </div>
-            <div style="font-size: 18px; font-weight: bold; color: #333; margin: 10px 0;" id="remaining_amount">PKR <?= number_format($stats['remaining_amount'], 0) ?></div>
-            <div style="font-size: 11px; color: #999;">Pending Payment</div>
+            <div class="stat-value" id="remaining_amount">PKR 0</div>
+            <div class="stat-subtitle">Pending Payment</div>
         </div>
 
-        <!-- Next Due Date Card -->
-        <div style="flex: 0 0 auto; width: 180px; background: white; border-left: 4px solid #9C27B0; padding: 20px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
-                <span style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px;">Next Due</span>
-                <i class="fa fa-calendar-check-o" style="font-size: 20px; color: #9C27B0; opacity: 0.6;"></i>
+        <div class="stat-card purple">
+            <div class="stat-header">
+                <span class="stat-title">Next Due</span>
+                <div class="stat-icon">
+                    <i class="fa fa-calendar-check-o"></i>
+                </div>
             </div>
-            <div style="font-size: 14px; font-weight: bold; color: #333; margin: 10px 0;" id="next_due_date">
-                <?php if ($stats['next_due_date']): ?>
-                    <?= date('M d, Y', strtotime($stats['next_due_date'])) ?>
-                <?php else: ?>
-                    <small>No Pending</small>
-                <?php endif; ?>
+            <div class="stat-value" id="next_due_date">-</div>
+            <div class="stat-subtitle">Payment Due Date</div>
+        </div>
+
+        <div class="stat-card teal">
+            <div class="stat-header">
+                <span class="stat-title">Unpaid Invoices</span>
+                <div class="stat-icon">
+                    <i class="fa fa-file"></i>
+                </div>
             </div>
-            <div style="font-size: 11px; color: #999;">Payment Due</div>
+            <div class="stat-value" id="unpaid_count">0</div>
+            <div class="stat-subtitle">Awaiting Payment</div>
+        </div>
+
+        <div class="stat-card red">
+            <div class="stat-header">
+                <span class="stat-title">Paid Invoices</span>
+                <div class="stat-icon">
+                    <i class="fa fa-check-square"></i>
+                </div>
+            </div>
+            <div class="stat-value" id="paid_count">0</div>
+            <div class="stat-subtitle">Completed</div>
         </div>
 
     </div>
 
-    <!-- Section Title - Payment Records -->
-    <div style="margin-bottom: 20px;">
-        <h4 style="color: #333; font-weight: 600; margin: 0; font-size: 16px;">
-            <i class="fa fa-table" style="margin-right: 8px; color: #667eea;"></i>
-            Payment Records
-        </h4>
-    </div>
+    <div class="row">
 
-    <!-- Dashboard Box - Table -->
-    <div style="background: white; border-radius: 4px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div class="col-md-6">
 
-        <!-- Search & Filter Section -->
-        <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
-            <form id="payment_search" onsubmit="return false;">
+            <div class="dashboard-box">
 
-                <input type="text" name="invoice_number" id="invoice_number" placeholder="Invoice #" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 18%;">
-
-                <select name="status" id="status" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 15%;">
-                    <option value="">All Status</option>
-                    <option value="unpaid">Unpaid</option>
-                    <option value="partial">Partial</option>
-                    <option value="paid">Paid</option>
-                </select>
-
-                <input type="date" name="from_date" id="from_date" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 14%;">
-                <input type="date" name="to_date" id="to_date" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 14%;">
-
-                <input type="text" name="per_page" id="per_page" value="20" placeholder="Records?" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 8%;">
-
-                <input type="button" class="btn btn-primary"
-                    onclick="searchPayments()"
-                    value="Search"
-                    style="height:32px;padding:0 20px;cursor:pointer;" />
-
-            </form>
-        </div>
-
-        <!-- Payment Table -->
-        <div class="table-responsive">
-            <table class="table table-striped table-bordered table-hover" id="payment_table" style="font-size: 13px; margin-bottom: 0;">
-                <thead style="background-color: #f5f5f5;">
-                    <tr>
-                        <th style="border-top: 2px solid #ddd;">#</th>
-                        <th style="border-top: 2px solid #ddd;">Invoice #</th>
-                        <th style="border-top: 2px solid #ddd;">Contract</th>
-                        <th style="border-top: 2px solid #ddd;">Invoice Date</th>
-                        <th style="border-top: 2px solid #ddd;">Due Date</th>
-                        <th style="border-top: 2px solid #ddd;">Amount</th>
-                        <th style="border-top: 2px solid #ddd;">Paid Amount</th>
-                        <th style="border-top: 2px solid #ddd;">Remaining</th>
-                        <th style="border-top: 2px solid #ddd;">Status</th>
-                        <th style="border-top: 2px solid #ddd;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Data will be loaded here -->
-                </tbody>
-            </table>
-
-            <div id="paginationArea" class="text-center" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;"></div>
-
-        </div>
-
-    </div>
-
-</div>
-
-<!-- Upload Payment Proof Modal -->
-<div id="uploadProofModal" class="modal fade" role="dialog">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title">
-                    <i class="ace-icon fa fa-upload"></i> Upload Payment Proof
+                <h4>
+                    <i class="fa fa-pie-chart"></i>
+                    Payment Status Distribution
                 </h4>
+
+                <canvas id="paymentStatusChart" height="220"></canvas>
+
             </div>
-            <div class="modal-body">
-                <form id="uploadProofForm">
-                    <input type="hidden" id="invoiceIdForUpload">
-                    <div class="form-group">
-                        <label>Select Files (Payment Proof):</label>
-                        <input type="file" id="proofFiles" class="form-control" multiple accept="image/*,.pdf" required>
-                        <small class="form-text text-muted">JPG, PNG, PDF (Max 5MB each)</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Comments (Optional):</label>
-                        <textarea id="proofComments" class="form-control" rows="3" placeholder="Add comments..."></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="submitProofUpload()">
-                    <i class="ace-icon fa fa-upload"></i> Upload
-                </button>
-            </div>
+
         </div>
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-bar-chart"></i>
+                    Monthly Payment Trend
+                </h4>
+
+                <canvas id="monthlyPaymentChart" height="220"></canvas>
+
+            </div>
+
+        </div>
+
     </div>
+
+    <div class="row" style="margin-top:15px;">
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-list"></i>
+                    Latest Invoices
+                </h4>
+
+                <div class="table-responsive">
+
+                    <table class="table table-bordered table-striped table-hover">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Invoice #</th>
+                                <th>Contract</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th class="text-right">Amount</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="latestInvoices">
+
+                            <tr>
+
+                                <td colspan="5" class="text-center">
+                                    Loading...
+                                </td>
+
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-clock-o"></i>
+                    Pending Payments
+                </h4>
+
+                <div class="table-responsive">
+
+                    <table class="table table-bordered table-striped table-hover">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Invoice #</th>
+                                <th>Contract</th>
+                                <th>Due Date</th>
+                                <th class="text-right">Amount</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="pendingPayments">
+
+                            <tr>
+
+                                <td colspan="4" class="text-center">
+                                    Loading...
+                                </td>
+
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    var paymentStatusChart = null;
+    var monthlyPaymentChart = null;
+</script>
 
 <script>
+
     $(function() {
-        searchPayments();
+
+        loadDashboard();
+
+        $("#refreshDashboard").click(function() {
+
+            loadDashboard();
+
+        });
+
     });
 
-    function searchPayments(page = 1) {
-        const data = new FormData();
-        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-        data.append('flag', 'load');
-        data.append('invoice_number', document.getElementById('invoice_number').value);
-        data.append('status', document.getElementById('status').value);
-        data.append('from_date', document.getElementById('from_date').value);
-        data.append('to_date', document.getElementById('to_date').value);
-        data.append('per_page', document.getElementById('per_page').value);
-        data.append('page', page);
 
-        fetch('index.php?r=payment/payment-history', {
-            method: 'POST',
-            body: data
-        })
-        .then(res => res.json())
-        .then(res => {
-            if (res.success) {
-                renderPayments(res.invoices);
-                renderPagination(res.page, res.totalPages, 'searchPayments');
-            } else {
-                showError(res.message || 'Failed to load');
-            }
-        })
-        .catch(error => {
-            console.error(error);
-            showError('Error loading payment history');
-        });
-    }
+    function loadDashboard() {
 
-    function renderPayments(invoices) {
-        const tbody = document.querySelector('#payment_table tbody');
-        tbody.innerHTML = '';
+        showDashboardLoading();
 
-        if (invoices.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No payment records found</td></tr>';
-            return;
-        }
+        $.ajax({
 
-        invoices.forEach((invoice, index) => {
-            const statusClass = 'label-' + (invoice.payment_status === 'paid' ? 'success' : (invoice.payment_status === 'partial' ? 'warning' : 'danger'));
-            const statusText = (invoice.payment_status || 'unpaid').toUpperCase();
+            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+            type: "POST",
+            dataType: "json",
 
-            let actionBtn = `
-                <button class="btn btn-xs btn-info" onclick="viewInvoiceDetails(${invoice.id})" style="margin-right: 5px;">
-                    <i class="fa fa-eye"></i>
-                </button>
-            `;
+            data: {
+                flag: "load_dashboard"
+            },
 
-            if (invoice.payment_status !== 'paid') {
-                actionBtn += ` <button class="btn btn-xs btn-warning" onclick="uploadProof(${invoice.id})">
-                    <i class="fa fa-upload"></i>
-                </button>`;
+            success: function(response) {
+
+                hideDashboardLoading();
+
+                if (response.success) {
+
+                    loadStatistics(response.stats);
+                    loadPaymentStatusChart(response.paymentStatusChart);
+                    loadMonthlyPaymentChart(response.monthlyPaymentChart);
+                    loadLatestInvoices(response.latestInvoices);
+                    loadPendingPayments(response.pendingPayments);
+
+                } else {
+
+                    alert(response.message);
+
+                }
+
+            },
+
+            error: function() {
+
+                hideDashboardLoading();
+
+                alert("Unable to load dashboard.");
+
             }
 
-            const row = `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td><strong>${invoice.invoice_number}</strong></td>
-                    <td>${invoice.contract_name}</td>
-                    <td>${new Date(invoice.invoice_date).toLocaleDateString()}</td>
-                    <td>${new Date(invoice.due_date).toLocaleDateString()}</td>
-                    <td>PKR ${parseFloat(invoice.amount).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
-                    <td>PKR ${parseFloat(invoice.paid_amount || 0).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
-                    <td>PKR ${parseFloat(invoice.remaining_amount || 0).toLocaleString('en-US', {maximumFractionDigits: 0})}</td>
-                    <td><span class="label ${statusClass}">${statusText}</span></td>
-                    <td>${actionBtn}</td>
-                </tr>
-            `;
-            tbody.innerHTML += row;
         });
+
     }
 
-    function renderPagination(page, totalPages, callback = 'searchPayments') {
-        const paginationArea = document.getElementById('paginationArea');
-        paginationArea.innerHTML = '';
 
-        if (totalPages <= 1) return;
 
-        for (let i = 1; i <= totalPages; i++) {
-            const btnClass = i === page ? 'btn-primary' : 'btn-default';
-            const btn = document.createElement('button');
-            btn.className = `btn btn-xs ${btnClass}`;
-            btn.innerHTML = i;
-            btn.style.marginRight = '5px';
-            btn.onclick = () => window[callback](i);
-            paginationArea.appendChild(btn);
-        }
+    function showDashboardLoading() {
+
+        $(".stat-value").each(function() {
+
+            $(this)
+                .addClass("loading")
+                .html("&nbsp;&nbsp;&nbsp;&nbsp;");
+
+        });
+
     }
 
-    function uploadProof(invoiceId) {
-        document.getElementById('invoiceIdForUpload').value = invoiceId;
-        document.getElementById('uploadProofForm').reset();
-        jQuery('#uploadProofModal').modal('show');
+
+
+    function hideDashboardLoading() {
+
+        $(".stat-value").removeClass("loading");
+
     }
 
-    function submitProofUpload() {
-        const invoiceId = document.getElementById('invoiceIdForUpload').value;
-        const files = document.getElementById('proofFiles').files;
 
-        if (!invoiceId || files.length === 0) {
-            alert('Please select at least one file');
-            return;
+
+    function loadStatistics(stats) {
+
+        animateCounter("#total_months", stats.total_months);
+        animateCurrency("#paid_amount", stats.paid_amount);
+        animateCurrency("#remaining_amount", stats.remaining_amount);
+        animateCounter("#unpaid_count", stats.unpaid_count);
+        animateCounter("#paid_count", stats.paid_count);
+
+        // Set next due date (no animation)
+        if (stats.next_due_date) {
+            var dueDate = new Date(stats.next_due_date);
+            var formattedDate = dueDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            $("#next_due_date").text(formattedDate);
         }
 
-        const formData = new FormData();
-        formData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-        formData.append('flag', 'upload_proof');
-        formData.append('invoice_id', invoiceId);
-        formData.append('comments', document.getElementById('proofComments').value);
+    }
 
-        for (let i = 0; i < files.length; i++) {
-            formData.append('documents[]', files[i]);
-        }
 
-        fetch('index.php?r=payment/payment-history', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                Swal.fire('Success!', data.message, 'success').then(() => {
-                    location.reload();
-                });
-            } else {
-                showError('Error: ' + data.message);
+
+    function animateCounter(id, value) {
+        value = (value == null || isNaN(value)) ? 0 : Number(value);
+
+
+        $({
+
+            count: 0
+
+        }).animate({
+
+            count: value
+
+        }, {
+
+            duration: 700,
+
+            easing: "swing",
+
+            step: function() {
+
+                $(id).text(Math.floor(this.count).toLocaleString());
+
+            },
+
+            complete: function() {
+
+                $(id).text(Number(value).toLocaleString());
+
             }
-        })
-        .catch(error => {
-            console.error(error);
-            showError('Error uploading proof');
+
         });
+
     }
 
-    function viewInvoiceDetails(invoiceId) {
-        alert('Invoice Details: ' + invoiceId);
+
+
+    function animateCurrency(id, value) {
+        value = (value == null || isNaN(value)) ? 0 : Number(value);
+
+
+        $({
+
+            count: 0
+
+        }).animate({
+
+            count: value
+
+        }, {
+
+            duration: 700,
+
+            easing: "swing",
+
+            step: function() {
+
+                $(id).text("PKR " + Math.floor(this.count).toLocaleString());
+
+            },
+
+            complete: function() {
+
+                $(id).text("PKR " + Number(value).toLocaleString());
+
+            }
+
+        });
+
     }
 
-    function showError(message) {
-        const alert = $(`<div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
-            <i class="fa fa-exclamation-circle"></i> ${message}
-            <button type="button" class="close" data-dismiss="alert">&times;</button>
-        </div>`);
-        $(document.body).prepend(alert);
-        setTimeout(() => alert.fadeOut(), 5000);
+    function loadPaymentStatusChart(data) {
+
+        if (paymentStatusChart) {
+            paymentStatusChart.destroy();
+        }
+
+        let labels = [];
+        let values = [];
+
+        $.each(data, function(i, row) {
+
+            labels.push(row.status);
+            values.push(parseInt(row.total));
+
+        });
+
+        paymentStatusChart = new Chart(
+            document.getElementById("paymentStatusChart"), {
+
+                type: "doughnut",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            "#3498db",
+                            "#2ecc71",
+                            "#f39c12",
+                            "#9b59b6",
+                            "#1abc9c",
+                            "#e74c3c"
+                        ]
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    plugins: {
+
+                        legend: {
+
+                            position: "bottom"
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        );
+
     }
+
+    function loadMonthlyPaymentChart(data) {
+
+        if (monthlyPaymentChart) {
+            monthlyPaymentChart.destroy();
+        }
+
+        let labels = [];
+        let values = [];
+
+        $.each(data, function(i, row) {
+
+            labels.push(row.month);
+            values.push(parseFloat(row.total));
+
+        });
+
+        monthlyPaymentChart = new Chart(
+            document.getElementById("monthlyPaymentChart"), {
+
+                type: "line",
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [{
+
+                        label: "Payment Amount",
+
+                        data: values,
+
+                        fill: true,
+
+                        borderColor: "#27ae60",
+
+                        backgroundColor: "rgba(39,174,96,.15)",
+
+                        tension: .4
+
+                    }]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    plugins: {
+
+                        legend: {
+
+                            display: false
+
+                        }
+
+                    },
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: true
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        );
+
+    }
+
+    function loadLatestInvoices(data) {
+
+        let html = "";
+
+        if (data.length == 0) {
+
+            html += "<tr>";
+            html += "<td colspan='5' class='text-center'>No Invoices Found.</td>";
+            html += "</tr>";
+
+        } else {
+
+            $.each(data, function(i, row) {
+
+                html += "<tr>";
+
+                html += "<td>" + row.invoice_number + "</td>";
+
+                html += "<td>" + row.contract_name + "</td>";
+
+                html += "<td>" + row.invoice_date + "</td>";
+
+                html += "<td><span class='label label-" + (row.payment_status === 'paid' ? 'success' : (row.payment_status === 'partial' ? 'warning' : 'danger')) + "'>" + row.payment_status.toUpperCase() + "</span></td>";
+
+                html += "<td class='text-right'>PKR " + Number(row.amount).toLocaleString() + "</td>";
+
+                html += "</tr>";
+
+            });
+
+        }
+
+        $("#latestInvoices").html(html);
+
+    }
+
+    function loadPendingPayments(data) {
+
+        let html = "";
+
+        if (data.length == 0) {
+
+            html += "<tr>";
+            html += "<td colspan='4' class='text-center'>No Pending Payments.</td>";
+            html += "</tr>";
+
+        } else {
+
+            $.each(data, function(i, row) {
+
+                html += "<tr>";
+
+                html += "<td>" + row.invoice_number + "</td>";
+
+                html += "<td>" + row.contract_name + "</td>";
+
+                html += "<td>" + row.due_date + "</td>";
+
+                html += "<td class='text-right'>PKR " + Number(row.remaining_amount).toLocaleString() + "</td>";
+
+                html += "</tr>";
+
+            });
+
+        }
+
+        $("#pendingPayments").html(html);
+
+    }
+
 </script>

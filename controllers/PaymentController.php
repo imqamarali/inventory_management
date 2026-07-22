@@ -184,7 +184,9 @@ class PaymentController extends Controller
             $flag = Yii::$app->request->post('flag');
             Yii::$app->response->format = Response::FORMAT_JSON;
 
-            if ($flag === 'load') {
+            if ($flag === 'load_dashboard') {
+                return $this->loadDashboardData();
+            } elseif ($flag === 'load') {
                 return $this->loadPaymentHistory();
             } elseif ($flag === 'upload_proof') {
                 return $this->uploadPaymentProof();
@@ -200,6 +202,80 @@ class PaymentController extends Controller
             'role_id' => $role_id,
             'user_id' => $user_id
         ]);
+    }
+
+    private function loadDashboardData()
+    {
+        $db = Yii::$app->db;
+
+        // Get basic stats
+        $stats = $db->createCommand(
+            "SELECT
+                COUNT(DISTINCT si.id) as total_months,
+                COALESCE(SUM(CASE WHEN si.payment_status = 'paid' THEN si.amount ELSE 0 END), 0) as paid_amount,
+                COALESCE(SUM(CASE WHEN si.payment_status IN ('unpaid', 'partial') THEN si.remaining_amount ELSE 0 END), 0) as remaining_amount,
+                COUNT(CASE WHEN si.payment_status = 'unpaid' THEN 1 END) as unpaid_count,
+                COUNT(CASE WHEN si.payment_status = 'paid' THEN 1 END) as paid_count
+             FROM system_invoices si
+             WHERE si.is_deleted = 0"
+        )->queryOne();
+
+        $nextDue = $db->createCommand(
+            "SELECT MIN(due_date) as next_due_date
+             FROM system_invoices
+             WHERE payment_status IN ('unpaid', 'partial')
+             AND is_deleted = 0"
+        )->queryOne();
+
+        $stats['next_due_date'] = $nextDue['next_due_date'] ?? null;
+
+        // Payment status distribution
+        $paymentStatusChart = $db->createCommand(
+            "SELECT payment_status as status, COUNT(*) as total
+             FROM system_invoices
+             WHERE is_deleted = 0
+             GROUP BY payment_status"
+        )->queryAll();
+
+        // Monthly payment trend
+        $monthlyPaymentChart = $db->createCommand(
+            "SELECT DATE_FORMAT(invoice_date, '%b %Y') as month, SUM(amount) as total
+             FROM system_invoices
+             WHERE is_deleted = 0
+             GROUP BY YEAR(invoice_date), MONTH(invoice_date)
+             ORDER BY invoice_date DESC
+             LIMIT 12"
+        )->queryAll();
+
+        // Latest invoices
+        $latestInvoices = $db->createCommand(
+            "SELECT si.invoice_number, sc.contract_name, si.invoice_date, si.payment_status, si.amount
+             FROM system_invoices si
+             JOIN system_contracts sc ON sc.id = si.contract_id
+             WHERE si.is_deleted = 0
+             ORDER BY si.created_at DESC
+             LIMIT 10"
+        )->queryAll();
+
+        // Pending payments
+        $pendingPayments = $db->createCommand(
+            "SELECT si.invoice_number, sc.contract_name, si.due_date, si.remaining_amount
+             FROM system_invoices si
+             JOIN system_contracts sc ON sc.id = si.contract_id
+             WHERE si.payment_status IN ('unpaid', 'partial')
+             AND si.is_deleted = 0
+             ORDER BY si.due_date ASC
+             LIMIT 10"
+        )->queryAll();
+
+        return [
+            'success' => true,
+            'stats' => $stats,
+            'paymentStatusChart' => $paymentStatusChart,
+            'monthlyPaymentChart' => $monthlyPaymentChart,
+            'latestInvoices' => $latestInvoices,
+            'pendingPayments' => $pendingPayments
+        ];
     }
 
     private function getPaymentStats()
