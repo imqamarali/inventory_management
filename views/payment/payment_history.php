@@ -40,7 +40,7 @@ DATA DISPLAYED:
                 <i class="fa fa-credit-card"></i>
                 Pay Invoice
             </button>
-            <button id="refreshDashboard">
+            <button id="refreshDashboard" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500;">
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
@@ -595,6 +595,7 @@ DATA DISPLAYED:
         Swal.fire({
             title: 'Pay Invoice',
             html: paymentHtml,
+            width:"1200px",
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Submit Payment',
