@@ -200,12 +200,26 @@ class CustomersController extends Controller
                     $custData['updated_at'] = date('Y-m-d H:i:s');
                     $custData['updated_by'] = $this->currentUserId();
                     Yii::$app->db->createCommand()->update('inventory_customers', $custData, ['id' => $id])->execute();
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Updated customer: ' . ($custData['company_name'] ?: ($custData['first_name'] . ' ' . $custData['last_name'])),
+                        'update',
+                        $id,
+                        'Customers',
+                        ['type' => 'customer_update', 'customer_type' => $custData['customer_type']]
+                    );
                 } else {
                     $custData['customer_code'] = $this->generateDocNo('CUST');
                     $custData['created_by'] = $this->currentUserId();
                     $custData['is_deleted'] = 0;
                     Yii::$app->db->createCommand()->insert('inventory_customers', $custData)->execute();
                     $id = Yii::$app->db->getLastInsertID();
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Created new customer: ' . ($custData['company_name'] ?: ($custData['first_name'] . ' ' . $custData['last_name'])),
+                        'create',
+                        $id,
+                        'Customers',
+                        ['type' => 'customer_create', 'customer_type' => $custData['customer_type']]
+                    );
                 }
 
                 if (!empty($data['contacts']) && is_array($data['contacts'])) {
