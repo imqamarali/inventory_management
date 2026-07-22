@@ -35,7 +35,11 @@ DATA DISPLAYED:
             </h3>
         </div>
 
-        <div>
+        <div style="display: flex; gap: 10px;">
+            <button id="payInvoiceBtn" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500;">
+                <i class="fa fa-credit-card"></i>
+                Pay Invoice
+            </button>
             <button id="refreshDashboard">
                 <i class="fa fa-refresh"></i>
                 Refresh
@@ -137,6 +141,7 @@ DATA DISPLAYED:
                                 <th>Date</th>
                                 <th>Status</th>
                                 <th class="text-right">Amount</th>
+                                <th>Actions</th>
 
                             </tr>
 
@@ -392,7 +397,7 @@ DATA DISPLAYED:
         if (data.length == 0) {
 
             html += "<tr>";
-            html += "<td colspan='5' class='text-center'>No Invoices Found.</td>";
+            html += "<td colspan='6' class='text-center'>No Invoices Found.</td>";
             html += "</tr>";
 
         } else {
@@ -410,6 +415,14 @@ DATA DISPLAYED:
                 html += "<td><span class='label label-" + (row.payment_status === 'paid' ? 'success' : (row.payment_status === 'partial' ? 'warning' : 'danger')) + "'>" + row.payment_status.toUpperCase() + "</span></td>";
 
                 html += "<td class='text-right'>PKR " + Number(row.amount).toLocaleString() + "</td>";
+
+                let actionHtml = '';
+                if (row.payment_status === 'paid') {
+                    actionHtml = '<button class="btn btn-xs btn-info" onclick="printInvoice(' + row.id + ')" title="Print Invoice"><i class="fa fa-print"></i></button>';
+                } else {
+                    actionHtml = '<button class="btn btn-xs btn-warning" onclick="openPayInvoiceModal(' + row.id + ')" title="Pay Invoice"><i class="fa fa-money"></i></button>';
+                }
+                html += "<td style='text-align: center;'>" + actionHtml + "</td>";
 
                 html += "</tr>";
 
@@ -453,6 +466,218 @@ DATA DISPLAYED:
 
         $("#pendingPayments").html(html);
 
+    }
+
+    // Pay Invoice Button Click
+    $("#payInvoiceBtn").click(function() {
+        $.ajax({
+            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+            type: "POST",
+            dataType: "json",
+            data: {
+                flag: "get_current_invoice",
+                "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
+            },
+            success: function(response) {
+                if (response.success && response.invoice) {
+                    openPayInvoiceModal(response.invoice);
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'No Invoice',
+                        text: response.message || 'No invoice available for payment.'
+                    });
+                }
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Unable to load invoice.'
+                });
+            }
+        });
+    });
+
+    function openPayInvoiceModal(invoice) {
+        // Check if invoice is already paid
+        if (invoice.payment_status === 'paid') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Already Paid',
+                text: 'This invoice has already been paid in full.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        let paymentHtml = `
+            <div style="text-align: left; margin: 20px 0;">
+                <div style="margin-bottom: 20px;">
+                    <strong>Invoice Details:</strong>
+                    <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: 500;">Invoice Number:</td>
+                            <td style="padding: 8px;">${invoice.invoice_number}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: 500;">Contract:</td>
+                            <td style="padding: 8px;">${invoice.contract_name}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: 500;">Invoice Date:</td>
+                            <td style="padding: 8px;">${invoice.invoice_date}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: 500;">Due Date:</td>
+                            <td style="padding: 8px;">${invoice.due_date}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: 500;">Total Amount:</td>
+                            <td style="padding: 8px; color: #2c3e50; font-weight: bold;">PKR ${Number(invoice.amount).toLocaleString()}</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #ddd;">
+                            <td style="padding: 8px; font-weight: 500;">Paid Amount:</td>
+                            <td style="padding: 8px; color: #27ae60;">${invoice.paid_amount ? 'PKR ' + Number(invoice.paid_amount).toLocaleString() : 'PKR 0'}</td>
+                        </tr>
+                        <tr style="border-bottom: 2px solid #e74c3c; background-color: #fdeee9;">
+                            <td style="padding: 8px; font-weight: 500;">Remaining Amount:</td>
+                            <td style="padding: 8px; color: #e74c3c; font-weight: bold;">PKR ${Number(invoice.remaining_amount).toLocaleString()}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 500;">Payment Amount (PKR):</label>
+                    <input type="number" id="paymentAmount" placeholder="Enter payment amount" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" min="0" max="${invoice.remaining_amount}" value="${invoice.remaining_amount}">
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">Max: PKR ${Number(invoice.remaining_amount).toLocaleString()}</small>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 500;">Upload Payment Proof:</label>
+                    <input type="file" id="paymentProof" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">Supported: PDF, JPG, PNG, DOC, DOCX (Max 5MB each)</small>
+                </div>
+            </div>
+        `;
+
+        Swal.fire({
+            title: 'Pay Invoice',
+            html: paymentHtml,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Submit Payment',
+            confirmButtonColor: '#27ae60',
+            cancelButtonText: 'Cancel',
+            didOpen: function() {
+                // Auto-fill payment amount with remaining amount
+                document.getElementById('paymentAmount').value = invoice.remaining_amount;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                submitPayment(invoice.id, invoice.remaining_amount);
+            }
+        });
+    }
+
+    function submitPayment(invoiceId, maxAmount) {
+        let paymentAmount = parseFloat(document.getElementById('paymentAmount').value);
+        let files = document.getElementById('paymentProof').files;
+
+        if (!paymentAmount || paymentAmount <= 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Amount',
+                text: 'Please enter a valid payment amount.'
+            });
+            return;
+        }
+
+        if (paymentAmount > maxAmount) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Amount Exceeds Limit',
+                text: 'Payment amount cannot exceed remaining amount of PKR ' + Number(maxAmount).toLocaleString()
+            });
+            return;
+        }
+
+        if (files.length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'No Files',
+                text: 'Please upload at least one payment proof document.'
+            });
+            return;
+        }
+
+        // Prepare FormData
+        let formData = new FormData();
+        formData.append('flag', 'upload_proof');
+        formData.append('invoice_id', invoiceId);
+        formData.append('payment_amount', paymentAmount);
+        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
+
+        for (let i = 0; i < files.length; i++) {
+            if (files[i].size > 5 * 1024 * 1024) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'File Too Large',
+                    text: files[i].name + ' exceeds 5MB limit.'
+                });
+                return;
+            }
+            formData.append('documents[]', files[i]);
+        }
+
+        Swal.fire({
+            title: 'Processing...',
+            html: '<div class="spinner-border" role="status"><span class="sr-only"></span></div>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        $.ajax({
+            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                Swal.close();
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: response.message || 'Payment proof uploaded successfully. Awaiting verification.',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        loadDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Unable to upload payment proof.'
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while uploading payment proof.'
+                });
+            }
+        });
+    }
+
+    function printInvoice(invoiceId) {
+        window.open("<?= Yii::$app->urlManager->createUrl('payment/print-invoice') ?>?id=" + invoiceId, '_blank');
     }
 
 </script>

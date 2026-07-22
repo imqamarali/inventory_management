@@ -190,6 +190,8 @@ class PaymentController extends Controller
                 return $this->loadPaymentHistory();
             } elseif ($flag === 'upload_proof') {
                 return $this->uploadPaymentProof();
+            } elseif ($flag === 'get_current_invoice') {
+                return $this->getCurrentInvoice();
             }
         }
 
@@ -231,7 +233,7 @@ class PaymentController extends Controller
 
         // Latest invoices
         $latestInvoices = $db->createCommand(
-            "SELECT si.invoice_number, sc.contract_name, si.invoice_date, si.payment_status, si.amount
+            "SELECT si.id, si.invoice_number, sc.contract_name, si.invoice_date, si.payment_status, si.amount, si.due_date, si.remaining_amount
              FROM system_invoices si
              JOIN system_contracts sc ON sc.id = si.contract_id
              WHERE si.is_deleted = 0
@@ -241,7 +243,7 @@ class PaymentController extends Controller
 
         // Pending payments
         $pendingPayments = $db->createCommand(
-            "SELECT si.invoice_number, sc.contract_name, si.due_date, si.remaining_amount
+            "SELECT si.id, si.invoice_number, sc.contract_name, si.due_date, si.remaining_amount
              FROM system_invoices si
              JOIN system_contracts sc ON sc.id = si.contract_id
              WHERE si.payment_status IN ('unpaid', 'partial')
@@ -380,5 +382,55 @@ class PaymentController extends Controller
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
+    }
+
+    private function getCurrentInvoice()
+    {
+        $db = Yii::$app->db;
+
+        // Get current month invoice
+        $invoice = $db->createCommand(
+            "SELECT si.*, sc.contract_name
+             FROM system_invoices si
+             JOIN system_contracts sc ON sc.id = si.contract_id
+             WHERE si.is_deleted = 0
+             AND MONTH(si.invoice_date) = MONTH(NOW())
+             AND YEAR(si.invoice_date) = YEAR(NOW())
+             LIMIT 1"
+        )->queryOne();
+
+        if ($invoice) {
+            return [
+                'success' => true,
+                'invoice' => $invoice
+            ];
+        }
+
+        return [
+            'success' => false,
+            'message' => 'No invoice found for current month.'
+        ];
+    }
+
+    public function actionPrintInvoice()
+    {
+        $invoiceId = Yii::$app->request->get('id');
+
+        if (!$invoiceId) {
+            return $this->redirect(['inventory/dashboard']);
+        }
+
+        $invoice = Yii::$app->db->createCommand(
+            "SELECT si.*, sc.contract_name, sc.contract_description, sc.contract_policy
+             FROM system_invoices si
+             JOIN system_contracts sc ON sc.id = si.contract_id
+             WHERE si.id = :id AND si.is_deleted = 0"
+        )->bindValue(':id', $invoiceId)->queryOne();
+
+        if (!$invoice) {
+            return $this->redirect(['inventory/dashboard']);
+        }
+
+        return $this->render('invoice_print', ['invoice' => $invoice]);
     }
 }

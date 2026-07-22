@@ -116,7 +116,7 @@ $body_class = $is_student ? 'no-skin student-role' : 'no-skin';
             "table.table.table-striped.table-bordered.table-hover, table.table-bordered"
         );
         tables.forEach((table, index) => {
-            // return;
+            return;
             // Skip tables with the class 'no_items'
             if (table.classList.contains('no_items')) {
                 return; // Skip this table and move to the next one
