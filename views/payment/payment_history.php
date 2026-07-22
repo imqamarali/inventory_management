@@ -119,7 +119,7 @@ DATA DISPLAYED:
 
     <div class="row" style="margin-top:15px;">
 
-        <div class="col-md-6">
+        <div class="col-md-12">
 
             <div class="dashboard-box">
 
@@ -151,53 +151,7 @@ DATA DISPLAYED:
 
                             <tr>
 
-                                <td colspan="5" class="text-center">
-                                    Loading...
-                                </td>
-
-                            </tr>
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="col-md-6">
-
-            <div class="dashboard-box">
-
-                <h4>
-                    <i class="fa fa-clock-o"></i>
-                    Pending Payments
-                </h4>
-
-                <div class="table-responsive">
-
-                    <table class="table table-bordered table-striped table-hover">
-
-                        <thead>
-
-                            <tr>
-
-                                <th>Invoice #</th>
-                                <th>Contract</th>
-                                <th>Due Date</th>
-                                <th class="text-right">Amount</th>
-
-                            </tr>
-
-                        </thead>
-
-                        <tbody id="pendingPayments">
-
-                            <tr>
-
-                                <td colspan="4" class="text-center">
+                                <td colspan="6" class="text-center">
                                     Loading...
                                 </td>
 
@@ -285,7 +239,6 @@ DATA DISPLAYED:
 
                     loadStatistics(response.stats);
                     loadLatestInvoices(response.latestInvoices);
-                    loadPendingPayments(response.pendingPayments);
 
                 } else {
 
@@ -464,40 +417,6 @@ DATA DISPLAYED:
 
     }
 
-    function loadPendingPayments(data) {
-
-        let html = "";
-
-        if (data.length == 0) {
-
-            html += "<tr>";
-            html += "<td colspan='4' class='text-center'>No Pending Payments.</td>";
-            html += "</tr>";
-
-        } else {
-
-            $.each(data, function(i, row) {
-
-                html += "<tr>";
-
-                html += "<td>" + row.invoice_number + "</td>";
-
-                html += "<td>" + row.contract_name + "</td>";
-
-                html += "<td>" + row.due_date + "</td>";
-
-                html += "<td class='text-right'>PKR " + Number(row.remaining_amount).toLocaleString() + "</td>";
-
-                html += "</tr>";
-
-            });
-
-        }
-
-        $("#pendingPayments").html(html);
-
-    }
-
     function openPayInvoiceModalFromId(invoiceId) {
         $.ajax({
             url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
@@ -575,16 +494,16 @@ DATA DISPLAYED:
                         </div>
                     </div>
 
-                    <div style="background: linear-gradient(135deg, #fdeee9 0%, #fadde9 100%); padding: 15px; border-radius: 4px; border-left: 4px solid #e74c3c; box-shadow: 0 2px 4px rgba(231, 76, 60, 0.1);">
+                    <div style="background: linear-gradient(135deg, #fdeee9 0%, #fadde9 100%); padding: 10px; border-radius: 4px; border-left: 4px solid #e74c3c; box-shadow: 0 2px 4px rgba(231, 76, 60, 0.1);">
                         <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Remaining Amount (To Pay)</div>
                         <div style="font-size: 20px; color: #e74c3c; font-weight: bold;">PKR ${Number(invoice.remaining_amount).toLocaleString()}</div>
                     </div>
                 </div>
 
                 <div style="margin: 20px 0;">
-                    <label style="display: block; margin-bottom: 10px; font-weight: 500;">Payment Amount (PKR):</label>
-                    <input type="number" id="paymentAmount" placeholder="Enter payment amount" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" min="0" max="${invoice.remaining_amount}" value="${invoice.remaining_amount}">
-                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">Max: PKR ${Number(invoice.remaining_amount).toLocaleString()}</small>
+                    <label style="display: block; margin-bottom: 10px; font-weight: 500; color: #2c3e50;">Full Payment Amount (PKR):</label>
+                    <input type="text" id="paymentAmount" placeholder="Full payment amount" style="width: 100%; padding: 12px; border: 2px solid #e74c3c; border-radius: 4px; background-color: #fdf5f7; font-size: 16px; font-weight: bold; color: #e74c3c;" readonly value="PKR ${Number(invoice.remaining_amount).toLocaleString()}">
+                    <small style="color: #e74c3c; display: block; margin-top: 8px; font-weight: 600;">⚠️ Full payment required to complete this invoice</small>
                 </div>
 
                 <div style="margin: 20px 0;">
@@ -596,9 +515,9 @@ DATA DISPLAYED:
         `;
 
         Swal.fire({
-            title: 'Pay Invoice',
+            // title: 'Pay Invoice',
             html: paymentHtml,
-            width:"500px",
+            width:"900px",
             showCancelButton: true,
             confirmButtonText: 'Submit Payment',
             confirmButtonColor: '#27ae60',
@@ -615,23 +534,23 @@ DATA DISPLAYED:
     }
 
     function submitPayment(invoiceId, maxAmount) {
-        let paymentAmount = parseFloat(document.getElementById('paymentAmount').value);
         let files = document.getElementById('paymentProof').files;
 
-        if (!paymentAmount || paymentAmount <= 0) {
+        // Full payment only validation
+        if (maxAmount <= 0) {
             Swal.fire({
                 icon: 'error',
                 title: 'Invalid Amount',
-                text: 'Please enter a valid payment amount.'
+                text: 'Invoice amount is invalid.'
             });
             return;
         }
 
-        if (paymentAmount > maxAmount) {
+        if (maxAmount > 0 && files.length === 0) {
             Swal.fire({
                 icon: 'error',
-                title: 'Amount Exceeds Limit',
-                text: 'Payment amount cannot exceed remaining amount of PKR ' + Number(maxAmount).toLocaleString()
+                title: 'Payment Proof Required',
+                text: 'Please upload payment proof to complete the full payment of PKR ' + Number(maxAmount).toLocaleString()
             });
             return;
         }
@@ -645,11 +564,11 @@ DATA DISPLAYED:
             return;
         }
 
-        // Prepare FormData
+        // Prepare FormData (Full payment)
         let formData = new FormData();
         formData.append('flag', 'upload_proof');
         formData.append('invoice_id', invoiceId);
-        formData.append('payment_amount', paymentAmount);
+        formData.append('payment_amount', maxAmount);
         formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
 
         for (let i = 0; i < files.length; i++) {
