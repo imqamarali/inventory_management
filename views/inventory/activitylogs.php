@@ -190,47 +190,73 @@ if (!isset($activities)) $activities = [];
 }
 
 .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin-bottom: 15px;
+    display: flex;
     gap: 15px;
-    margin-bottom: 20px;
+    flex-wrap: wrap;
 }
 
 .stat-card {
-    padding: 15px;
+    flex: 1;
+    min-width: 220px;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-left: 4px solid;
     border-radius: 4px;
-    color: white;
+    padding: 15px;
+    margin-bottom: 0;
 }
 
-.stat-card.blue { background: #2196F3; }
-.stat-card.orange { background: #FF9800; }
-.stat-card.teal { background: #00897B; }
+.stat-card.blue { border-left-color: #3498db; }
+.stat-card.orange { border-left-color: #e67e22; }
+.stat-card.teal { border-left-color: #16a085; }
+.stat-card.green { border-left-color: #2ecc71; }
+.stat-card.red { border-left-color: #e74c3c; }
+.stat-card.purple { border-left-color: #9b59b6; }
 
 .stat-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
+    align-items: flex-start;
+    margin-bottom: 12px;
 }
 
 .stat-title {
-    font-size: 12px;
-    opacity: 0.9;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #7f8c8d;
 }
 
 .stat-icon {
-    font-size: 24px;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
 }
 
+.stat-card.blue .stat-icon { background: rgba(52, 152, 219, 0.1); color: #3498db; }
+.stat-card.orange .stat-icon { background: rgba(230, 126, 34, 0.1); color: #e67e22; }
+.stat-card.teal .stat-icon { background: rgba(22, 160, 133, 0.1); color: #16a085; }
+.stat-card.green .stat-icon { background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
+.stat-card.red .stat-icon { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
+.stat-card.purple .stat-icon { background: rgba(155, 89, 182, 0.1); color: #9b59b6; }
+
 .stat-value {
-    font-size: 28px;
-    font-weight: bold;
-    margin: 10px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 5px;
+    line-height: 1.2;
 }
 
 .stat-subtitle {
     font-size: 11px;
-    opacity: 0.8;
+    color: #95a5a6;
 }
 
 .table-responsive {
