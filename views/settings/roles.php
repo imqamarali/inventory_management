@@ -115,6 +115,42 @@ if (!isset($roles)) {
         const roleId = isEdit ? (roleData.id || '') : '';
         const roleName = isEdit ? (roleData.name || '') : '';
 
+        const modules = [
+            { name: 'Dashboard', key: 'dashboard', permissions: ['view'] },
+            { name: 'Sales', key: 'sales', permissions: ['view', 'create', 'update', 'delete'] },
+            { name: 'Purchase', key: 'purchase', permissions: ['view', 'create', 'update', 'delete'] },
+            { name: 'Inventory', key: 'inventory', permissions: ['view', 'edit', 'transfer', 'adjust'] },
+            { name: 'Products', key: 'products', permissions: ['view', 'create', 'update', 'delete'] },
+            { name: 'Customers', key: 'customers', permissions: ['view', 'create', 'update', 'delete'] },
+            { name: 'Suppliers', key: 'suppliers', permissions: ['view', 'create', 'update', 'delete'] },
+            { name: 'Finance', key: 'finance', permissions: ['view', 'create', 'update', 'delete'] },
+            { name: 'Reports', key: 'reports', permissions: ['view', 'export'] },
+            { name: 'Settings', key: 'settings', permissions: ['view', 'manage'] }
+        ];
+
+        let permissionsHtml = '<div style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 350px; overflow-y: auto; background: #f9f9f9;">';
+
+        modules.forEach(module => {
+            permissionsHtml += `
+                <div class="permission-group" style="margin-bottom: 12px;">
+                <h6 style="margin: 0 0 8px 0;">
+                <label style="font-weight: 600; margin: 0;">
+                <input type="checkbox" class="permission-category" data-category="${module.key}"> ${module.name}
+                </label>
+                </h6>
+                <div style="margin-left: 20px;">
+            `;
+
+            module.permissions.forEach(perm => {
+                const permLabel = perm.charAt(0).toUpperCase() + perm.slice(1);
+                permissionsHtml += `<label><input type="checkbox" name="permissions" value="${module.key}.${perm}"> ${permLabel}</label><br>`;
+            });
+
+            permissionsHtml += '</div></div>';
+        });
+
+        permissionsHtml += '</div>';
+
         Swal.fire({
             title: title,
             html: `
@@ -127,87 +163,8 @@ if (!isset($roles)) {
                 </div>
 
                 <div class="form-group">
-                <label>Permissions</label>
-                <div style="border: 1px solid #ddd; padding: 12px; border-radius: 4px; max-height: 300px; overflow-y: auto; background: #f9f9f9;">
-
-                <div class="permission-group" style="margin-bottom: 12px;">
-                <h6 style="margin: 0 0 8px 0;">
-                <label style="font-weight: 600; margin: 0;">
-                <input type="checkbox" class="permission-category" data-category="dashboard"> Dashboard
-                </label>
-                </h6>
-                <div style="margin-left: 20px;">
-                <label><input type="checkbox" name="permissions" value="dashboard.view"> View Dashboard</label><br>
-                </div>
-                </div>
-
-                <div class="permission-group" style="margin-bottom: 12px;">
-                <h6 style="margin: 0 0 8px 0;">
-                <label style="font-weight: 600; margin: 0;">
-                <input type="checkbox" class="permission-category" data-category="sales"> Sales
-                </label>
-                </h6>
-                <div style="margin-left: 20px;">
-                <label><input type="checkbox" name="permissions" value="sales.view"> View Sales</label><br>
-                <label><input type="checkbox" name="permissions" value="sales.create"> Create Orders</label><br>
-                <label><input type="checkbox" name="permissions" value="sales.edit"> Edit Orders</label><br>
-                <label><input type="checkbox" name="permissions" value="sales.delete"> Delete Orders</label><br>
-                </div>
-                </div>
-
-                <div class="permission-group" style="margin-bottom: 12px;">
-                <h6 style="margin: 0 0 8px 0;">
-                <label style="font-weight: 600; margin: 0;">
-                <input type="checkbox" class="permission-category" data-category="purchase"> Purchase
-                </label>
-                </h6>
-                <div style="margin-left: 20px;">
-                <label><input type="checkbox" name="permissions" value="purchase.view"> View Purchases</label><br>
-                <label><input type="checkbox" name="permissions" value="purchase.create"> Create Orders</label><br>
-                <label><input type="checkbox" name="permissions" value="purchase.edit"> Edit Orders</label><br>
-                <label><input type="checkbox" name="permissions" value="purchase.delete"> Delete Orders</label><br>
-                </div>
-                </div>
-
-                <div class="permission-group" style="margin-bottom: 12px;">
-                <h6 style="margin: 0 0 8px 0;">
-                <label style="font-weight: 600; margin: 0;">
-                <input type="checkbox" class="permission-category" data-category="inventory"> Inventory
-                </label>
-                </h6>
-                <div style="margin-left: 20px;">
-                <label><input type="checkbox" name="permissions" value="inventory.view"> View Inventory</label><br>
-                <label><input type="checkbox" name="permissions" value="inventory.edit"> Manage Inventory</label><br>
-                <label><input type="checkbox" name="permissions" value="inventory.transfer"> Transfer Stock</label><br>
-                <label><input type="checkbox" name="permissions" value="inventory.adjust"> Adjust Stock</label><br>
-                </div>
-                </div>
-
-                <div class="permission-group" style="margin-bottom: 12px;">
-                <h6 style="margin: 0 0 8px 0;">
-                <label style="font-weight: 600; margin: 0;">
-                <input type="checkbox" class="permission-category" data-category="reports"> Reports
-                </label>
-                </h6>
-                <div style="margin-left: 20px;">
-                <label><input type="checkbox" name="permissions" value="reports.view"> View Reports</label><br>
-                <label><input type="checkbox" name="permissions" value="reports.export"> Export Reports</label><br>
-                </div>
-                </div>
-
-                <div class="permission-group">
-                <h6 style="margin: 0 0 8px 0;">
-                <label style="font-weight: 600; margin: 0;">
-                <input type="checkbox" class="permission-category" data-category="settings"> Settings
-                </label>
-                </h6>
-                <div style="margin-left: 20px;">
-                <label><input type="checkbox" name="permissions" value="settings.view"> View Settings</label><br>
-                <label><input type="checkbox" name="permissions" value="settings.manage"> Manage Settings</label><br>
-                </div>
-                </div>
-
-                </div>
+                <label>Module Permissions</label>
+                ${permissionsHtml}
                 </div>
 
                 </form>
@@ -230,18 +187,18 @@ if (!isset($roles)) {
 
             didOpen: () => {
                 // Set up category checkbox handlers
-                document.querySelectorAll('.permission-category').forEach(checkbox => {
-                    checkbox.addEventListener('change', function() {
-                        const category = this.dataset.category;
-                        const isChecked = this.checked;
-                        const permissionCheckboxes = this.parentElement.parentElement.parentElement.querySelectorAll(`[name="permissions"]`);
-                        permissionCheckboxes.forEach(perm => {
-                            if (perm.value.startsWith(category + '.')) {
+                setTimeout(() => {
+                    document.querySelectorAll('.permission-category').forEach(checkbox => {
+                        checkbox.addEventListener('change', function() {
+                            const category = this.dataset.category;
+                            const isChecked = this.checked;
+                            const allCheckboxes = document.querySelectorAll(`input[name="permissions"][value^="${category}."]`);
+                            allCheckboxes.forEach(perm => {
                                 perm.checked = isChecked;
-                            }
+                            });
                         });
                     });
-                });
+                }, 100);
             },
 
             preConfirm: () => {

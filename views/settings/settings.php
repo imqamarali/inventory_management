@@ -178,7 +178,7 @@ function loadSettingsTab(controller, element) {
         // Execute scripts in order
         scriptTexts.forEach(scriptText => {
             try {
-                new Function(scriptText)();
+                eval(scriptText);
             } catch (error) {
                 console.error('Script execution error:', error);
             }
