@@ -209,64 +209,66 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
         // Fetch menu items from the permissions class
         $sidebarItems = Yii::$app->Permissions->getMenus();
 
-        // Function to render the menu items
-        function renderMenuItems($items)
-        {
-            foreach ($items as $item) {
-                if ($item['can_view'] == '0') continue;
-                $allSubmenusRestricted = true;
+        // Function to render the menu items (only declare once)
+        if (!function_exists('renderMenuItems')) {
+            function renderMenuItems($items)
+            {
+                foreach ($items as $item) {
+                    if ($item['can_view'] == '0') continue;
+                    $allSubmenusRestricted = true;
 
-                // Check if all submenus are restricted
-                if (!empty($item['submenus'])) {
-                    foreach ($item['submenus'] as $submenu) {
-                        if ($submenu['can_view'] == '1') {
-                            $allSubmenusRestricted = false;
-                            break;
+                    // Check if all submenus are restricted
+                    if (!empty($item['submenus'])) {
+                        foreach ($item['submenus'] as $submenu) {
+                            if ($submenu['can_view'] == '1') {
+                                $allSubmenusRestricted = false;
+                                break;
+                            }
                         }
                     }
+
+                    // Start rendering the menu item
+                    echo '<li class="' . ($item['active'] ? 'active' : '') . '">';
+
+                    // If the item is restricted, set href to javascript:void(0)
+                    $href = ($item['can_view'] == '0') ? 'javascript:void(0)' : 'index.php?r=' . $item['link'];
+
+                    // Check if the item has a valid link, or if it's restricted
+                    echo '<a href="' . $href . '" class="' . (!empty($item['submenus']) ? 'dropdown-toggle' : '') . '">';
+
+                    echo '<i class="menu-icon ' . $item['icon'] . '"></i>';
+                    echo '<span class="menu-text">' . $item['title'];
+
+                    // If all submenus are restricted, show lock icon in the main menu
+                    if ($allSubmenusRestricted && !empty($item['submenus'])) {
+                        echo '<span title="" class="badge badge-transparent tooltip-error" data-original-title="Permissions Restricted">
+                            <i class="ace-icon fa fa-lock red bigger-60"></i>
+                        </span>';
+                    }
+
+                    // If the item itself is restricted, show lock icon
+                    if ($item['can_view'] == '0') {
+                        echo '<span title="" class="badge badge-transparent tooltip-error" data-original-title="Permissions Restricted">
+                            <i class="ace-icon fa fa-lock red bigger-60"></i>
+                        </span>';
+                    }
+
+                    echo '</span>';
+
+                    // If there are submenus and the item is not restricted, show dropdown arrow
+                    echo (!empty($item['submenus']) && $item['can_view'] == '1') ? '<b class="arrow fa fa-angle-down"></b>' : '';
+                    echo '</a>';
+                    echo '<b class="arrow"></b>';
+
+                    // Check for submenus and render them recursively
+                    if (!empty($item['submenus'])) {
+                        echo '<ul class="submenu">';
+                        renderMenuItems($item['submenus']);
+                        echo '</ul>'; // Closing submenu
+                    }
+
+                    echo '</li>'; // Closing main menu item
                 }
-
-                // Start rendering the menu item
-                echo '<li class="' . ($item['active'] ? 'active' : '') . '">';
-
-                // If the item is restricted, set href to javascript:void(0)
-                $href = ($item['can_view'] == '0') ? 'javascript:void(0)' : 'index.php?r=' . $item['link'];
-
-                // Check if the item has a valid link, or if it's restricted
-                echo '<a href="' . $href . '" class="' . (!empty($item['submenus']) ? 'dropdown-toggle' : '') . '">';
-
-                echo '<i class="menu-icon ' . $item['icon'] . '"></i>';
-                echo '<span class="menu-text">' . $item['title'];
-
-                // If all submenus are restricted, show lock icon in the main menu
-                if ($allSubmenusRestricted && !empty($item['submenus'])) {
-                    echo '<span title="" class="badge badge-transparent tooltip-error" data-original-title="Permissions Restricted">
-                        <i class="ace-icon fa fa-lock red bigger-60"></i>
-                    </span>';
-                }
-
-                // If the item itself is restricted, show lock icon
-                if ($item['can_view'] == '0') {
-                    echo '<span title="" class="badge badge-transparent tooltip-error" data-original-title="Permissions Restricted">
-                        <i class="ace-icon fa fa-lock red bigger-60"></i>
-                    </span>';
-                }
-
-                echo '</span>';
-
-                // If there are submenus and the item is not restricted, show dropdown arrow
-                echo (!empty($item['submenus']) && $item['can_view'] == '1') ? '<b class="arrow fa fa-angle-down"></b>' : '';
-                echo '</a>';
-                echo '<b class="arrow"></b>';
-
-                // Check for submenus and render them recursively
-                if (!empty($item['submenus'])) {
-                    echo '<ul class="submenu">';
-                    renderMenuItems($item['submenus']);
-                    echo '</ul>'; // Closing submenu
-                }
-
-                echo '</li>'; // Closing main menu item
             }
         }
 
@@ -289,19 +291,21 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
             // Get all menu items for mobile display
             $sidebarItems = Yii::$app->Permissions->getMenus();
 
-            // Function to extract all menu items (including submenus) as flat list
-            function extractAllMenuItems($items, &$flatList = [])
-            {
-                foreach ($items as $item) {
-                    if ($item['can_view'] == '1') {
-                        $flatList[] = $item;
+            // Function to extract all menu items (including submenus) as flat list (only declare once)
+            if (!function_exists('extractAllMenuItems')) {
+                function extractAllMenuItems($items, &$flatList = [])
+                {
+                    foreach ($items as $item) {
+                        if ($item['can_view'] == '1') {
+                            $flatList[] = $item;
+                        }
+                        // Also extract submenus
+                        if (!empty($item['submenus'])) {
+                            extractAllMenuItems($item['submenus'], $flatList);
+                        }
                     }
-                    // Also extract submenus
-                    if (!empty($item['submenus'])) {
-                        extractAllMenuItems($item['submenus'], $flatList);
-                    }
+                    return $flatList;
                 }
-                return $flatList;
             }
 
             $allMenuItems = extractAllMenuItems($sidebarItems);
