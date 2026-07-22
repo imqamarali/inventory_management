@@ -543,38 +543,42 @@ DATA DISPLAYED:
 
         let paymentHtml = `
             <div style="text-align: left; margin: 20px 0;">
-                <div style="margin-bottom: 20px;">
-                    <strong>Invoice Details:</strong>
-                    <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <td style="padding: 8px; font-weight: 500;">Invoice Number:</td>
-                            <td style="padding: 8px;">${invoice.invoice_number}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <td style="padding: 8px; font-weight: 500;">Contract:</td>
-                            <td style="padding: 8px;">${invoice.contract_name}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <td style="padding: 8px; font-weight: 500;">Invoice Date:</td>
-                            <td style="padding: 8px;">${invoice.invoice_date}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <td style="padding: 8px; font-weight: 500;">Due Date:</td>
-                            <td style="padding: 8px;">${invoice.due_date}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <td style="padding: 8px; font-weight: 500;">Total Amount:</td>
-                            <td style="padding: 8px; color: #2c3e50; font-weight: bold;">PKR ${Number(invoice.amount).toLocaleString()}</td>
-                        </tr>
-                        <tr style="border-bottom: 1px solid #ddd;">
-                            <td style="padding: 8px; font-weight: 500;">Paid Amount:</td>
-                            <td style="padding: 8px; color: #27ae60;">${invoice.paid_amount ? 'PKR ' + Number(invoice.paid_amount).toLocaleString() : 'PKR 0'}</td>
-                        </tr>
-                        <tr style="border-bottom: 2px solid #e74c3c; background-color: #fdeee9;">
-                            <td style="padding: 8px; font-weight: 500;">Remaining Amount:</td>
-                            <td style="padding: 8px; color: #e74c3c; font-weight: bold;">PKR ${Number(invoice.remaining_amount).toLocaleString()}</td>
-                        </tr>
-                    </table>
+                <div style="margin-bottom: 30px;">
+                    <h4 style="color: #2c3e50; margin-bottom: 15px; font-size: 16px;">Invoice Details</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #3498db;">
+                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Invoice Number</div>
+                            <div style="font-size: 14px; color: #2c3e50; font-weight: 600;">${invoice.invoice_number}</div>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #9b59b6;">
+                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Contract</div>
+                            <div style="font-size: 14px; color: #2c3e50; font-weight: 600;">${invoice.contract_name}</div>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #1abc9c;">
+                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Invoice Date</div>
+                            <div style="font-size: 14px; color: #2c3e50; font-weight: 600;">${invoice.invoice_date}</div>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #e74c3c;">
+                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Due Date</div>
+                            <div style="font-size: 14px; color: #e74c3c; font-weight: bold;">${invoice.due_date}</div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div style="background: #fdf5f7; padding: 12px; border-radius: 4px; border-left: 4px solid #f39c12;">
+                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Total Amount</div>
+                            <div style="font-size: 16px; color: #2c3e50; font-weight: bold;">PKR ${Number(invoice.amount).toLocaleString()}</div>
+                        </div>
+                        <div style="background: #f0fdf4; padding: 12px; border-radius: 4px; border-left: 4px solid #27ae60;">
+                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Paid Amount</div>
+                            <div style="font-size: 16px; color: #27ae60; font-weight: bold;">PKR ${invoice.paid_amount ? Number(invoice.paid_amount).toLocaleString() : '0'}</div>
+                        </div>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, #fdeee9 0%, #fadde9 100%); padding: 15px; border-radius: 4px; border-left: 4px solid #e74c3c; box-shadow: 0 2px 4px rgba(231, 76, 60, 0.1);">
+                        <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Remaining Amount (To Pay)</div>
+                        <div style="font-size: 20px; color: #e74c3c; font-weight: bold;">PKR ${Number(invoice.remaining_amount).toLocaleString()}</div>
+                    </div>
                 </div>
 
                 <div style="margin: 20px 0;">
@@ -595,7 +599,6 @@ DATA DISPLAYED:
             title: 'Pay Invoice',
             html: paymentHtml,
             width:"500px",
-            icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Submit Payment',
             confirmButtonColor: '#27ae60',
