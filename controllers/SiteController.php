@@ -1349,6 +1349,11 @@ class SiteController extends Controller
             return ['status' => 'ok', 'is_super_admin' => $isSuperAdmin];
         }
 
+        // Generate monthly invoices if they don't exist (for non-Super Admin users)
+        if (!$isSuperAdmin && $contract['contract_type'] === 'monthly') {
+            $this->generateMonthlyInvoiceIfNeeded($contract);
+        }
+
         // Get pending/overdue invoices
         $pendingInvoices = $db->createCommand(
             "SELECT * FROM system_invoices
@@ -1392,6 +1397,55 @@ class SiteController extends Controller
             'contract_id' => $contract['id'],
             'is_overdue' => $isOverdue
         ];
+    }
+
+    private function generateMonthlyInvoiceIfNeeded($contract)
+    {
+        $db = Yii::$app->db;
+        $currentYear = date('Y');
+        $currentMonth = date('m');
+        $currentMonthStr = date('Y-m');
+
+        // Check if invoice for current month already exists
+        $existingInvoice = $db->createCommand(
+            "SELECT id FROM system_invoices
+             WHERE contract_id = :contract_id
+             AND invoice_month = :invoice_month
+             AND invoice_year = :invoice_year
+             AND is_deleted = 0"
+        )
+            ->bindValue(':contract_id', $contract['id'])
+            ->bindValue(':invoice_month', $currentMonthStr)
+            ->bindValue(':invoice_year', $currentYear)
+            ->queryScalar();
+
+        if ($existingInvoice) {
+            return; // Invoice already exists for this month
+        }
+
+        // Generate new invoice
+        $invoiceNumber = 'INV-' . date('YmdHis') . '-' . random_int(1000, 9999);
+        $invoiceDate = date('Y-m-d');
+        $dueDate = date('Y-m-d', strtotime('first day of next month', strtotime($invoiceDate)));
+        $extendedDueDate = date('Y-m-d', strtotime('+' . $contract['maximum_extension_days'] . ' days', strtotime($dueDate)));
+
+        $db->createCommand(
+            "INSERT INTO system_invoices
+            (contract_id, invoice_number, invoice_month, invoice_year, invoice_date, due_date, extended_due_date,
+             amount, invoice_status, payment_status, created_by, created_at)
+            VALUES
+            (:contract_id, :invoice_number, :invoice_month, :invoice_year, :invoice_date, :due_date, :extended_due_date,
+             :amount, 'sent', 'unpaid', 1, NOW())"
+        )
+            ->bindValue(':contract_id', $contract['id'])
+            ->bindValue(':invoice_number', $invoiceNumber)
+            ->bindValue(':invoice_month', $currentMonthStr)
+            ->bindValue(':invoice_year', $currentYear)
+            ->bindValue(':invoice_date', $invoiceDate)
+            ->bindValue(':due_date', $dueDate)
+            ->bindValue(':extended_due_date', $extendedDueDate)
+            ->bindValue(':amount', $contract['monthly_charges'])
+            ->execute();
     }
 
     private function insertDefaultSystemPlan($db)
