@@ -206,17 +206,6 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
 
         <?php
 
-
-        echo '<li class="">';  
-
-        // Check for submenus and render them recursively
-        if (!empty($item['submenus'])) {
-            echo '<ul class="submenu">';
-            renderMenuItems($item['submenus']);
-            echo '</ul>'; // Closing submenu
-        }
-
-        echo '</li>'; // Closing main menu item
         // Fetch menu items from the permissions class
         $sidebarItems = Yii::$app->Permissions->getMenus();
 
