@@ -1,7 +1,10 @@
 <?php
 
 use yii\helpers\Html;
-
+if(!isset($user))
+{
+    $user = [];
+}
 ?>
 
 <div class="main-content">
@@ -46,6 +49,7 @@ use yii\helpers\Html;
                                     <i class="fa fa-envelope"></i> <?= Html::encode($user['email'] ?? '-') ?>
                                 </p>
                             </div>
+                            <hr>
                             <hr style="margin: 8px 0; opacity: 0.2;">
                             <div style="text-align: center; font-size: 11px;">
                                 <div style="margin: 4px 0; opacity: 0.9;">
@@ -60,11 +64,7 @@ use yii\helpers\Html;
                 <!-- Edit Profile Card -->
                 <div class="col-md-10" style="padding: 4px;">
                     <div class="widget-box">
-                        <div class="widget-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                            <h4 class="widget-title" style="margin: 0; font-size: 13px; font-weight: bold;">
-                                <i class="fa fa-edit"></i> Edit Profile
-                            </h4>
-                        </div>
+                        
                         <div class="widget-body" style="padding: 12px;">
                             <form id="editProfileForm" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
                                 <input type="hidden" id="userId" value="<?= $user['id'] ?>">
@@ -147,155 +147,11 @@ use yii\helpers\Html;
                 </div>
             </div>
 
-            <!-- Row 1: Personal Information (Full Width) -->
-            <div class="row" style="margin: 0; margin-bottom: 8px;">
-                <div class="col-md-12" style="padding: 4px;">
-                    <div class="widget-box" style="margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div class="widget-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                            <h4 class="widget-title" style="margin: 0; font-size: 13px; font-weight: bold;">
-                                <i class="fa fa-user"></i> Personal Information
-                            </h4>
-                        </div>
-                        <div class="widget-body" style="padding: 10px;">
-                            <div class="row" style="margin: 0;">
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">First Name</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #2196F3;">
-                                            <?= Html::encode($user['first_name'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Last Name</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #2196F3;">
-                                            <?= Html::encode($user['last_name'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Phone</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #4CAF50;">
-                                            <i class="fa fa-phone"></i> <?= Html::encode($user['phone'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">WhatsApp</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #25D366;">
-                                            <i class="fa fa-whatsapp"></i> <?= Html::encode($user['whatsapp'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Date of Birth</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #FF6B6B;">
-                                            <i class="fa fa-birthday-cake"></i> <?= $user['date_of_birth'] ? date('M d, Y', strtotime($user['date_of_birth'])) : '-' ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Gender</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #FF1493;">
-                                            <?php
-                                            $genderIcon = match($user['gender'] ?? '') {
-                                                'Male' => '♂ ',
-                                                'Female' => '♀ ',
-                                                default => '○ '
-                                            };
-                                            echo $genderIcon . Html::encode($user['gender'] ?? '-');
-                                            ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Row 2: Location & Social (Full Width) -->
-            <div class="row" style="margin: 0; margin-bottom: 8px;">
-                <div class="col-md-12" style="padding: 4px;">
-                    <div class="widget-box" style="margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div class="widget-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                            <h4 class="widget-title" style="margin: 0; font-size: 13px; font-weight: bold;">
-                                <i class="fa fa-map-marker"></i> Location & Contact
-                            </h4>
-                        </div>
-                        <div class="widget-body" style="padding: 10px;">
-                            <div class="row" style="margin: 0;">
-                                <div class="col-md-3" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Address</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #2196F3; min-height: 30px;">
-                                            <i class="fa fa-home"></i> <?= Html::encode($user['address'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">City</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #FF9800;">
-                                            <?= Html::encode($user['city'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Country</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #4CAF50;">
-                                            <i class="fa fa-globe"></i> <?= Html::encode($user['country'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-2" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Email</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #2196F3; word-break: break-word;">
-                                            <i class="fa fa-envelope"></i> <?= Html::encode($user['email'] ?? '-') ?>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3" style="padding: 3px;">
-                                    <div style="margin-bottom: 6px;">
-                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Social Media</label>
-                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #9C27B0; line-height: 1.4;">
-                                            <?php if (!empty($user['facebook'])): ?>
-                                                <div><i class="fa fa-facebook" style="color: #1877F2;"></i> <?= Html::encode($user['facebook']) ?></div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($user['instagram'])): ?>
-                                                <div><i class="fa fa-instagram" style="color: #E4405F;"></i> <?= Html::encode($user['instagram']) ?></div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($user['pinterest'])): ?>
-                                                <div><i class="fa fa-pinterest" style="color: #E60B3F;"></i> <?= Html::encode($user['pinterest']) ?></div>
-                                            <?php endif; ?>
-                                            <?php if (empty($user['facebook']) && empty($user['instagram']) && empty($user['pinterest'])): ?>
-                                                <div style="color: #999; font-size: 10px;">No social media</div>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Row 3: Account & Security (Full Width) -->
             <div class="row" style="margin: 0;">
                 <div class="col-md-12" style="padding: 4px;">
                     <div class="widget-box" style="margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <div class="widget-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                            <h4 class="widget-title" style="margin: 0; font-size: 13px; font-weight: bold;">
-                                <i class="fa fa-lock"></i> Account & Security
-                            </h4>
-                        </div>
+                        
                         <div class="widget-body" style="padding: 10px;">
                             <div class="row" style="margin: 0;">
                                 <div class="col-md-2" style="padding: 3px;">

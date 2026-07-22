@@ -82,9 +82,9 @@ class SettingsController extends Controller
             ['name' => 'SMS Configuration', 'controller' => 'settings/sms', 'icon' => 'fa fa-mobile'],
             ['name' => 'Users', 'controller' => 'settings/users', 'icon' => 'fa fa-user'],
             ['name' => 'Roles & Permissions', 'controller' => 'settings/roles', 'icon' => 'fa fa-shield'],
-            ['name' => 'Tax Settings', 'controller' => 'settings/taxsettings', 'icon' => 'fa fa-percent'],
-            ['name' => 'Calendar', 'controller' => 'settings/calendar', 'icon' => 'fa fa-calendar'],
-            ['name' => 'Backup & Restore', 'controller' => 'settings/backuprestore', 'icon' => 'fa fa-database'],
+            // ['name' => 'Tax Settings', 'controller' => 'settings/taxsettings', 'icon' => 'fa fa-percent'],
+            // ['name' => 'Calendar', 'controller' => 'settings/calendar', 'icon' => 'fa fa-calendar'],
+            // ['name' => 'Backup & Restore', 'controller' => 'settings/backuprestore', 'icon' => 'fa fa-database'],
         ];
 
         return $this->render('settings', compact('modules'));
