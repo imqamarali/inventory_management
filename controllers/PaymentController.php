@@ -194,6 +194,12 @@ class PaymentController extends Controller
                 return $this->getCurrentInvoice();
             } elseif ($flag === 'get_invoice_by_id') {
                 return $this->getInvoiceById();
+            } elseif ($flag === 'approve_payment') {
+                return $this->approvePayment();
+            } elseif ($flag === 'reject_payment') {
+                return $this->rejectPayment();
+            } elseif ($flag === 'get_invoice_documents') {
+                return $this->getInvoiceDocuments();
             }
         }
 
@@ -204,7 +210,11 @@ class PaymentController extends Controller
             'stats' => $stats,
             'isSuperAdmin' => $isSuperAdmin,
             'role_id' => $role_id,
-            'user_id' => $user_id
+            'user_id' => $user_id,
+            'paymentApiUrl' => Yii::$app->urlManager->createUrl('payment/payment-history'),
+            'printInvoiceUrl' => Yii::$app->urlManager->createUrl('payment/print-invoice'),
+            'csrfToken' => Yii::$app->request->getCsrfToken(),
+            'csrfParam' => Yii::$app->request->csrfParam
         ]);
     }
 
@@ -485,5 +495,144 @@ class PaymentController extends Controller
         }
 
         return $this->render('invoice_print', ['invoice' => $invoice]);
+    }
+
+    private function approvePayment()
+    {
+        $invoiceId = Yii::$app->request->post('invoice_id');
+        $comments = Yii::$app->request->post('comments', '');
+        $userId = $this->currentUserId();
+
+        if (!$invoiceId) {
+            return ['success' => false, 'message' => 'Invoice ID is required.'];
+        }
+
+        try {
+            $now = date('Y-m-d H:i:s');
+
+            // Update invoice payment_status to 'paid'
+            Yii::$app->db->createCommand(
+                "UPDATE system_invoices SET payment_status = 'paid', updated_at = :updated_at, updated_by = :updated_by WHERE id = :id"
+            )->bindValue(':id', $invoiceId)
+             ->bindValue(':updated_at', $now)
+             ->bindValue(':updated_by', $userId)
+             ->execute();
+
+            // Update the last payment proof verification status to 'verified'
+            Yii::$app->db->createCommand(
+                "UPDATE system_payment_proofs SET verification_status = 'verified', verified_by = :verified_by, verified_at = :verified_at, updated_at = :updated_at, updated_by = :updated_by WHERE invoice_id = :invoice_id ORDER BY created_at DESC LIMIT 1"
+            )->bindValue(':invoice_id', $invoiceId)
+             ->bindValue(':verified_by', $userId)
+             ->bindValue(':verified_at', $now)
+             ->bindValue(':updated_at', $now)
+             ->bindValue(':updated_by', $userId)
+             ->execute();
+
+            // Log activity
+            Yii::$app->Component->Activitylog(
+                'Approved payment for invoice #' . $invoiceId,
+                'update',
+                $invoiceId,
+                'payment',
+                ['action' => 'payment_approved', 'admin_comments' => $comments]
+            );
+
+            return [
+                'success' => true,
+                'message' => 'Payment approved successfully.'
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
+
+    private function rejectPayment()
+    {
+        $invoiceId = Yii::$app->request->post('invoice_id');
+        $comments = Yii::$app->request->post('comments', '');
+        $userId = $this->currentUserId();
+
+        if (!$invoiceId) {
+            return ['success' => false, 'message' => 'Invoice ID is required.'];
+        }
+
+        try {
+            $now = date('Y-m-d H:i:s');
+
+            // Revert invoice payment_status back to 'unpaid'
+            Yii::$app->db->createCommand(
+                "UPDATE system_invoices SET payment_status = 'unpaid', updated_at = :updated_at, updated_by = :updated_by WHERE id = :id"
+            )->bindValue(':id', $invoiceId)
+             ->bindValue(':updated_at', $now)
+             ->bindValue(':updated_by', $userId)
+             ->execute();
+
+            // Update the last payment proof verification status to 'rejected' with reason
+            Yii::$app->db->createCommand(
+                "UPDATE system_payment_proofs SET verification_status = 'rejected', rejection_reason = :rejection_reason, verified_by = :verified_by, verified_at = :verified_at, updated_at = :updated_at, updated_by = :updated_by WHERE invoice_id = :invoice_id ORDER BY created_at DESC LIMIT 1"
+            )->bindValue(':invoice_id', $invoiceId)
+             ->bindValue(':rejection_reason', $comments)
+             ->bindValue(':verified_by', $userId)
+             ->bindValue(':verified_at', $now)
+             ->bindValue(':updated_at', $now)
+             ->bindValue(':updated_by', $userId)
+             ->execute();
+
+            // Log activity
+            Yii::$app->Component->Activitylog(
+                'Rejected payment for invoice #' . $invoiceId,
+                'update',
+                $invoiceId,
+                'payment',
+                ['action' => 'payment_rejected', 'rejection_reason' => $comments]
+            );
+
+            return [
+                'success' => true,
+                'message' => 'Payment rejected. User can resubmit with new proof.'
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
+
+    private function getInvoiceDocuments()
+    {
+        $invoiceId = Yii::$app->request->post('invoice_id');
+
+        if (!$invoiceId) {
+            return ['success' => false, 'message' => 'Invoice ID is required.'];
+        }
+
+        try {
+            // Get invoice number
+            $invoice = Yii::$app->db->createCommand(
+                "SELECT invoice_number FROM system_invoices WHERE id = :id AND is_deleted = 0"
+            )->bindValue(':id', $invoiceId)->queryOne();
+
+            if (!$invoice) {
+                return ['success' => false, 'message' => 'Invoice not found.'];
+            }
+
+            // Get all payment proof documents for this invoice
+            $documents = Yii::$app->db->createCommand(
+                "SELECT id, proof_number, document_file, document_name, document_type, verification_status, created_at
+                 FROM system_payment_proofs
+                 WHERE invoice_id = :invoice_id AND is_deleted = 0
+                 ORDER BY created_at DESC"
+            )->bindValue(':invoice_id', $invoiceId)->queryAll();
+
+            if (!$documents) {
+                return ['success' => false, 'message' => 'No documents found.'];
+            }
+
+            return [
+                'success' => true,
+                'invoiceNumber' => $invoice['invoice_number'],
+                'documents' => $documents
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
     }
 }

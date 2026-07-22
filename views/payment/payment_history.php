@@ -23,6 +23,18 @@ DATA DISPLAYED:
 
 ================================================================================
 -->
+<?php
+
+if(!isset($csrfToken))
+{
+    $csrfToken = null;
+}
+if(!isset($isSuperAdmin))
+{
+    $isSuperAdmin = null;
+}
+
+?>
 
 <div class="page-content">
 
@@ -36,11 +48,11 @@ DATA DISPLAYED:
         </div>
 
         <div style="display: flex; gap: 10px;">
-            <button id="payInvoiceBtn" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500;">
+            <button id="payInvoiceBtn">
                 <i class="fa fa-credit-card"></i>
                 Pay Invoice
             </button>
-            <button id="refreshDashboard" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500;">
+            <button id="refreshDashboard">
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
@@ -175,19 +187,28 @@ DATA DISPLAYED:
 
 <script>
 
+    // Initialize API configuration (from controller)
+    const paymentApiUrl = "<?php echo addslashes(isset($paymentApiUrl) ? $paymentApiUrl : ""); ?>";
+    const printInvoiceUrl = "<?php echo addslashes(isset($printInvoiceUrl) ? $printInvoiceUrl : ""); ?>";
+    const csrfToken = "<?php echo addslashes(isset($csrfToken) ? $csrfToken : ""); ?>";
+    const csrfParam = "<?php echo addslashes(isset($csrfParam) ? $csrfParam : ""); ?>";
+    const isSuperAdmin = <?php echo $isSuperAdmin ? 'true' : 'false'; ?>;
+
     $(function() {
 
         loadDashboard();
 
         $("#payInvoiceBtn").click(function() {
+            let ajaxData = {
+                flag: "get_current_invoice",
+                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+            };
+
             $.ajax({
-                url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+                url: "<?php echo addslashes($paymentApiUrl); ?>",
                 type: "POST",
                 dataType: "json",
-                data: {
-                    flag: "get_current_invoice",
-                    "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
-                },
+                data: ajaxData,
                 success: function(response) {
                     if (response.success && response.invoice) {
                         openPayInvoiceModal(response.invoice);
@@ -222,16 +243,16 @@ DATA DISPLAYED:
 
         showDashboardLoading();
 
-        $.ajax({
+        let dashboardData = {
+            flag: "load_dashboard",
+            "_csrf": "<?php echo addslashes($csrfToken); ?>"
+        };
 
-            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+        $.ajax({
+            url: "<?php echo addslashes($paymentApiUrl); ?>",
             type: "POST",
             dataType: "json",
-
-            data: {
-                flag: "load_dashboard",
-                "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
-            },
+            data: dashboardData,
 
             success: function(response) {
 
@@ -403,18 +424,22 @@ DATA DISPLAYED:
                 html += "<td><span class='label label-" + statusColor + "' style='display: block; text-align: center;'>" + row.payment_status.toUpperCase().replace('_', ' ') + "</span></td>";
 
                 let docCount = row.document_count ? row.document_count : 0;
-                let docHtml = docCount > 0 ? '<button class="btn btn-xs btn-success" onclick="viewDocuments(' + row.id + ')" title="View Documents"><i class="fa fa-file"></i> ' + docCount + '</button>' : '<span style="color: #7f8c8d;">-</span>';
+                let docHtml = docCount > 0 ? '<button  onclick="viewDocuments(' + row.id + ')" title="View Documents"><i class="fa fa-file"></i> ' + docCount + ' file(s)</button>' : '<span style="color: #7f8c8d;">-</span>';
                 html += "<td style='text-align: center;'>" + docHtml + "</td>";
 
                 html += "<td class='text-right'>PKR " + Number(row.amount).toLocaleString() + "</td>";
 
                 let actionHtml = '';
                 if (row.payment_status === 'paid') {
-                    actionHtml = '<button class="btn btn-xs btn-info" onclick="printInvoice(' + row.id + ')" title="Print Invoice"><i class="fa fa-print"></i></button>';
+                    actionHtml = '<button onclick="printInvoice(' + row.id + ')" title="Print Invoice"><i class="fa fa-print"></i></button>';
                 } else if (row.payment_status === 'pending_approval') {
-                    actionHtml = '<button class="btn btn-xs btn-primary" disabled title="Pending Approval"><i class="fa fa-hourglass"></i> Verifying...</button>';
+                    if (isSuperAdmin) {
+                        actionHtml = '<button onclick="openApprovalModal(' + row.id + ', \'' + row.invoice_number + '\')" title="Update Payment"><i class="fa fa-edit"></i> Update</button>';
+                    } else {
+                        actionHtml = '<button  disabled title="Pending Approval"><i class="fa fa-hourglass"></i> Verifying...</button>';
+                    }
                 } else {
-                    actionHtml = '<button class="btn btn-xs btn-warning" onclick="openPayInvoiceModalFromId(' + row.id + ')" title="Pay Invoice"><i class="fa fa-money"></i> Pay</button>';
+                    actionHtml = '<button onclick="openPayInvoiceModalFromId(' + row.id + ')" title="Pay Invoice"><i class="fa fa-money"></i> Pay</button>';
                 }
                 html += "<td style='text-align: center;'>" + actionHtml + "</td>";
 
@@ -429,15 +454,17 @@ DATA DISPLAYED:
     }
 
     function openPayInvoiceModalFromId(invoiceId) {
+        let invoiceData = {
+            flag: "get_invoice_by_id",
+            invoice_id: invoiceId,
+            "_csrf": "<?php echo addslashes($csrfToken); ?>"
+        };
+
         $.ajax({
-            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+            url: "<?php echo addslashes($paymentApiUrl); ?>",
             type: "POST",
             dataType: "json",
-            data: {
-                flag: "get_invoice_by_id",
-                invoice_id: invoiceId,
-                "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
-            },
+            data: invoiceData,
             success: function(response) {
                 if (response.success && response.invoice) {
                     openPayInvoiceModal(response.invoice);
@@ -633,7 +660,7 @@ DATA DISPLAYED:
         formData.append('invoice_id', invoiceId);
         formData.append('payment_amount', maxAmount);
         formData.append('comments', comments);
-        formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
+        formData.append('_csrf', "<?php echo addslashes($csrfToken); ?>");
 
         for (let i = 0; i < files.length; i++) {
             if (files[i].size > 5 * 1024 * 1024) {
@@ -658,7 +685,7 @@ DATA DISPLAYED:
         });
 
         $.ajax({
-            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+            url: "<?php echo addslashes($paymentApiUrl); ?>",
             type: 'POST',
             data: formData,
             processData: false,
@@ -695,7 +722,216 @@ DATA DISPLAYED:
     }
 
     function printInvoice(invoiceId) {
-        window.open("<?= Yii::$app->urlManager->createUrl('payment/print-invoice') ?>?id=" + invoiceId, '_blank');
+        window.open("<?php echo addslashes($printInvoiceUrl); ?>" + "?id=" + invoiceId, '_blank');
+    }
+
+    function openApprovalModal(invoiceId, invoiceNumber) {
+        let approvalHtml = `
+            <div style="text-align: left; margin: 20px 0;">
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: #2c3e50; margin: 0 0 10px;">Invoice #${invoiceNumber}</h4>
+                    <p style="color: #7f8c8d; margin: 0;">Review payment proof and approve or reject</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 500;">Admin Comments (Optional):</label>
+                    <textarea id="approvalComments" placeholder="Add comments for approval or rejection..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 100px; font-family: Arial, sans-serif; resize: vertical;"></textarea>
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">Your comments will be visible to the user</small>
+                </div>
+            </div>
+        `;
+
+        Swal.fire({
+            title: 'Approve or Reject Payment',
+            html: approvalHtml,
+            width: "600px",
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Approve',
+            denyButtonText: 'Reject',
+            confirmButtonColor: '#27ae60',
+            denyButtonColor: '#e74c3c',
+            cancelButtonText: 'Cancel',
+            didOpen: function() {
+                // Focus on comments textarea
+                setTimeout(() => document.getElementById('approvalComments').focus(), 100);
+            }
+        }).then((result) => {
+            let comments = document.getElementById('approvalComments').value || '';
+
+            if (result.isConfirmed) {
+                approvePayment(invoiceId, comments);
+            } else if (result.isDenied) {
+                rejectPayment(invoiceId, comments);
+            }
+        });
+    }
+
+    function approvePayment(invoiceId, comments) {
+        Swal.fire({
+            title: 'Approving...',
+            icon: 'info',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        $.ajax({
+            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                flag: 'approve_payment',
+                invoice_id: invoiceId,
+                comments: comments,
+                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+            },
+            success: function(response) {
+                Swal.close();
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Approved!',
+                        text: 'Payment has been approved successfully.',
+                        confirmButtonColor: '#27ae60'
+                    }).then(() => {
+                        loadDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Failed to approve payment.'
+                    });
+                }
+            },
+            error: function() {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while approving payment.'
+                });
+            }
+        });
+    }
+
+    function rejectPayment(invoiceId, comments) {
+        Swal.fire({
+            title: 'Rejecting...',
+            icon: 'info',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        $.ajax({
+            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                flag: 'reject_payment',
+                invoice_id: invoiceId,
+                comments: comments,
+                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+            },
+            success: function(response) {
+                Swal.close();
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Rejected!',
+                        text: 'Payment has been rejected. User can resubmit with new proof.',
+                        confirmButtonColor: '#e74c3c'
+                    }).then(() => {
+                        loadDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Failed to reject payment.'
+                    });
+                }
+            },
+            error: function() {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while rejecting payment.'
+                });
+            }
+        });
+    }
+
+    function viewDocuments(invoiceId) {
+        $.ajax({
+            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                flag: 'get_invoice_documents',
+                invoice_id: invoiceId,
+                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+            },
+            success: function(response) {
+                if (response.success && response.documents && response.documents.length > 0) {
+                    displayDocumentsModal(response.invoiceNumber, response.documents);
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'No Documents',
+                        text: 'No payment proof documents found for this invoice.'
+                    });
+                }
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Unable to load documents.'
+                });
+            }
+        });
+    }
+
+    function displayDocumentsModal(invoiceNumber, documents) {
+        let docList = '<ul style="list-style-type: disc; text-align: left; padding-left: 25px; margin: 15px 0;">';
+
+        documents.forEach(function(doc, index) {
+            let docPath = doc.document_file ? doc.document_file : '';
+            let docName = doc.document_name ? doc.document_name : 'Document ' + (index + 1);
+            let docType = doc.document_type ? doc.document_type.toUpperCase() : 'FILE';
+            let uploadDate = doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '';
+            let statusClass = doc.verification_status === 'verified' ? 'success' : (doc.verification_status === 'rejected' ? 'danger' : 'warning');
+            let statusBadge = '<span style="display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; margin-left: 8px; background-color: ' +
+                            (statusClass === 'success' ? '#d4edda; color: #155724;' : (statusClass === 'danger' ? '#f8d7da; color: #721c24;' : '#fff3cd; color: #856404;')) +
+                            '">' + doc.verification_status.toUpperCase() + '</span>';
+
+            let downloadLink = docPath ? '<a href="' + docPath + '" target="_blank" style="margin-left: 10px; color: #3498db; text-decoration: none;"><i class="fa fa-download"></i> Download</a>' : '';
+
+            docList += '<li style="margin-bottom: 12px; line-height: 1.6;">' +
+                      '<strong>' + docName + '</strong> ' +
+                      '<span style="color: #7f8c8d; font-size: 12px;">(' + docType + ')</span>' +
+                      downloadLink + statusBadge +
+                      '<div style="color: #7f8c8d; font-size: 12px; margin-top: 4px;">' +
+                      'Uploaded: ' + uploadDate +
+                      '</div>' +
+                      '</li>';
+        });
+
+        docList += '</ul>';
+
+        Swal.fire({
+            title: 'Payment Documents - Invoice #' + invoiceNumber,
+            html: docList,
+            width: '700px',
+            confirmButtonText: 'Close',
+            confirmButtonColor: '#3498db'
+        });
     }
 
 </script>

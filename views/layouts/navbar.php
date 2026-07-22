@@ -130,7 +130,7 @@ if ($loggedIn && isset($user['role_id'])) {
                     <!-- Payment History Icon -->
                     <li class="dropdown-modal">
                         <a href="index.php?r=payment/payment-history" title="Payment History" style="background: transparent !important; padding: 0 10px;">
-                            <i class="ace-icon fa fa-credit-card" style="font-size: 18px; font-weight: bold; color: rgba(255,255,255,0.9);"></i>
+                            <i class="ace-icon fa  fa-heart red" style="font-size: 18px; color: rgba(255,255,255,0.9);"></i>
                         </a>
                     </li>
 
@@ -139,26 +139,32 @@ if ($loggedIn && isset($user['role_id'])) {
                         <a data-toggle="dropdown"
                            href="#"
                            class="dropdown-toggle"
-                           style="background: <?= Html::encode($navbarColor) ?>;">
+                           style="background: <?= Html::encode($navbarColor) ?>; display: flex; align-items: center; gap: 12px; padding: 8px 15px !important;">
 
-                            <div style="width: 35px; height: 35px; display: inline-flex; align-items: center; justify-content: center; margin-right: 5px; margin-left: -5px;">
+                            <div style="width: 35px; height: 30px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                                 <?php if ($showInitials): ?>
                                     <div class="nav-user-photo"
-                                        style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: transparent; color: white; font-weight: bold; font-size: 14px;">
+                                        style="width: 35px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; font-size: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
                                         <?= Html::encode($userInitials) ?>
                                     </div>
                                 <?php else: ?>
                                     <img class="nav-user-photo"
-                                        style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; object-position: center; margin-top: 10px;"
+                                        style="width: 35px; height: 30px; border-radius: 50%; object-fit: cover; object-position: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
                                          src="<?= Html::encode($profileImage) ?>"
                                          alt="Profile">
                                 <?php endif; ?>
                             </div>
 
-                            <span class="user-info">
-                                <small><?= Html::encode($userFirstName) ?> | <?= Html::encode($userRoleName) ?></small>
-                            </span>
+                            <div style="display: flex; flex-direction: column; justify-content: center;">
+                                <div style="font-size: 14px; font-weight: 600; color: white; line-height: 1.2;">
+                                    <?= Html::encode($userFirstName) ?>
+                                </div>
+                                <div style="font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.2;">
+                                    <?= Html::encode($userRoleName) ?>
+                                </div>
+                            </div>
 
+                            <i class="fa fa-chevron-down" style="color: rgba(255,255,255,0.7); font-size: 12px; margin-left: 8px;"></i>
 
                         </a>
 

@@ -1058,7 +1058,7 @@ class SiteController extends Controller
                     amount DECIMAL(15,2) DEFAULT 0,
                     description TEXT,
                     invoice_status ENUM('draft','sent','pending','partial','paid','overdue','cancelled') DEFAULT 'pending',
-                    payment_status ENUM('unpaid','partial','paid') DEFAULT 'unpaid',
+                    payment_status ENUM('unpaid','partial','pending_approval','paid') DEFAULT 'unpaid',
                     paid_amount DECIMAL(15,2) DEFAULT 0,
                     remaining_amount DECIMAL(15,2) DEFAULT 0,
                     invoice_file VARCHAR(500),
@@ -1093,6 +1093,7 @@ class SiteController extends Controller
                     verified_by INT,
                     verified_at DATETIME,
                     rejection_reason TEXT,
+                    comments LONGTEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     created_by INT,
@@ -1132,6 +1133,34 @@ class SiteController extends Controller
 
             foreach ($tables as $sql) {
                 $db->createCommand($sql)->execute();
+            }
+
+            // Alter tables for migrations/updates
+            try {
+                // Add 'pending_approval' to payment_status ENUM if not exists
+                $db->createCommand(
+                    "ALTER TABLE system_invoices MODIFY payment_status ENUM('unpaid','partial','pending_approval','paid') DEFAULT 'unpaid'"
+                )->execute();
+            } catch (\Exception $e) {
+                // Ignore if column doesn't exist or modification fails
+            }
+
+            try {
+                // Add 'comments' column to system_payment_proofs if not exists
+                $db->createCommand(
+                    "ALTER TABLE system_payment_proofs ADD COLUMN comments LONGTEXT AFTER rejection_reason"
+                )->execute();
+            } catch (\Exception $e) {
+                // Ignore if column already exists
+            }
+
+            // Update all empty or NULL payment_status values to 'unpaid'
+            try {
+                $db->createCommand(
+                    "UPDATE system_invoices SET payment_status = 'unpaid' WHERE payment_status IS NULL OR payment_status = ''"
+                )->execute();
+            } catch (\Exception $e) {
+                // Ignore if update fails
             }
 
             // Insert default settings data
