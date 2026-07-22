@@ -464,51 +464,95 @@ DATA DISPLAYED:
         if (invoice.payment_status === 'paid') {
             Swal.fire({
                 icon: 'success',
-                title: 'Already Paid',
-                text: 'This invoice has already been paid in full.',
-                confirmButtonText: 'OK'
+                title: '✓ Already Paid',
+                html: '<div style="text-align: left; line-height: 1.8;"><p><strong>Invoice #' + invoice.invoice_number + '</strong></p><p>This invoice has been fully paid.</p><p style="color: #27ae60; font-weight: 600;">Status: PAID</p><p style="color: #7f8c8d; font-size: 13px;">You can print or download this invoice from the actions menu.</p></div>',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#27ae60'
+            });
+            return;
+        }
+
+        // Check if verification is in process
+        if (invoice.payment_status === 'pending_approval') {
+            Swal.fire({
+                icon: 'info',
+                title: '⏳ Invoice Verification in Process',
+                html: '<div style="text-align: left; line-height: 1.8;"><p><strong>Invoice #' + invoice.invoice_number + '</strong></p><p>Your payment is currently being verified by our admin team.</p><p style="color: #3498db; font-weight: 600;">Status: PENDING APPROVAL</p><p style="color: #7f8c8d; font-size: 13px;">Please wait for confirmation. You will be notified once the verification is complete.</p></div>',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#3498db'
             });
             return;
         }
 
         let paymentHtml = `
             <div style="text-align: left; margin: 20px 0;">
-                <div style="margin-bottom: 30px;">
-                    <h4 style="color: #2c3e50; margin-bottom: 15px; font-size: 16px;">Invoice Details</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #3498db;">
-                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Invoice Number</div>
-                            <div style="font-size: 14px; color: #2c3e50; font-weight: 600;">${invoice.invoice_number}</div>
+                <div style="margin-bottom:16px;">
+                    <h4 style="color:#2c3e50;margin:0 0 10px;font-size:15px;">
+                        Invoice Details
+                    </h4>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+
+                        <div style="background:#f8f9fa;padding:8px;border-radius:4px;border-left:3px solid #3498db;">
+                            <div style="font-size:11px;color:#7f8c8d;text-transform:uppercase;font-weight:600;margin-bottom:2px;">
+                                Invoice Number
+                            </div>
+                            <div style="font-size:13px;font-weight:600;color:#2c3e50;">
+                                ${invoice.invoice_number}
+                            </div>
                         </div>
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #9b59b6;">
-                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Contract</div>
-                            <div style="font-size: 14px; color: #2c3e50; font-weight: 600;">${invoice.contract_name}</div>
+
+                        <div style="background:#f8f9fa;padding:8px;border-radius:4px;border-left:3px solid #9b59b6;">
+                            <div style="font-size:11px;color:#7f8c8d;text-transform:uppercase;font-weight:600;margin-bottom:2px;">
+                                Contract
+                            </div>
+                            <div style="font-size:13px;font-weight:600;color:#2c3e50;">
+                                ${invoice.contract_name}
+                            </div>
                         </div>
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #1abc9c;">
-                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Invoice Date</div>
-                            <div style="font-size: 14px; color: #2c3e50; font-weight: 600;">${invoice.invoice_date}</div>
+
+                        <div style="background:#f8f9fa;padding:8px;border-radius:4px;border-left:3px solid #1abc9c;">
+                            <div style="font-size:11px;color:#7f8c8d;text-transform:uppercase;font-weight:600;margin-bottom:2px;">
+                                Invoice Date
+                            </div>
+                            <div style="font-size:13px;font-weight:600;color:#2c3e50;">
+                                ${invoice.invoice_date}
+                            </div>
                         </div>
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #e74c3c;">
-                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Due Date</div>
-                            <div style="font-size: 14px; color: #e74c3c; font-weight: bold;">${invoice.due_date}</div>
+
+                        <div style="background:#f8f9fa;padding:8px;border-radius:4px;border-left:3px solid #e74c3c;">
+                            <div style="font-size:11px;color:#7f8c8d;text-transform:uppercase;font-weight:600;margin-bottom:2px;">
+                                Due Date
+                            </div>
+                            <div style="font-size:13px;font-weight:700;color:#e74c3c;">
+                                ${invoice.due_date}
+                            </div>
                         </div>
+
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-                        <div style="background: #fdf5f7; padding: 12px; border-radius: 4px; border-left: 4px solid #f39c12;">
-                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Total Amount</div>
-                            <div style="font-size: 16px; color: #2c3e50; font-weight: bold;">PKR ${Number(invoice.amount).toLocaleString()}</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+
+                        <div style="background:#fdf5f7;padding:8px;border-radius:4px;border-left:3px solid #f39c12;">
+                            <div style="font-size:11px;color:#7f8c8d;text-transform:uppercase;font-weight:600;margin-bottom:2px;">
+                                Total Amount
+                            </div>
+                            <div style="font-size:14px;font-weight:700;color:#2c3e50;">
+                                PKR ${Number(invoice.amount).toLocaleString()}
+                            </div>
                         </div>
-                        <div style="background: #f0fdf4; padding: 12px; border-radius: 4px; border-left: 4px solid #27ae60;">
-                            <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 5px;">Paid Amount</div>
-                            <div style="font-size: 16px; color: #27ae60; font-weight: bold;">PKR ${invoice.paid_amount ? Number(invoice.paid_amount).toLocaleString() : '0'}</div>
+
+                        <div style="background:#f0fdf4;padding:8px;border-radius:4px;border-left:3px solid #27ae60;">
+                            <div style="font-size:11px;color:#7f8c8d;text-transform:uppercase;font-weight:600;margin-bottom:2px;">
+                                Paid Amount
+                            </div>
+                            <div style="font-size:14px;font-weight:700;color:#27ae60;">
+                                PKR ${invoice.paid_amount ? Number(invoice.paid_amount).toLocaleString() : '0'}
+                            </div>
                         </div>
+
                     </div>
 
-                    <div style="background: linear-gradient(135deg, #fdeee9 0%, #fadde9 100%); padding: 10px; border-radius: 4px; border-left: 4px solid #e74c3c; box-shadow: 0 2px 4px rgba(231, 76, 60, 0.1);">
-                        <div style="font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; margin-bottom: 8px;">Remaining Amount (To Pay)</div>
-                        <div style="font-size: 20px; color: #e74c3c; font-weight: bold;">PKR ${Number(invoice.remaining_amount).toLocaleString()}</div>
-                    </div>
                 </div>
 
                 <div style="margin: 20px 0;">
