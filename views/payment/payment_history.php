@@ -1,0 +1,390 @@
+<?php
+
+use yii\helpers\Html;
+use yii\helpers\Url;
+
+if (!isset($stats)) $stats = ['total_months' => 0, 'paid_amount' => 0, 'remaining_amount' => 0, 'next_due_date' => null];
+if (!isset($isSuperAdmin)) $isSuperAdmin = false;
+
+?>
+
+<div class="main-content">
+    <div class="main-content-inner">
+
+        <div class="breadcrumbs ace-save-state" id="breadcrumbs">
+            <ul class="breadcrumb" style="width:100%;">
+                <li>
+                    <i class="ace-icon fa fa-home home-icon"></i>
+                    <a href="index.php?r=inventory/dashboard">Home</a>
+                </li>
+                <li class="active">Payment History</li>
+            </ul>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="stats-grid" style="margin: 20px 0; padding: 0 15px;">
+
+            <div class="stat-card blue">
+                <div class="stat-header">
+                    <span class="stat-title">Total Months</span>
+                    <div class="stat-icon">
+                        <i class="fa fa-calendar"></i>
+                    </div>
+                </div>
+                <div class="stat-value"><?= $stats['total_months'] ?></div>
+                <div class="stat-subtitle">Invoice Records</div>
+            </div>
+
+            <div class="stat-card green">
+                <div class="stat-header">
+                    <span class="stat-title">Paid Amount</span>
+                    <div class="stat-icon">
+                        <i class="fa fa-check-circle"></i>
+                    </div>
+                </div>
+                <div class="stat-value">Rs. <?= number_format($stats['paid_amount'], 2) ?></div>
+                <div class="stat-subtitle">Completed Payments</div>
+            </div>
+
+            <div class="stat-card orange">
+                <div class="stat-header">
+                    <span class="stat-title">Remaining Amount</span>
+                    <div class="stat-icon">
+                        <i class="fa fa-hourglass"></i>
+                    </div>
+                </div>
+                <div class="stat-value">Rs. <?= number_format($stats['remaining_amount'], 2) ?></div>
+                <div class="stat-subtitle">Pending Payment</div>
+            </div>
+
+            <div class="stat-card purple">
+                <div class="stat-header">
+                    <span class="stat-title">Next Due</span>
+                    <div class="stat-icon">
+                        <i class="fa fa-calendar-check-o"></i>
+                    </div>
+                </div>
+                <div class="stat-value">
+                    <?php if ($stats['next_due_date']): ?>
+                        <?= date('M d, Y', strtotime($stats['next_due_date'])) ?>
+                    <?php else: ?>
+                        <small>No Pending</small>
+                    <?php endif; ?>
+                </div>
+                <div class="stat-subtitle">Payment Due Date</div>
+            </div>
+
+        </div>
+
+        <!-- Search & Filter Section -->
+        <div style="padding:10px 15px;">
+            <form id="payment_search" onsubmit="return false;">
+
+                <input type="text" name="invoice_number" id="invoice_number" class="new-input" style="width:20%;" placeholder="Invoice #">
+
+                <select name="status" id="status" class="new-input" style="width:18%;">
+                    <option value="">All Status</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="partial">Partial</option>
+                    <option value="paid">Paid</option>
+                </select>
+
+                <input type="date" name="from_date" id="from_date" class="new-input" style="width:15%;">
+                <input type="date" name="to_date" id="to_date" class="new-input" style="width:15%;">
+
+                <input type="text" name="per_page" id="per_page" value="20" class="new-input" style="width:6%;" placeholder="Records?">
+
+                <input type="button" class="btn btn-primary"
+                    onclick="searchPayments()"
+                    value="Search"
+                    style="height:30px;padding:0;margin-top:-3px;" />
+
+            </form>
+        </div>
+
+        <!-- Payment Table -->
+        <div class="widget-main">
+
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered table-hover" id="payment_table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Invoice #</th>
+                            <th>Contract</th>
+                            <th>Invoice Date</th>
+                            <th>Due Date</th>
+                            <th>Amount</th>
+                            <th>Paid Amount</th>
+                            <th>Remaining</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+
+                <div id="paginationArea" class="text-center"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<!-- Upload Payment Proof Modal -->
+<div id="uploadProofModal" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">
+                    <i class="ace-icon fa fa-upload"></i> Upload Payment Proof
+                </h4>
+            </div>
+            <div class="modal-body">
+                <form id="uploadProofForm">
+                    <input type="hidden" id="invoiceIdForUpload">
+                    <div class="form-group">
+                        <label>Select Files (Payment Proof):</label>
+                        <input type="file" id="proofFiles" class="form-control" multiple accept="image/*,.pdf" required>
+                        <small class="form-text text-muted">JPG, PNG, PDF (Max 5MB each)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Comments (Optional):</label>
+                        <textarea id="proofComments" class="form-control" rows="3" placeholder="Add comments..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitProofUpload()">
+                    <i class="ace-icon fa fa-upload"></i> Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        padding: 20px;
+        border-radius: 8px;
+        color: white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card.blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .stat-card.green { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
+    .stat-card.orange { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); }
+    .stat-card.purple { background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .stat-title {
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-icon {
+        font-size: 24px;
+        opacity: 0.7;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+
+    .stat-subtitle {
+        font-size: 12px;
+        opacity: 0.8;
+        font-weight: 500;
+    }
+
+    .new-input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-right: 5px;
+        margin-bottom: 8px;
+    }
+
+    .new-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 5px rgba(102, 126, 234, 0.2);
+    }
+
+    .badge-paid { background-color: #4CAF50; color: white; }
+    .badge-unpaid { background-color: #F44336; color: white; }
+    .badge-partial { background-color: #FF9800; color: white; }
+</style>
+
+<script>
+    // Load payment history on page load
+    searchPayments();
+
+    function searchPayments(page = 1) {
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'load');
+        data.append('invoice_number', document.getElementById('invoice_number').value);
+        data.append('status', document.getElementById('status').value);
+        data.append('from_date', document.getElementById('from_date').value);
+        data.append('to_date', document.getElementById('to_date').value);
+        data.append('per_page', document.getElementById('per_page').value);
+        data.append('page', page);
+
+        fetch('index.php?r=payment/payment-history', {
+            method: 'POST',
+            body: data
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                renderPayments(res.invoices);
+                renderPagination(res.page, res.totalPages, 'searchPayments');
+            } else {
+                alert('Error: ' + (res.message || 'Failed to load'));
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            alert('Error loading payment history');
+        });
+    }
+
+    function renderPayments(invoices) {
+        const tbody = document.querySelector('#payment_table tbody');
+        tbody.innerHTML = '';
+
+        if (invoices.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No payment records found</td></tr>';
+            return;
+        }
+
+        invoices.forEach((invoice, index) => {
+            const statusClass = 'badge-' + (invoice.payment_status || 'unpaid');
+            const statusText = (invoice.payment_status || 'unpaid').toUpperCase();
+
+            let actionBtn = `
+                <button class="btn btn-xs btn-info" onclick="viewInvoiceDetails(${invoice.id})">
+                    <i class="fa fa-eye"></i>
+                </button>
+            `;
+
+            if (invoice.payment_status !== 'paid') {
+                actionBtn += ` <button class="btn btn-xs btn-warning" onclick="uploadProof(${invoice.id})">
+                    <i class="fa fa-upload"></i>
+                </button>`;
+            }
+
+            const row = `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td><strong>${invoice.invoice_number}</strong></td>
+                    <td>${invoice.contract_name}</td>
+                    <td>${new Date(invoice.invoice_date).toLocaleDateString()}</td>
+                    <td>${new Date(invoice.due_date).toLocaleDateString()}</td>
+                    <td>Rs. ${parseFloat(invoice.amount).toFixed(2)}</td>
+                    <td>Rs. ${parseFloat(invoice.paid_amount || 0).toFixed(2)}</td>
+                    <td>Rs. ${parseFloat(invoice.remaining_amount || 0).toFixed(2)}</td>
+                    <td><span class="label ${statusClass}">${statusText}</span></td>
+                    <td>${actionBtn}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    function renderPagination(page, totalPages, callback = 'searchPayments') {
+        const paginationArea = document.getElementById('paginationArea');
+        paginationArea.innerHTML = '';
+
+        if (totalPages <= 1) return;
+
+        for (let i = 1; i <= totalPages; i++) {
+            const btnClass = i === page ? 'btn-primary' : 'btn-default';
+            const btn = document.createElement('button');
+            btn.className = `btn btn-xs ${btnClass}`;
+            btn.innerHTML = i;
+            btn.onclick = () => window[callback](i);
+            paginationArea.appendChild(btn);
+            paginationArea.appendChild(document.createTextNode(' '));
+        }
+    }
+
+    function uploadProof(invoiceId) {
+        document.getElementById('invoiceIdForUpload').value = invoiceId;
+        document.getElementById('uploadProofForm').reset();
+        jQuery('#uploadProofModal').modal('show');
+    }
+
+    function submitProofUpload() {
+        const invoiceId = document.getElementById('invoiceIdForUpload').value;
+        const files = document.getElementById('proofFiles').files;
+        const comments = document.getElementById('proofComments').value;
+
+        if (!invoiceId || files.length === 0) {
+            alert('Please select at least one file');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        formData.append('flag', 'upload_proof');
+        formData.append('invoice_id', invoiceId);
+        formData.append('comments', comments);
+
+        for (let i = 0; i < files.length; i++) {
+            formData.append('documents[]', files[i]);
+        }
+
+        fetch('index.php?r=payment/payment-history', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire('Success!', data.message, 'success').then(() => {
+                    location.reload();
+                });
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            alert('Error uploading proof');
+        });
+    }
+
+    function viewInvoiceDetails(invoiceId) {
+        alert('Invoice Details: ' + invoiceId);
+        // Can be expanded with more details
+    }
+</script>

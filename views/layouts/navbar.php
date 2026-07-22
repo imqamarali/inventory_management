@@ -121,11 +121,8 @@ if (empty($userInitials) || $userInitials === '') {
 
                     <!-- Payment History Icon -->
                     <li class="dropdown-modal">
-                        <a href="index.php?r=payment-history/index" title="Payment History">
-                            <i class="ace-icon fa fa-credit-card" style="font-size: 16px; color: rgba(255,255,255,0.8);"></i>
-                            <span class="user-info" style="font-size: 11px; white-space: nowrap;">
-                                Payments
-                            </span>
+                        <a href="index.php?r=payment/payment-history" title="Payment History" style="background: transparent !important; padding: 0 10px;">
+                            <i class="ace-icon fa fa-credit-card" style="font-size: 18px; font-weight: bold; color: rgba(255,255,255,0.9);"></i>
                         </a>
                     </li>
 
