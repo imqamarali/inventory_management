@@ -12,6 +12,10 @@ class ActivitylogsController extends Controller
     {
         if (Yii::$app->request->isPost) {
             Yii::$app->response->format = Response::FORMAT_JSON;
+            $flag = Yii::$app->request->post('flag');
+            if (isset($flag) && $flag === 'load') {
+                return $this->getActivityLogs();
+            }
             return $this->getActivityLogs();
         }
 
@@ -107,9 +111,23 @@ class ActivitylogsController extends Controller
             }
         }
 
+        // Get summary statistics
+        $summary = [
+            'total_logs' => (int)$total,
+            'total_modules' => (int)Yii::$app->db->createCommand(
+                "SELECT COUNT(DISTINCT module) FROM activitylogs {$where}",
+                $params
+            )->queryScalar(),
+            'total_users' => (int)Yii::$app->db->createCommand(
+                "SELECT COUNT(DISTINCT uid) FROM activitylogs {$where}",
+                $params
+            )->queryScalar()
+        ];
+
         return [
             'success' => true,
             'logs' => $logs,
+            'summary' => $summary,
             'page' => $page,
             'perPage' => $perPage,
             'total' => $total,

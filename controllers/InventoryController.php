@@ -914,26 +914,128 @@ class InventoryController extends Controller
     public function actionActivitylogs()
     {
         if (Yii::$app->request->isPost) {
-            $post = Yii::$app->request->post();
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            $flag = Yii::$app->request->post('flag');
+            if (isset($flag) && $flag === 'load') {
+                return $this->getActivityLogs();
+            }
+            return $this->getActivityLogs();
+        }
 
-            try {
+        // Get filter options
+        $modules = Yii::$app->db->createCommand(
+            "SELECT DISTINCT module FROM activitylogs WHERE module IS NOT NULL AND module != '' ORDER BY module"
+        )->queryColumn();
 
-                Yii::$app->response->format = Response::FORMAT_JSON;
-                return [
-                    'success' => true,
-                    'message' => 'Data Saved successfully!'
-                ];
-            } catch (\Exception $e) {
+        $activities = Yii::$app->db->createCommand(
+            "SELECT DISTINCT activity FROM activitylogs WHERE activity IS NOT NULL AND activity != '' ORDER BY activity"
+        )->queryColumn();
 
-                Yii::$app->response->format = Response::FORMAT_JSON;
-                return [
-                    'success' => false,
-                    'message' => 'Failed to update data. Please try again.'
-                ];
+        return $this->render('activitylogs', [
+            'modules' => $modules,
+            'activities' => $activities
+        ]);
+    }
+
+    private function getActivityLogs()
+    {
+        $page = max(1, (int)(Yii::$app->request->post('page') ?? 1));
+        $perPage = max(10, (int)(Yii::$app->request->post('per_page') ?? 20));
+        $offset = ($page - 1) * $perPage;
+
+        $dateFrom = Yii::$app->request->post('date_from');
+        $dateTo = Yii::$app->request->post('date_to');
+        $module = Yii::$app->request->post('module');
+        $activity = Yii::$app->request->post('activity');
+        $search = Yii::$app->request->post('search');
+
+        $where = " WHERE 1=1 ";
+        $params = [];
+
+        if (!empty($dateFrom)) {
+            $where .= " AND DATE(datetime) >= :dateFrom ";
+            $params[':dateFrom'] = $dateFrom;
+        }
+
+        if (!empty($dateTo)) {
+            $where .= " AND DATE(datetime) <= :dateTo ";
+            $params[':dateTo'] = $dateTo;
+        }
+
+        if (!empty($module)) {
+            $where .= " AND module = :module ";
+            $params[':module'] = $module;
+        }
+
+        if (!empty($activity)) {
+            $where .= " AND activity = :activity ";
+            $params[':activity'] = $activity;
+        }
+
+        if (!empty($search)) {
+            $where .= " AND (activity LIKE :search OR user_agent LIKE :search OR ip_address LIKE :search) ";
+            $params[':search'] = '%' . $search . '%';
+        }
+
+        $total = Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM activitylogs {$where}",
+            $params
+        )->queryScalar();
+
+        $logs = Yii::$app->db->createCommand(
+            "SELECT * FROM activitylogs {$where} ORDER BY datetime DESC LIMIT {$offset}, {$perPage}",
+            $params
+        )->queryAll();
+
+        // Format logs with user info
+        foreach ($logs as &$log) {
+            $log['formatted_date'] = date('M d, Y', strtotime($log['datetime']));
+            $log['formatted_time'] = date('h:i A', strtotime($log['datetime']));
+
+            // Get user info
+            if (!empty($log['uid'])) {
+                $user = Yii::$app->db->createCommand(
+                    "SELECT username, first_name, last_name FROM system_users WHERE id = :id LIMIT 1",
+                    [':id' => $log['uid']]
+                )->queryOne();
+
+                if ($user) {
+                    $log['user_name'] = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: $user['username'];
+                } else {
+                    $log['user_name'] = 'Unknown User';
+                }
+            } else {
+                $log['user_name'] = 'System';
+            }
+
+            // Parse additional data
+            if (!empty($log['additional_data'])) {
+                $log['additional_data_decoded'] = json_decode($log['additional_data'], true);
             }
         }
 
-        return $this->render('activitylogs');
+        // Get summary statistics
+        $summary = [
+            'total_logs' => (int)$total,
+            'total_modules' => (int)Yii::$app->db->createCommand(
+                "SELECT COUNT(DISTINCT module) FROM activitylogs {$where}",
+                $params
+            )->queryScalar(),
+            'total_users' => (int)Yii::$app->db->createCommand(
+                "SELECT COUNT(DISTINCT uid) FROM activitylogs {$where}",
+                $params
+            )->queryScalar()
+        ];
+
+        return [
+            'success' => true,
+            'logs' => $logs,
+            'summary' => $summary,
+            'page' => $page,
+            'perPage' => $perPage,
+            'total' => $total,
+            'totalPages' => ceil($total / $perPage)
+        ];
     }
 
     public function actionProfile()

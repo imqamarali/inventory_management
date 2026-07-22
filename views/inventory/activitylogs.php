@@ -6,152 +6,326 @@ if (!isset($activities)) $activities = [];
 
 <div class="main-content">
     <div class="main-content-inner">
-        <div class="breadcrumbs" style="margin-bottom: 12px;">
-            <ul class="breadcrumb" style="width:100%;margin:0;">
-                <li><i class="ace-icon fa fa-home"></i> <a href="index.php?r=inventory/dashboard">Home</a></li>
+        <div class="breadcrumbs ace-save-state" id="breadcrumbs">
+            <ul class="breadcrumb" style="width:100%;">
+                <li><i class="ace-icon fa fa-home home-icon"></i><a href="index.php?r=inventory/dashboard">Home</a></li>
                 <li class="active">Activity Logs</li>
             </ul>
         </div>
 
-        <div style="padding: 12px; background: #f9f9f9; border-radius: 4px; margin-bottom: 12px;">
-            <div class="row" style="margin: 0;">
-                <div class="col-md-2" style="padding: 4px;">
-                    <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">From Date</label>
-                    <input type="date" id="dateFrom" class="form-control" style="padding: 6px; font-size: 12px;">
-                </div>
-                <div class="col-md-2" style="padding: 4px;">
-                    <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">To Date</label>
-                    <input type="date" id="dateTo" class="form-control" style="padding: 6px; font-size: 12px;">
-                </div>
-                <div class="col-md-2" style="padding: 4px;">
-                    <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Module</label>
-                    <select id="module" class="form-control" style="padding: 6px; font-size: 12px;">
+        <div style="padding:15px; background:#f5f5f5; border-radius:4px; margin-bottom:15px;">
+            <form id="filter_form">
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <input type="date" name="date_from" class="new-input" style="flex:1; min-width:120px; height:32px;">
+                    <input type="date" name="date_to" class="new-input" style="flex:1; min-width:120px; height:32px;">
+                    <select name="module" class="new-input" style="flex:1; min-width:150px; height:32px;">
                         <option value="">All Modules</option>
                         <?php foreach ($modules as $mod): ?>
                             <option value="<?= Html::encode($mod) ?>"><?= Html::encode($mod) ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="col-md-2" style="padding: 4px;">
-                    <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Activity</label>
-                    <select id="activity" class="form-control" style="padding: 6px; font-size: 12px;">
+                    <select name="activity" class="new-input" style="flex:1; min-width:150px; height:32px;">
                         <option value="">All Activities</option>
                         <?php foreach ($activities as $act): ?>
                             <option value="<?= Html::encode($act) ?>"><?= Html::encode($act) ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="col-md-3" style="padding: 4px;">
-                    <label style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 4px;">Search (IP/User)</label>
-                    <input type="text" id="search" class="form-control" placeholder="Search..." style="padding: 6px; font-size: 12px;">
-                </div>
-                <div class="col-md-1" style="padding: 4px; text-align: center; margin-top: 20px;">
-                    <button type="button" class="btn btn-sm btn-primary" onclick="loadActivityLogs()" style="width: 100%;">
-                        <i class="fa fa-search"></i> Filter
+                    <input type="text" name="search" class="new-input" placeholder="Search IP/User" style="flex:1; min-width:120px; height:32px;">
+                    <button type="button" class="btn btn-primary" onclick="loadReport()" style="height:32px; padding:0 20px;">
+                        <i class="ace-icon fa fa-search"></i> Generate
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
 
-        <div class="widget-box">
-            <div class="widget-header" style="padding: 12px 15px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                <h4 class="widget-title" style="margin: 0; font-size: 13px;"><i class="fa fa-history"></i> Activity Logs</h4>
-            </div>
-            <div class="widget-body" style="padding: 12px;">
-                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                    <table class="table table-striped table-bordered table-hover" id="logsTable" style="font-size: 11px; margin-bottom: 0;">
-                        <thead>
-                            <tr style="background: #f9f9f9;">
-                                <th>Date & Time</th>
-                                <th>User</th>
-                                <th>Activity</th>
-                                <th>Module</th>
-                                <th>Type</th>
-                                <th>IP</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logsBody">
-                            <tr><td colspan="7" class="text-center" style="padding: 20px;"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div id="paginationArea" style="text-align: center; margin-top: 12px; padding: 8px;"></div>
+        <div id="report_container" class="widget-main">
+            <div class="alert alert-info text-center">
+                <i class="ace-icon fa fa-history fa-3x" style="color:#6FB3E0;"></i>
+                <h4 style="margin-top:15px;">No data to display</h4>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-loadActivityLogs();
-function loadActivityLogs(page=1){
-    const data=new FormData();
-    data.append('_csrf','<?= Yii::$app->request->getCsrfToken() ?>');
-    data.append('page',page);
-    data.append('per_page',30);
-    data.append('date_from',document.getElementById('dateFrom').value);
-    data.append('date_to',document.getElementById('dateTo').value);
-    data.append('module',document.getElementById('module').value);
-    data.append('activity',document.getElementById('activity').value);
-    data.append('search',document.getElementById('search').value);
-    fetch('index.php?r=inventory/activitylogs',{method:'POST',body:data})
-    .then(r=>r.json())
-    .then(res=>{
-        if(res.success){renderLogs(res.logs);renderPagination(res.page,res.totalPages);}
-        else document.getElementById('logsBody').innerHTML='<tr><td colspan="7" class="text-center">Error loading logs</td></tr>';
-    }).catch(e=>{
-        console.error(e);
-        document.getElementById('logsBody').innerHTML='<tr><td colspan="7" class="text-center">Error loading logs</td></tr>';
-    });
-}
-function renderLogs(logs){
-    let html='';
-    if(logs.length===0){html='<tr><td colspan="7" class="text-center" style="padding:20px;">No activity logs found</td></tr>';}
-    else{logs.forEach(log=>{
-        const color={create:'label-success',update:'label-warning',delete:'label-danger',view:'label-primary',login:'label-success'}[log.activitytype?.toLowerCase()]||'label-default';
-        html+=`<tr><td><strong>${log.formatted_date}</strong><br><small>${log.formatted_time}</small></td><td><i class="fa fa-user"></i> ${log.user_name}</td><td><strong>${log.activity||'-'}</strong></td><td><span class="label label-info" style="font-size:10px;">${log.module||'-'}</span></td><td><span class="label ${color}" style="font-size:10px;">${log.activitytype||'-'}</span></td><td><small>${log.ip_address||'-'}</small></td><td><button class="btn btn-xs" onclick="showDetails('${escapeHtml(JSON.stringify(log))}')" title="Details"><i class="fa fa-info-circle"></i></button></td></tr>`;
-    });}
-    document.getElementById('logsBody').innerHTML=html;
-}
-function renderPagination(page,total){
-    let html='';
-    const max=5,start=Math.max(1,page-Math.floor(max/2)),end=Math.min(total,start+max-1);
-    if(start>1)html+=`<button class="btn btn-sm" onclick="loadActivityLogs(1)">First</button> `;
-    if(page>1)html+=`<button class="btn btn-sm" onclick="loadActivityLogs(${page-1})">Prev</button> `;
-    for(let i=start;i<=end;i++)html+=i===page?`<button class="btn btn-sm btn-primary">${i}</button> `:`<button class="btn btn-sm" onclick="loadActivityLogs(${i})">${i}</button> `;
-    if(page<total)html+=`<button class="btn btn-sm" onclick="loadActivityLogs(${page+1})">Next</button> `;
-    if(end<total)html+=`<button class="btn btn-sm" onclick="loadActivityLogs(${total})">Last</button>`;
-    document.getElementById('paginationArea').innerHTML=html;
-}
-function escapeHtml(t){return t.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
-function showDetails(d){
-    try{const log=JSON.parse(d);const html=`<table style="width:100%;text-align:left"><tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Date:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${log.formatted_date} ${log.formatted_time}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>User:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${log.user_name}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Activity:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${log.activity}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Module:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${log.module}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Reference ID:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${log.refid||'-'}</td></tr><tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>IP Address:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3"><code>${log.ip_address}</code></td></tr>${log.additional_data_decoded?`<tr><td style="padding:8px;"><strong>Changes:</strong></td><td style="padding:8px;"><pre style="background:#f9f9f9;padding:8px;border-radius:4px;max-height:200px;overflow:auto;font-size:11px;">${JSON.stringify(log.additional_data_decoded,null,2)}</pre></td></tr>`:''}</table>`;Swal.fire({title:'Activity Details',html:html,width:'600px'});}catch(e){Swal.fire('Error','Failed to parse log details','error');}}
-document.getElementById('dateFrom').addEventListener('change',()=>loadActivityLogs());
-document.getElementById('dateTo').addEventListener('change',()=>loadActivityLogs());
-document.getElementById('module').addEventListener('change',()=>loadActivityLogs());
-document.getElementById('activity').addEventListener('change',()=>loadActivityLogs());
+(function() {
+    let currentReportData = [];
+    const activityTypeColors = {
+        'create': 'success',
+        'update': 'warning',
+        'delete': 'danger',
+        'view': 'primary',
+        'login': 'success',
+        'logout': 'info'
+    };
+
+    window.loadReport = function loadReport() {
+        const formData = new FormData(document.getElementById('filter_form'));
+        const data = new URLSearchParams(formData);
+        data.append('flag', 'load');
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+
+        Swal.fire({title: 'Loading Activity Logs...', text: 'Processing data', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        fetch('index.php?r=inventory/activitylogs', {method: 'POST', body: data})
+            .then(r => r.json())
+            .then(d => {
+                Swal.close();
+                if (d.success) {
+                    currentReportData = d.logs || [];
+                    renderTable(d.logs, d.summary);
+                } else Swal.fire('Error', d.message || 'Failed to load logs', 'error');
+            })
+            .catch(e => {Swal.close(); Swal.fire('Error', e.message, 'error');});
+    };
+
+    function renderTable(rows, summary) {
+        let html = '';
+        if (summary) {
+            html += `<div class="stats-grid">
+                <div class="stat-card blue">
+                    <div class="stat-header">
+                        <span class="stat-title">Total Logs</span>
+                        <div class="stat-icon"><i class="fa fa-history"></i></div>
+                    </div>
+                    <div class="stat-value">${summary.total_logs || 0}</div>
+                    <div class="stat-subtitle">Activity Records</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-header">
+                        <span class="stat-title">Modules</span>
+                        <div class="stat-icon"><i class="fa fa-cubes"></i></div>
+                    </div>
+                    <div class="stat-value">${summary.total_modules || 0}</div>
+                    <div class="stat-subtitle">Active Modules</div>
+                </div>
+                <div class="stat-card teal">
+                    <div class="stat-header">
+                        <span class="stat-title">Users</span>
+                        <div class="stat-icon"><i class="fa fa-users"></i></div>
+                    </div>
+                    <div class="stat-value">${summary.total_users || 0}</div>
+                    <div class="stat-subtitle">Active Users</div>
+                </div>
+            </div>`;
+        }
+        html += '<div class="table-responsive"><table class="table table-striped table-bordered table-hover"><thead><tr>';
+        html += '<th style="width:3%;">#</th><th>Date & Time</th><th>User</th><th>Activity</th><th>Module</th><th>Type</th><th>Reference</th><th>Details</th>';
+        html += '</tr></thead><tbody>';
+        if (rows && rows.length > 0) {
+            rows.forEach((row, idx) => {
+                const typeColor = activityTypeColors[row.activitytype?.toLowerCase()] || 'default';
+                const refLink = row.refid ? `<a href="#" onclick="return false;" title="Record ID: ${htmlEscape(row.refid)}" style="color:#0066cc;">#${htmlEscape(row.refid)}</a>` : '-';
+                html += `<tr><td>${idx + 1}</td><td><strong>${htmlEscape(row.formatted_date)}</strong><br><small>${htmlEscape(row.formatted_time)}</small></td>`;
+                html += `<td><i class="fa fa-user"></i> ${htmlEscape(row.user_name)}</td>`;
+                html += `<td>${htmlEscape(row.activity || '-')}</td>`;
+                html += `<td><span class="label label-info" style="font-size:10px;">${htmlEscape(row.module || '-')}</span></td>`;
+                html += `<td><span class="label label-${typeColor}" style="font-size:10px;">${htmlEscape(row.activitytype || '-')}</span></td>`;
+                html += `<td>${refLink}</td>`;
+                html += `<td><button class="btn btn-xs" onclick="showDetails('${escapeJson(JSON.stringify(row))}');" title="View Details"><i class="fa fa-info-circle"></i></button></td></tr>`;
+            });
+        } else {
+            html += '<tr><td colspan="8" class="text-center">No activity logs found</td></tr>';
+        }
+        html += '</tbody></table></div>';
+        document.getElementById('report_container').innerHTML = html;
+    }
+
+    function htmlEscape(text) {
+        if (!text) return '';
+        const map = {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'};
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    function escapeJson(str) {
+        return str.replace(/'/g, '&#39;');
+    }
+
+    window.showDetails = function(jsonStr) {
+        try {
+            const log = JSON.parse(jsonStr);
+            let html = `<table style="width:100%;text-align:left">
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Date & Time:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${htmlEscape(log.formatted_date)} ${htmlEscape(log.formatted_time)}</td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>User:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${htmlEscape(log.user_name)}</td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Activity:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${htmlEscape(log.activity || '-')}</td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Module:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${htmlEscape(log.module || '-')}</td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Type:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3"><span class="label label-${activityTypeColors[log.activitytype?.toLowerCase()] || 'default'}">${htmlEscape(log.activitytype || '-')}</span></td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>Reference ID:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3">${log.refid ? '<code>' + htmlEscape(log.refid) + '</code>' : '-'}</td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>IP Address:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3"><code>${htmlEscape(log.ip_address || '-')}</code></td></tr>
+                <tr><td style="padding:8px;border-bottom:1px solid #e3e9f3"><strong>User Agent:</strong></td><td style="padding:8px;border-bottom:1px solid #e3e9f3"><small>${htmlEscape((log.user_agent || '-').substring(0, 100))}</small></td></tr>`;
+
+            if (log.additional_data_decoded && Object.keys(log.additional_data_decoded).length > 0) {
+                html += `<tr><td style="padding:8px;"><strong>Changes/Details:</strong></td><td style="padding:8px;"><pre style="background:#f9f9f9;padding:8px;border-radius:4px;max-height:300px;overflow:auto;font-size:11px;margin:0;">${htmlEscape(JSON.stringify(log.additional_data_decoded, null, 2))}</pre></td></tr>`;
+            }
+            html += '</table>';
+            Swal.fire({title:'Activity Details',html:html,width:'700px',confirmButtonText:'Close'});
+        } catch(e) {
+            Swal.fire('Error','Failed to parse activity details','error');
+        }
+    };
+
+})();
 </script>
 
 <style>
-.btn{padding:6px 12px;border:1px solid #ddd;border-radius:4px;cursor:pointer;font-size:12px;background:#fff;transition:all 0.2s;}
-.btn-primary{background:#2196F3;color:#fff;border-color:#2196F3;}
-.btn:hover{opacity:0.8;}
-.label{display:inline-block;padding:4px 8px;border-radius:3px;font-weight:bold;}
-.label-success{background:#4CAF50;color:#fff;}
-.label-warning{background:#FF9800;color:#fff;}
-.label-danger{background:#f44336;color:#fff;}
-.label-info{background:#2196F3;color:#fff;}
-.label-primary{background:#007bff;color:#fff;}
-.label-default{background:#e3e9f3;color:#333;}
-.form-control{border:1px solid #ddd;border-radius:4px;padding:6px;}
-.form-control:focus{outline:0;border-color:#2196F3;box-shadow:0 0 5px rgba(33,150,243,0.3);}
-.widget-box{border:1px solid #e3e9f3;border-radius:4px;background:#fff;}
-.widget-header{background:#f5f5f5;border-radius:4px 4px 0 0;}
-.text-center{text-align:center;}
-table{width:100%;border-collapse:collapse;}
-th,td{padding:8px;text-align:left;border-bottom:1px solid #e3e9f3;}
-th{background:#f9f9f9;font-weight:bold;}
-tr:hover{background:#fafafa;}
-code{background:#f5f5f5;padding:2px 6px;border-radius:3px;font-family:monospace;font-size:11px;}
+.new-input {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+.new-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 0 5px rgba(33,150,243,0.3);
+}
+
+.widget-main {
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #e3e9f3;
+    border-radius: 4px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    padding: 15px;
+    border-radius: 4px;
+    color: white;
+}
+
+.stat-card.blue { background: #2196F3; }
+.stat-card.orange { background: #FF9800; }
+.stat-card.teal { background: #00897B; }
+
+.stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.stat-title {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.stat-icon {
+    font-size: 24px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.stat-subtitle {
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 0;
+}
+
+.table thead tr {
+    background: #f9f9f9;
+}
+
+.table th {
+    padding: 10px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 1px solid #e3e9f3;
+    font-size: 12px;
+}
+
+.table td {
+    padding: 10px;
+    border-bottom: 1px solid #e3e9f3;
+    font-size: 12px;
+}
+
+.table tbody tr:hover {
+    background: #f5f5f5;
+}
+
+.label {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 10px;
+}
+
+.label-success { background: #4CAF50; color: white; }
+.label-warning { background: #FF9800; color: white; }
+.label-danger { background: #f44336; color: white; }
+.label-primary { background: #007bff; color: white; }
+.label-info { background: #2196F3; color: white; }
+.label-default { background: #e3e9f3; color: #333; }
+
+.btn {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    background: #fff;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #2196F3;
+    color: white;
+    border-color: #2196F3;
+}
+
+.btn:hover {
+    opacity: 0.8;
+}
+
+.btn-xs {
+    padding: 3px 6px;
+    font-size: 11px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.alert {
+    padding: 20px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.alert-info {
+    background: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #90caf9;
+}
+
+code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11px;
+}
 </style>
