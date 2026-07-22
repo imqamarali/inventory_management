@@ -138,8 +138,10 @@ DATA DISPLAYED:
 
                                 <th>Invoice #</th>
                                 <th>Contract</th>
-                                <th>Date</th>
+                                <th>Invoice Date</th>
+                                <th>Due Date</th>
                                 <th>Status</th>
+                                <th>Documents</th>
                                 <th class="text-right">Amount</th>
                                 <th>Actions</th>
 
@@ -380,7 +382,7 @@ DATA DISPLAYED:
         if (data.length == 0) {
 
             html += "<tr>";
-            html += "<td colspan='6' class='text-center'>No Invoices Found.</td>";
+            html += "<td colspan='8' class='text-center'>No Invoices Found.</td>";
             html += "</tr>";
 
         } else {
@@ -389,21 +391,30 @@ DATA DISPLAYED:
 
                 html += "<tr>";
 
-                html += "<td>" + row.invoice_number + "</td>";
+                html += "<td><strong>" + row.invoice_number + "</strong></td>";
 
                 html += "<td>" + row.contract_name + "</td>";
 
                 html += "<td>" + row.invoice_date + "</td>";
 
-                html += "<td><span class='label label-" + (row.payment_status === 'paid' ? 'success' : (row.payment_status === 'partial' ? 'warning' : 'danger')) + "'>" + row.payment_status.toUpperCase() + "</span></td>";
+                html += "<td><strong style='color: #e74c3c;'>" + row.due_date + "</strong></td>";
+
+                let statusColor = row.payment_status === 'paid' ? 'success' : (row.payment_status === 'partial' ? 'warning' : (row.payment_status === 'pending_approval' ? 'info' : 'danger'));
+                html += "<td><span class='label label-" + statusColor + "' style='display: block; text-align: center;'>" + row.payment_status.toUpperCase().replace('_', ' ') + "</span></td>";
+
+                let docCount = row.document_count ? row.document_count : 0;
+                let docHtml = docCount > 0 ? '<button class="btn btn-xs btn-success" onclick="viewDocuments(' + row.id + ')" title="View Documents"><i class="fa fa-file"></i> ' + docCount + '</button>' : '<span style="color: #7f8c8d;">-</span>';
+                html += "<td style='text-align: center;'>" + docHtml + "</td>";
 
                 html += "<td class='text-right'>PKR " + Number(row.amount).toLocaleString() + "</td>";
 
                 let actionHtml = '';
                 if (row.payment_status === 'paid') {
                     actionHtml = '<button class="btn btn-xs btn-info" onclick="printInvoice(' + row.id + ')" title="Print Invoice"><i class="fa fa-print"></i></button>';
+                } else if (row.payment_status === 'pending_approval') {
+                    actionHtml = '<button class="btn btn-xs btn-primary" disabled title="Pending Approval"><i class="fa fa-hourglass"></i> Verifying...</button>';
                 } else {
-                    actionHtml = '<button class="btn btn-xs btn-warning" onclick="openPayInvoiceModalFromId(' + row.id + ')" title="Pay Invoice"><i class="fa fa-money"></i></button>';
+                    actionHtml = '<button class="btn btn-xs btn-warning" onclick="openPayInvoiceModalFromId(' + row.id + ')" title="Pay Invoice"><i class="fa fa-money"></i> Pay</button>';
                 }
                 html += "<td style='text-align: center;'>" + actionHtml + "</td>";
 
@@ -511,6 +522,12 @@ DATA DISPLAYED:
                     <input type="file" id="paymentProof" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <small style="color: #7f8c8d; display: block; margin-top: 5px;">Supported: PDF, JPG, PNG, DOC, DOCX (Max 5MB each)</small>
                 </div>
+
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 500;">Comments (Optional):</label>
+                    <textarea id="paymentComments" placeholder="Add any remarks or comments about this payment..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 80px; font-family: Arial, sans-serif; resize: vertical;"></textarea>
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">Your comments will be visible to the admin for verification</small>
+                </div>
             </div>
         `;
 
@@ -566,9 +583,12 @@ DATA DISPLAYED:
 
         // Prepare FormData (Full payment)
         let formData = new FormData();
+        let comments = document.getElementById('paymentComments').value || '';
+
         formData.append('flag', 'upload_proof');
         formData.append('invoice_id', invoiceId);
         formData.append('payment_amount', maxAmount);
+        formData.append('comments', comments);
         formData.append('<?= Yii::$app->request->csrfParam ?>', '<?= Yii::$app->request->getCsrfToken() ?>');
 
         for (let i = 0; i < files.length; i++) {
@@ -584,8 +604,8 @@ DATA DISPLAYED:
         }
 
         Swal.fire({
-            title: 'Processing...',
-            html: '<div class="spinner-border" role="status"><span class="sr-only"></span></div>',
+            title: '⏳ Invoice Verification in Process',
+            html: '<div style="margin: 20px 0;"><div class="spinner-border" role="status" style="color: #3498db;"><span class="sr-only"></span></div><p style="margin-top: 15px; color: #7f8c8d;">Please wait while your payment is being verified...</p></div>',
             allowOutsideClick: false,
             allowEscapeKey: false,
             didOpen: () => {
@@ -603,10 +623,11 @@ DATA DISPLAYED:
                 Swal.close();
                 if (response.success) {
                     Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: response.message || 'Payment proof uploaded successfully. Awaiting verification.',
-                        confirmButtonText: 'OK'
+                        icon: 'info',
+                        title: '✓ Invoice Verification in Process',
+                        html: '<div style="text-align: left; line-height: 1.8;"><p>Your payment submission has been received.</p><p style="color: #3498db; font-weight: 600;">Status: Pending Approval</p><p style="color: #7f8c8d; font-size: 13px;">Our admin team will verify your payment and update the status shortly.</p></div>',
+                        confirmButtonText: 'OK',
+                        confirmButtonColor: '#3498db'
                     }).then(() => {
                         loadDashboard();
                     });

@@ -233,12 +233,15 @@ class PaymentController extends Controller
 
         $stats['next_due_date'] = $nextDue['next_due_date'] ?? null;
 
-        // Latest invoices
+        // Latest invoices with document count
         $latestInvoices = $db->createCommand(
-            "SELECT si.id, si.invoice_number, sc.contract_name, si.invoice_date, si.payment_status, si.amount, si.due_date, si.remaining_amount
+            "SELECT si.id, si.invoice_number, sc.contract_name, si.invoice_date, si.payment_status, si.amount, si.due_date, si.remaining_amount,
+                    COUNT(spp.id) as document_count
              FROM system_invoices si
              JOIN system_contracts sc ON sc.id = si.contract_id
+             LEFT JOIN system_payment_proofs spp ON spp.invoice_id = si.id AND spp.is_deleted = 0
              WHERE si.is_deleted = 0
+             GROUP BY si.id
              ORDER BY si.created_at DESC
              LIMIT 10"
         )->queryAll();
@@ -357,13 +360,14 @@ class PaymentController extends Controller
 
                     Yii::$app->db->createCommand(
                         "INSERT INTO system_payment_proofs
-                        (invoice_id, proof_number, proof_date, document_file, document_name, verification_status, created_by, created_at)
-                        VALUES (:invoice_id, :proof_number, NOW(), :document_file, :document_name, 'pending', :created_by, NOW())"
+                        (invoice_id, proof_number, proof_date, document_file, document_name, verification_status, comments, created_by, created_at)
+                        VALUES (:invoice_id, :proof_number, NOW(), :document_file, :document_name, 'pending', :comments, :created_by, NOW())"
                     )
                         ->bindValue(':invoice_id', $invoiceId)
                         ->bindValue(':proof_number', $proofNumber)
                         ->bindValue(':document_file', 'uploads/payment_proofs/' . $uniqueFileName)
                         ->bindValue(':document_name', $fileName)
+                        ->bindValue(':comments', $comments)
                         ->bindValue(':created_by', $userId)
                         ->execute();
 
@@ -371,10 +375,23 @@ class PaymentController extends Controller
                 }
             }
 
-            // Update invoice status
+            // Update invoice status to pending_approval
+            $now = date('Y-m-d H:i:s');
             Yii::$app->db->createCommand(
-                "UPDATE system_invoices SET payment_status = 'partial' WHERE id = :id"
-            )->bindValue(':id', $invoiceId)->execute();
+                "UPDATE system_invoices SET payment_status = 'pending_approval', updated_at = :updated_at, updated_by = :updated_by WHERE id = :id"
+            )->bindValue(':id', $invoiceId)
+             ->bindValue(':updated_at', $now)
+             ->bindValue(':updated_by', $userId)
+             ->execute();
+
+            // Log activity
+            Yii::$app->Component->Activitylog(
+                'Submitted payment for invoice #' . $invoiceId,
+                'create',
+                $invoiceId,
+                'payment',
+                ['action' => 'payment_submitted', 'comments' => $comments]
+            );
 
             return [
                 'success' => true,
