@@ -51,14 +51,135 @@ class InventoryController extends Controller
             $this->redirect(['site/index']);
             return false;
         }
- 
+
         $this->enableCsrfValidation = false;
         return parent::beforeAction($action);
+    }
+
+    /**
+     * Check if user has permission for a specific action
+     * @param string $actionType - 'view', 'add', 'edit', 'delete'
+     * @return bool - true if user has permission
+     */
+    private function checkPermission($actionType = 'view')
+    {
+        $user_array = Yii::$app->session->get('user_array');
+        $role_id = $user_array['role_id'] ?? null;
+
+        if (!$role_id) {
+            return false;
+        }
+
+        // Get Inventory module ID
+        $moduleId = Yii::$app->db->createCommand(
+            "SELECT id FROM modules WHERE LOWER(name) = 'inventory' LIMIT 1"
+        )->queryScalar();
+
+        if (!$moduleId) {
+            return false;
+        }
+
+        // Get user's permissions for Inventory module
+        $permissions = Yii::$app->db->createCommand(
+            "SELECT * FROM permissions
+             WHERE module_id = :module_id
+             AND role_id = :role_id
+             LIMIT 1"
+        )
+            ->bindValue(':module_id', $moduleId)
+            ->bindValue(':role_id', $role_id)
+            ->queryOne();
+
+        if (!$permissions) {
+            return false;
+        }
+
+        // Check specific permission
+        $permissionMap = [
+            'view' => 'can_view',
+            'add' => 'can_add',
+            'create' => 'can_add',
+            'edit' => 'can_edit',
+            'update' => 'can_edit',
+            'delete' => 'can_delete'
+        ];
+
+        $permissionField = $permissionMap[$actionType] ?? 'can_view';
+
+        return (bool)$permissions[$permissionField];
+    }
+
+    /**
+     * Check permission and deny access if not authorized
+     * @param string $actionType - 'view', 'add', 'edit', 'delete'
+     * @return bool - true if permission granted
+     */
+    private function requirePermission($actionType = 'view')
+    {
+        if (!$this->checkPermission($actionType)) {
+            Yii::$app->response->statusCode = 403;
+            echo json_encode(['error' => 'You do not have permission to ' . $actionType . ' this resource']);
+            Yii::$app->end();
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Check module permission based on controller/action link
+     * @param string $moduleLink - e.g., 'inventory/products', 'inventory/warehouses'
+     * @return bool - true if user has view permission for the module
+     */
+    private function checkModulePermission($moduleLink = 'inventory/dashboard')
+    {
+        $user_array = Yii::$app->session->get('user_array');
+        $role_id = $user_array['role_id'] ?? null;
+
+        if (!$role_id) {
+            return false;
+        }
+
+        // Get module ID by link
+        $moduleId = Yii::$app->db->createCommand(
+            "SELECT id FROM modules WHERE link = :link LIMIT 1"
+        )->bindValue(':link', $moduleLink)->queryScalar();
+
+        if (!$moduleId) {
+            return false;
+        }
+
+        // Get user's permissions for this module
+        $permissions = Yii::$app->db->createCommand(
+            "SELECT can_view FROM permissions
+             WHERE module_id = :module_id
+             AND role_id = :role_id
+             LIMIT 1"
+        )
+            ->bindValue(':module_id', $moduleId)
+            ->bindValue(':role_id', $role_id)
+            ->queryOne();
+
+        return $permissions && (bool)$permissions['can_view'];
+    }
+
+    /**
+     * Require module permission and deny access if not authorized
+     * @param string $moduleLink - e.g., 'inventory/products'
+     */
+    private function requireModulePermission($moduleLink = 'inventory/dashboard')
+    {
+        if (!$this->checkModulePermission($moduleLink)) {
+            Yii::$app->response->statusCode = 403;
+            throw new \yii\web\ForbiddenHttpException('You do not have permission to access this module.');
+        }
     }
 
 
     public function actionDashboard()
     {
+        // Check view permission
+        // $this->requirePermission('view');
+
         Yii::$app->Component->Activitylog('Viewed inventory dashboard', 'view', null, 'Inventory', ['module' => 'dashboard']);
         $user_array = Yii::$app->session->get('user_array');
         $user_id = $user_array['id'] ?? null;
@@ -316,6 +437,9 @@ class InventoryController extends Controller
 
     public function actionTruncateSales()
     {
+        // Check delete permission
+        $this->requirePermission('delete');
+
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
         if (!Yii::$app->request->isPost) {
@@ -401,6 +525,9 @@ class InventoryController extends Controller
 
     public function actionTruncatePurchases()
     {
+        // Check delete permission
+        $this->requirePermission('delete');
+
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
 
         if (!Yii::$app->request->isPost) {
@@ -615,14 +742,19 @@ class InventoryController extends Controller
     public function actionWarehouses()
     {
         if (Yii::$app->request->isGet) {
+            // Check view permission
+            $this->requirePermission('view');
+
             $warehouses = Yii::$app->db->createCommand("SELECT *  FROM inventory_warehouses  WHERE is_deleted = 0  and is_active=1  ORDER BY id ASC")->queryAll();
-            return $this->render('warehouses', ['warehouses' => $warehouses]);
+            return $this->render('warehouses', ['warehouses' => $warehouses, 'zeromargin'=>true]);
         }
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         try {
             $warehouse = Yii::$app->request->post();
             $warehouse_id = Yii::$app->request->post('id');
             if ($warehouse_id && isset($warehouse['delete']) && $warehouse['delete'] == 1) {
+                // Check delete permission
+                $this->requirePermission('delete');
                 $result = Yii::$app->db->createCommand()
                     ->update(
                         'inventory_warehouses',
@@ -660,6 +792,15 @@ class InventoryController extends Controller
                     'message' => 'Warehouse code is required.'
                 ];
             }
+
+            if ($warehouse_id) {
+                // Check edit permission for updates
+                $this->requirePermission('edit');
+            } else {
+                // Check add permission for creates
+                $this->requirePermission('add');
+            }
+
             $warehouseData = [
                 'warehouse_name' => $warehouse['warehouse_name'],
                 'warehouse_code' => $warehouse['warehouse_code'],
@@ -732,6 +873,9 @@ class InventoryController extends Controller
     
     public function actionProducts()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/products');
+
         $modules = [
             ['name' => 'Product Dashboard', 'controller' => 'products/productdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Categories', 'controller' => 'products/categories', 'icon' => 'fa fa-tags'],
@@ -743,10 +887,13 @@ class InventoryController extends Controller
         ];
 
         return $this->render('index', compact('modules'));
-    } 
+    }
 
     public function actionInventory()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/inventory');
+
         $modules = [
             ['name' => 'Dashboard', 'controller' => 'stock/inventorydashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Current Stock', 'controller' => 'stock/inventorycurrentstock', 'icon' => 'fa fa-cubes'],
@@ -765,6 +912,9 @@ class InventoryController extends Controller
     
     public function actionSuppliers()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/suppliers');
+
         $modules = [
             ['name' => 'Dashboard', 'controller' => 'supplier/supplierdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Supplier List', 'controller' => 'supplier/supplierlist', 'icon' => 'fa fa-truck'],
@@ -777,9 +927,12 @@ class InventoryController extends Controller
 
         return $this->render('index', compact('modules'));
     }
-    
+
     public function actionPurchases()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/purchases');
+
         $modules = [
             ['name' => 'Dashboard', 'controller' => 'purchase/purchasedashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Purchase Orders', 'controller' => 'purchase/purchaseorders', 'icon' => 'fa fa-shopping-cart'],
@@ -789,12 +942,15 @@ class InventoryController extends Controller
             ['name' => 'Approved Purchases', 'controller' => 'purchase/approvedpurchases', 'icon' => 'fa fa-check-circle'],
             ['name' => 'Purchase Reports', 'controller' => 'purchase/purchasereports', 'icon' => 'fa fa-bar-chart'],
             ['name' => 'Purchase Analytics', 'controller' => 'purchase/purchaseanalytics', 'icon' => 'fa fa-line-chart'],
-        ]; 
+        ];
         return $this->render('index', compact('modules'));
     }
- 
+
     public function actionSales()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/sales');
+
         $modules = [
             ['name' => 'Sales Dashboard', 'controller' => 'sale/salesdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Sale Order', 'controller' => 'sale/salesorders', 'icon' => 'fa fa-shopping-bag'],
@@ -808,9 +964,12 @@ class InventoryController extends Controller
 
         return $this->render('index', compact('modules'));
     }
- 
+
     public function actionCustomers()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/customers');
+
         $modules = [
             ['name' => 'Customer Dashboard', 'controller' => 'customers/customerdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Customer List', 'controller' => 'customers/customerlist', 'icon' => 'fa fa-users'],
@@ -822,6 +981,9 @@ class InventoryController extends Controller
 
     public function actionStockAudit()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/stockaudit');
+
         $modules = [
             ['name' => 'Audit Dashboard', 'controller' => 'stockaudit/auditdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Audit Schedule', 'controller' => 'stockaudit/auditschedule', 'icon' => 'fa fa-calendar'],
@@ -832,12 +994,15 @@ class InventoryController extends Controller
             ['name' => 'Adjustment Approval', 'controller' => 'stockaudit/adjustmentapproval', 'icon' => 'fa fa-check-circle'],
             ['name' => 'Audit History', 'controller' => 'stockaudit/audithistory', 'icon' => 'fa fa-history'],
             ['name' => 'Audit Reports', 'controller' => 'stockaudit/auditreports', 'icon' => 'fa fa-file-text'],
-        ]; 
+        ];
         return $this->render('index', compact('modules'));
     }
 
     public function actionFinance()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/finance');
+
         $modules = [
             ['name' => 'Finance Dashboard', 'controller' => 'finance/financedashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Chart of Accounts', 'controller' => 'finance/chartofaccounts', 'icon' => 'fa fa-sitemap'],
@@ -846,10 +1011,12 @@ class InventoryController extends Controller
         ];
 
         return $this->render('index', compact('modules'));
-    } 
-    
+    }
+
     public function actionReports()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/reports');
         $modules = [
             ['name' => 'Reports Dashboard', 'controller' => 'reports/reportsdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Inventory Reports', 'controller' => 'reports/inventoryreports', 'icon' => 'fa fa-cubes'],
@@ -873,6 +1040,9 @@ class InventoryController extends Controller
 
     public function actionNotifications()
     {
+        // Check module permission
+        $this->requireModulePermission('inventory/notifications');
+
         $modules = [
             ['name' => 'Notification Center', 'controller' => 'notifications/notificationcenter', 'icon' => 'fa fa-bell'],
             ['name' => 'Low Stock Alerts', 'controller' => 'notifications/lowstockalerts', 'icon' => 'fa fa-warning'],
