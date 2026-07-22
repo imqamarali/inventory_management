@@ -5,178 +5,117 @@ use yii\helpers\Url;
 
 <div class="page-content">
 
-    <div class="dashboard-header">
+    <!-- Dashboard Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
         <div>
-            <h3>
-                <i class="fa fa-credit-card"></i>
+            <h3 style="margin: 0; color: #333; font-size: 24px;">
+                <i class="fa fa-credit-card" style="margin-right: 10px;"></i>
                 Payment History
-                <small>Payment Overview & Analytics</small>
+                <small style="display: block; font-size: 12px; color: #999; font-weight: normal; margin-top: 5px;">Payment Overview & Analytics</small>
             </h3>
         </div>
 
         <div style="display: flex; gap: 10px;">
-            <button id="refreshDashboard" onclick="searchPayments()">
-                <i class="fa fa-refresh"></i>
+            <button id="refreshDashboard" onclick="searchPayments()" style="padding: 10px 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.3s;">
+                <i class="fa fa-refresh" style="margin-right: 5px;"></i>
                 Refresh
             </button>
         </div>
     </div>
 
-    <div class="stats-grid">
+    <!-- Stats Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
 
-        <!-- Total Months -->
-        <div class="stat-card blue">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Total Months
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-calendar"></i>
-                </div>
-
+        <!-- Total Months Card -->
+        <div style="padding: 20px; border-radius: 8px; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <span style="font-size: 12px; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Total Months</span>
+                <div style="font-size: 28px; opacity: 0.6;"><i class="fa fa-calendar"></i></div>
             </div>
-
-            <div class="stat-value" id="total_months">
-                <?= $stats['total_months'] ?>
-            </div>
-
-            <div class="stat-subtitle">
-                Invoice Records
-            </div>
-
+            <div style="font-size: 26px; font-weight: bold; margin: 10px 0;" id="total_months"><?= $stats['total_months'] ?></div>
+            <div style="font-size: 11px; opacity: 0.85; font-weight: 500;">Invoice Records</div>
         </div>
 
-
-        <!-- Paid Amount -->
-        <div class="stat-card green">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Paid Amount
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-check-circle"></i>
-                </div>
-
+        <!-- Paid Amount Card -->
+        <div style="padding: 20px; border-radius: 8px; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <span style="font-size: 12px; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Paid Amount</span>
+                <div style="font-size: 28px; opacity: 0.6;"><i class="fa fa-check-circle"></i></div>
             </div>
-
-            <div class="stat-value" id="paid_amount">
-                Rs. <?= number_format($stats['paid_amount'], 2) ?>
-            </div>
-
-            <div class="stat-subtitle">
-                Completed Payments
-            </div>
-
+            <div style="font-size: 26px; font-weight: bold; margin: 10px 0;" id="paid_amount">Rs. <?= number_format($stats['paid_amount'], 2) ?></div>
+            <div style="font-size: 11px; opacity: 0.85; font-weight: 500;">Completed Payments</div>
         </div>
 
-
-
-
-        <!-- Remaining Amount -->
-        <div class="stat-card orange">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Remaining Amount
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-hourglass"></i>
-                </div>
-
+        <!-- Remaining Amount Card -->
+        <div style="padding: 20px; border-radius: 8px; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <span style="font-size: 12px; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Remaining Amount</span>
+                <div style="font-size: 28px; opacity: 0.6;"><i class="fa fa-hourglass"></i></div>
             </div>
-
-            <div class="stat-value" id="remaining_amount">
-                Rs. <?= number_format($stats['remaining_amount'], 2) ?>
-            </div>
-
-            <div class="stat-subtitle">
-                Pending Payment
-            </div>
-
+            <div style="font-size: 26px; font-weight: bold; margin: 10px 0;" id="remaining_amount">Rs. <?= number_format($stats['remaining_amount'], 2) ?></div>
+            <div style="font-size: 11px; opacity: 0.85; font-weight: 500;">Pending Payment</div>
         </div>
 
-
-
-
-        <!-- Next Payment Due -->
-        <div class="stat-card purple">
-
-            <div class="stat-header">
-
-                <span class="stat-title">
-                    Next Due
-                </span>
-
-                <div class="stat-icon">
-                    <i class="fa fa-calendar-check-o"></i>
-                </div>
-
+        <!-- Next Due Date Card -->
+        <div style="padding: 20px; border-radius: 8px; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                <span style="font-size: 12px; font-weight: 600; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Next Due</span>
+                <div style="font-size: 28px; opacity: 0.6;"><i class="fa fa-calendar-check-o"></i></div>
             </div>
-
-            <div class="stat-value" id="next_due_date">
+            <div style="font-size: 26px; font-weight: bold; margin: 10px 0;" id="next_due_date">
                 <?php if ($stats['next_due_date']): ?>
                     <?= date('M d, Y', strtotime($stats['next_due_date'])) ?>
                 <?php else: ?>
                     <small>No Pending</small>
                 <?php endif; ?>
             </div>
-
-            <div class="stat-subtitle">
-                Payment Due Date
-            </div>
-
+            <div style="font-size: 11px; opacity: 0.85; font-weight: 500;">Payment Due Date</div>
         </div>
 
     </div>
 
-    <!-- Payment Records Section -->
-    <div class="section-title">
-        <h4><i class="fa fa-table"></i> Payment Records</h4>
+    <!-- Section Title -->
+    <div style="margin-top: 30px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px;">
+        <h4 style="color: #333; font-weight: 600; margin: 0;">
+            <i class="fa fa-table" style="margin-right: 8px; color: #667eea;"></i>
+            Payment Records
+        </h4>
     </div>
 
+    <!-- Dashboard Box -->
     <div class="row">
-
         <div class="col-md-12">
-
-            <div class="dashboard-box">
+            <div style="background: white; border-radius: 8px; padding: 25px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
 
                 <!-- Search & Filter Section -->
-                <div class="dashboard-filters" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
                     <form id="payment_search" onsubmit="return false;">
 
-                        <input type="text" name="invoice_number" id="invoice_number" class="new-input" style="width:18%;" placeholder="Invoice #">
+                        <input type="text" name="invoice_number" id="invoice_number" placeholder="Invoice #" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 18%;">
 
-                        <select name="status" id="status" class="new-input" style="width:15%;">
+                        <select name="status" id="status" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 15%;">
                             <option value="">All Status</option>
                             <option value="unpaid">Unpaid</option>
                             <option value="partial">Partial</option>
                             <option value="paid">Paid</option>
                         </select>
 
-                        <input type="date" name="from_date" id="from_date" class="new-input" style="width:14%;">
-                        <input type="date" name="to_date" id="to_date" class="new-input" style="width:14%;">
+                        <input type="date" name="from_date" id="from_date" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 14%;">
+                        <input type="date" name="to_date" id="to_date" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 14%;">
 
-                        <input type="text" name="per_page" id="per_page" value="20" class="new-input" style="width:6%;" placeholder="Records?">
+                        <input type="text" name="per_page" id="per_page" value="20" placeholder="Records?" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 10px; width: 6%;">
 
                         <input type="button" class="btn btn-primary"
                             onclick="searchPayments()"
                             value="Search"
-                            style="height:30px;padding:0 10px;margin-top:-3px;margin-left:5px;" />
+                            style="height:32px;padding:0 20px;margin-left:5px;cursor:pointer;" />
 
                     </form>
                 </div>
 
                 <!-- Payment Table -->
                 <div class="table-responsive">
-                    <table class="table table-striped table-bordered table-hover" id="payment_table">
+                    <table class="table table-striped table-bordered table-hover" id="payment_table" style="font-size: 13px; margin-bottom: 0;">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -196,14 +135,12 @@ use yii\helpers\Url;
                         </tbody>
                     </table>
 
-                    <div id="paginationArea" class="text-center"></div>
+                    <div id="paginationArea" class="text-center" style="margin-top: 15px;"></div>
 
                 </div>
 
             </div>
-
         </div>
-
     </div>
 
 </div>
@@ -241,187 +178,6 @@ use yii\helpers\Url;
         </div>
     </div>
 </div>
-
-<style>
-    .dashboard-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        padding: 20px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .dashboard-header h3 {
-        margin: 0;
-        color: #333;
-        font-size: 24px;
-    }
-
-    .dashboard-header h3 small {
-        display: block;
-        font-size: 12px;
-        color: #999;
-        font-weight: normal;
-        margin-top: 5px;
-    }
-
-    .dashboard-header button {
-        padding: 10px 15px;
-        background: #f5f5f5;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 13px;
-        transition: all 0.3s;
-    }
-
-    .dashboard-header button:hover {
-        background: #e8e8e8;
-        border-color: #999;
-    }
-
-    .dashboard-header button i {
-        margin-right: 5px;
-    }
-
-    .dashboard-box {
-        background: white;
-        border-radius: 8px;
-        padding: 25px;
-        margin-bottom: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .dashboard-box h4 {
-        margin: 0 0 20px 0;
-        color: #333;
-        font-size: 16px;
-        border-bottom: 2px solid #f0f0f0;
-        padding-bottom: 15px;
-    }
-
-    .dashboard-box h4 i {
-        margin-right: 8px;
-        color: #667eea;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-        padding: 0 0;
-    }
-
-    .stat-card {
-        padding: 20px;
-        border-radius: 8px;
-        color: white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stat-card.blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-    .stat-card.green { background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); }
-    .stat-card.orange { background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%); }
-    .stat-card.purple { background: linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%); }
-
-    .stat-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 15px;
-    }
-
-    .stat-title {
-        font-size: 12px;
-        font-weight: 600;
-        opacity: 0.9;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .stat-icon {
-        font-size: 28px;
-        opacity: 0.6;
-    }
-
-    .stat-value {
-        font-size: 26px;
-        font-weight: bold;
-        margin: 10px 0;
-    }
-
-    .stat-subtitle {
-        font-size: 11px;
-        opacity: 0.85;
-        font-weight: 500;
-    }
-
-    .new-input {
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 12px;
-        margin-right: 8px;
-        margin-bottom: 10px;
-    }
-
-    .new-input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 5px rgba(102, 126, 234, 0.2);
-    }
-
-    .section-title {
-        margin-top: 30px;
-        margin-bottom: 20px;
-        border-bottom: 2px solid #e0e0e0;
-        padding-bottom: 10px;
-    }
-
-    .section-title h4 {
-        color: #333;
-        font-weight: 600;
-        margin: 0;
-    }
-
-    .section-title i {
-        margin-right: 8px;
-        color: #667eea;
-    }
-
-    .badge-paid { background-color: #4CAF50; color: white; }
-    .badge-unpaid { background-color: #F44336; color: white; }
-    .badge-partial { background-color: #FF9800; color: white; }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    .table {
-        font-size: 13px;
-        margin-bottom: 0;
-    }
-
-    .table tbody tr:hover {
-        background-color: #f9f9f9;
-    }
-
-    .loading {
-        opacity: 0.6;
-        animation: pulse 1.5s infinite;
-    }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
-    }
-</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -474,11 +230,11 @@ use yii\helpers\Url;
         }
 
         invoices.forEach((invoice, index) => {
-            const statusClass = 'badge-' + (invoice.payment_status || 'unpaid');
+            const statusClass = 'label-' + (invoice.payment_status === 'paid' ? 'success' : (invoice.payment_status === 'partial' ? 'warning' : 'danger'));
             const statusText = (invoice.payment_status || 'unpaid').toUpperCase();
 
             let actionBtn = `
-                <button class="btn btn-xs btn-info" onclick="viewInvoiceDetails(${invoice.id})">
+                <button class="btn btn-xs btn-info" onclick="viewInvoiceDetails(${invoice.id})" style="margin-right: 5px;">
                     <i class="fa fa-eye"></i>
                 </button>
             `;
@@ -518,9 +274,9 @@ use yii\helpers\Url;
             const btn = document.createElement('button');
             btn.className = `btn btn-xs ${btnClass}`;
             btn.innerHTML = i;
+            btn.style.marginRight = '5px';
             btn.onclick = () => window[callback](i);
             paginationArea.appendChild(btn);
-            paginationArea.appendChild(document.createTextNode(' '));
         }
     }
 
@@ -585,9 +341,9 @@ use yii\helpers\Url;
     }
 
     function showError(message) {
-        const alert = $(`<div class="alert alert-danger alert-dismissible fade show" role="alert">
+        const alert = $(`<div class="alert alert-danger alert-dismissible fade show" role="alert" style="margin-bottom: 20px;">
             <i class="fa fa-exclamation-circle"></i> ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
         </div>`);
         $(document.body).prepend(alert);
         setTimeout(() => alert.fadeOut(), 5000);
