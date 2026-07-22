@@ -199,6 +199,71 @@ use yii\helpers\Url;
         background-color: #F44336;
         color: white;
     }
+
+    .status-timeline {
+        list-style: none;
+        padding: 20px 0;
+        position: relative;
+    }
+
+    .status-timeline li {
+        margin-bottom: 20px;
+        padding-left: 30px;
+        position: relative;
+    }
+
+    .status-timeline li:before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        background: #ddd;
+        border-radius: 50%;
+    }
+
+    .status-timeline li.active:before {
+        background: #4CAF50;
+    }
+
+    .status-timeline li.pending:before {
+        background: #FFC107;
+    }
+
+    .status-timeline li.rejected:before {
+        background: #F44336;
+    }
+
+    .comment-box {
+        background: #f9f9f9;
+        border-left: 4px solid #4CAF50;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 4px;
+    }
+
+    .comment-box.admin-comment {
+        background: #e8f5e9;
+        border-left-color: #2196F3;
+    }
+
+    .comment-author {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .comment-date {
+        font-size: 12px;
+        color: #999;
+    }
+
+    .verification-panel {
+        background: #f5f5f5;
+        padding: 15px;
+        border-radius: 4px;
+        margin-top: 20px;
+    }
 </style>
 
 <script>
@@ -229,7 +294,7 @@ use yii\helpers\Url;
                         </div>
                     </div>
                     <hr>
-                    <h5><i class="ace-icon fa fa-file-image-o"></i> Payment Proofs</h5>
+                    <h5><i class="ace-icon fa fa-file-image-o"></i> Payment Proofs (${proofs.length})</h5>
                 `;
 
                 if (proofs.length === 0) {
@@ -239,14 +304,22 @@ use yii\helpers\Url;
                     proofs.forEach(proof => {
                         const isImage = /\.(jpg|jpeg|png|gif)$/i.test(proof.document_file);
                         const thumbnail = isImage ? `web/${proof.document_file}` : 'web/images/file-icon.png';
+                        const statusClass = 'badge-' + (proof.verification_status || 'pending');
+                        const statusText = proof.verification_status ?
+                            proof.verification_status.charAt(0).toUpperCase() + proof.verification_status.slice(1) :
+                            'Pending';
+
                         html += `
-                            <div class="proof-item" onclick="viewProofDetails(${proof.id})">
-                                <img src="${thumbnail}" class="proof-thumbnail" alt="Proof">
-                                <div class="proof-name">${proof.document_name}</div>
+                            <div class="proof-item" onclick="viewProofFile('${proof.document_file}')">
+                                <img src="${thumbnail}" class="proof-thumbnail" alt="Proof" onerror="this.src='web/images/file-icon.png'">
+                                <div class="proof-name" title="${proof.document_name}">${proof.document_name}</div>
                                 <div style="padding: 4px; font-size: 10px;">
-                                    <span class="badge badge-${proof.verification_status}">
-                                        ${proof.verification_status.charAt(0).toUpperCase() + proof.verification_status.slice(1)}
+                                    <span class="badge ${statusClass}">
+                                        ${statusText}
                                     </span>
+                                </div>
+                                <div style="padding: 4px; font-size: 9px; color: #666;">
+                                    Uploaded: ${new Date(proof.created_at).toLocaleDateString()}
                                 </div>
                             </div>
                         `;
@@ -260,6 +333,22 @@ use yii\helpers\Url;
                 alert('Error: ' + data.message);
             }
         }, 'json');
+    }
+
+    function viewProofFile(filePath) {
+        if (typeof Swal !== 'undefined') {
+            const isImage = /\.(jpg|jpeg|png|gif)$/i.test(filePath);
+            if (isImage) {
+                Swal.fire({
+                    imageUrl: 'web/' + filePath,
+                    imageWidth: 600,
+                    imageHeight: 'auto',
+                    title: 'Payment Proof'
+                });
+            } else {
+                window.open('web/' + filePath, '_blank');
+            }
+        }
     }
 
     function uploadPaymentProof(invoiceId) {
