@@ -420,7 +420,7 @@ DATA DISPLAYED:
                 if (row.payment_status === 'paid') {
                     actionHtml = '<button class="btn btn-xs btn-info" onclick="printInvoice(' + row.id + ')" title="Print Invoice"><i class="fa fa-print"></i></button>';
                 } else {
-                    actionHtml = '<button class="btn btn-xs btn-warning" onclick="openPayInvoiceModal(' + row.id + ')" title="Pay Invoice"><i class="fa fa-money"></i></button>';
+                    actionHtml = '<button class="btn btn-xs btn-warning" onclick="openPayInvoiceModalFromId(' + row.id + ')" title="Pay Invoice"><i class="fa fa-money"></i></button>';
                 }
                 html += "<td style='text-align: center;'>" + actionHtml + "</td>";
 
@@ -498,6 +498,37 @@ DATA DISPLAYED:
             }
         });
     });
+
+    function openPayInvoiceModalFromId(invoiceId) {
+        $.ajax({
+            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+            type: "POST",
+            dataType: "json",
+            data: {
+                flag: "get_invoice_by_id",
+                invoice_id: invoiceId,
+                "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
+            },
+            success: function(response) {
+                if (response.success && response.invoice) {
+                    openPayInvoiceModal(response.invoice);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Unable to load invoice details.'
+                    });
+                }
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Unable to load invoice details.'
+                });
+            }
+        });
+    }
 
     function openPayInvoiceModal(invoice) {
         // Check if invoice is already paid

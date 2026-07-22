@@ -192,6 +192,8 @@ class PaymentController extends Controller
                 return $this->uploadPaymentProof();
             } elseif ($flag === 'get_current_invoice') {
                 return $this->getCurrentInvoice();
+            } elseif ($flag === 'get_invoice_by_id') {
+                return $this->getInvoiceById();
             }
         }
 
@@ -409,6 +411,40 @@ class PaymentController extends Controller
         return [
             'success' => false,
             'message' => 'No invoice found for current month.'
+        ];
+    }
+
+    private function getInvoiceById()
+    {
+        $invoiceId = Yii::$app->request->post('invoice_id');
+        $db = Yii::$app->db;
+
+        if (!$invoiceId) {
+            return [
+                'success' => false,
+                'message' => 'Invoice ID is required.'
+            ];
+        }
+
+        // Get invoice by ID
+        $invoice = $db->createCommand(
+            "SELECT si.*, sc.contract_name
+             FROM system_invoices si
+             JOIN system_contracts sc ON sc.id = si.contract_id
+             WHERE si.id = :id AND si.is_deleted = 0
+             LIMIT 1"
+        )->bindValue(':id', $invoiceId)->queryOne();
+
+        if ($invoice) {
+            return [
+                'success' => true,
+                'invoice' => $invoice
+            ];
+        }
+
+        return [
+            'success' => false,
+            'message' => 'Invoice not found.'
         ];
     }
 
