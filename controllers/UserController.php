@@ -16,11 +16,11 @@ class UserController extends Controller
         }
 
         $user = Yii::$app->db->createCommand(
-            "SELECT * FROM inventory_users WHERE id = :id LIMIT 1",
+            "SELECT * FROM system_users WHERE id = :id LIMIT 1",
             [':id' => $userArray['id']]
         )->queryOne();
 
-        return $this->renderPartial('profile', [
+        return $this->render('profile', [
             'user' => $user,
             'userArray' => $userArray
         ]);

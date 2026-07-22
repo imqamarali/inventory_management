@@ -24,11 +24,15 @@ use yii\helpers\Html;
                     <div class="widget-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
                         <div class="widget-body">
                             <div class="text-center" style="padding: 20px;">
-                                <div style="width: 120px; height: 120px; background: white; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ace-icon fa fa-user fa-4x" style="color: #667eea;"></i>
+                                <div style="width: 120px; height: 120px; background: white; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                    <?php if (!empty($user['profile_picture'])): ?>
+                                        <img src="<?= Html::encode($user['profile_picture']) ?>" style="width: 100%; height: 100%; object-fit: cover;" alt="Profile">
+                                    <?php else: ?>
+                                        <i class="ace-icon fa fa-user fa-4x" style="color: #667eea;"></i>
+                                    <?php endif; ?>
                                 </div>
                                 <h3 style="margin: 10px 0; font-weight: bold;">
-                                    <?= Html::encode($user['full_name'] ?? 'User') ?>
+                                    <?= Html::encode(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: 'User' ?>
                                 </h3>
                                 <p style="margin: 5px 0; opacity: 0.9;">
                                     <i class="fa fa-envelope"></i> <?= Html::encode($user['email'] ?? 'No email') ?>
@@ -55,12 +59,14 @@ use yii\helpers\Html;
                         <div class="widget-body">
                             <div style="padding: 15px;">
                                 <div class="status-item" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                                    <span><i class="fa fa-check-circle" style="color: #4CAF50; margin-right: 8px;"></i>Active</span>
+                                    <span><i class="fa fa-check-circle" style="color: #4CAF50; margin-right: 8px;"></i>Account Active</span>
                                     <span class="label label-success"><?= ($user['is_active'] ?? 0) ? 'Yes' : 'No' ?></span>
                                 </div>
                                 <div class="status-item" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                                    <span><i class="fa fa-user-check" style="color: #2196F3; margin-right: 8px;"></i>Verified</span>
-                                    <span class="label label-primary"><?= ($user['is_verified'] ?? 0) ? 'Yes' : 'No' ?></span>
+                                    <span><i class="fa fa-toggle-on" style="color: #2196F3; margin-right: 8px;"></i>Status</span>
+                                    <span class="label" style="background-color: <?= ($user['status'] ?? 0) ? '#4CAF50' : '#FF9800' ?>; color: white;">
+                                        <?= ($user['status'] ?? 0) ? 'Enabled' : 'Disabled' ?>
+                                    </span>
                                 </div>
                                 <div class="status-item" style="display: flex; justify-content: space-between; align-items: center;">
                                     <span><i class="fa fa-calendar" style="color: #FF9800; margin-right: 8px;"></i>Joined</span>
@@ -86,23 +92,32 @@ use yii\helpers\Html;
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="info-item" style="margin-bottom: 15px;">
-                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Full Name</label>
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">First Name</label>
                                             <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
-                                                <?= Html::encode($user['full_name'] ?? '-') ?>
+                                                <?= Html::encode($user['first_name'] ?? '-') ?>
                                             </div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="info-item" style="margin-bottom: 15px;">
-                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Username</label>
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Last Name</label>
                                             <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
-                                                <?= Html::encode($user['username'] ?? '-') ?>
+                                                <?= Html::encode($user['last_name'] ?? '-') ?>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Username</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-user-circle" style="margin-right: 8px; color: #2196F3;"></i>
+                                                <?= Html::encode($user['username'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="col-md-6">
                                         <div class="info-item" style="margin-bottom: 15px;">
                                             <label style="color: #666; font-weight: bold; font-size: 12px;">Email Address</label>
@@ -112,12 +127,159 @@ use yii\helpers\Html;
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div class="row">
                                     <div class="col-md-6">
                                         <div class="info-item" style="margin-bottom: 15px;">
                                             <label style="color: #666; font-weight: bold; font-size: 12px;">Phone Number</label>
                                             <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
                                                 <i class="fa fa-phone" style="margin-right: 8px; color: #4CAF50;"></i>
                                                 <?= Html::encode($user['phone'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">WhatsApp</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-whatsapp" style="margin-right: 8px; color: #25D366;"></i>
+                                                <?= Html::encode($user['whatsapp'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Date of Birth</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-birthday-cake" style="margin-right: 8px; color: #FF6B6B;"></i>
+                                                <?= $user['date_of_birth'] ? date('M d, Y', strtotime($user['date_of_birth'])) : '-' ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Gender</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <?php
+                                                $genderIcon = match($user['gender'] ?? '') {
+                                                    'Male' => '<i class="fa fa-mars" style="margin-right: 8px; color: #1E90FF;"></i>',
+                                                    'Female' => '<i class="fa fa-venus" style="margin-right: 8px; color: #FF1493;"></i>',
+                                                    default => '<i class="fa fa-question-circle" style="margin-right: 8px; color: #999;"></i>'
+                                                };
+                                                echo $genderIcon . Html::encode($user['gender'] ?? '-');
+                                                ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address & Location -->
+                    <div class="widget-box" style="margin-top: 15px;">
+                        <div class="widget-header">
+                            <h4 class="widget-title">
+                                <i class="fa fa-map-marker"></i> Address & Location
+                            </h4>
+                        </div>
+                        <div class="widget-body">
+                            <div style="padding: 20px;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Address</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-home" style="margin-right: 8px; color: #2196F3;"></i>
+                                                <?= Html::encode($user['address'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">City</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-building" style="margin-right: 8px; color: #FF9800;"></i>
+                                                <?= Html::encode($user['city'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Country</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-globe" style="margin-right: 8px; color: #4CAF50;"></i>
+                                                <?= Html::encode($user['country'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Reference</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-link" style="margin-right: 8px; color: #9C27B0;"></i>
+                                                <?= Html::encode($user['referance'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Social Media -->
+                    <div class="widget-box" style="margin-top: 15px;">
+                        <div class="widget-header">
+                            <h4 class="widget-title">
+                                <i class="fa fa-share-alt"></i> Social Media
+                            </h4>
+                        </div>
+                        <div class="widget-body">
+                            <div style="padding: 20px;">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Facebook</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-facebook" style="margin-right: 8px; color: #1877F2;"></i>
+                                                <?= Html::encode($user['facebook'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Instagram</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-instagram" style="margin-right: 8px; color: #E4405F;"></i>
+                                                <?= Html::encode($user['instagram'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Pinterest</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-pinterest" style="margin-right: 8px; color: #E60B3F;"></i>
+                                                <?= Html::encode($user['pinterest'] ?? '-') ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">About</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px; max-height: 80px; overflow-y: auto;">
+                                                <i class="fa fa-info-circle" style="margin-right: 8px; color: #2196F3;"></i>
+                                                <?= Html::encode($user['about'] ?? '-') ?>
                                             </div>
                                         </div>
                                     </div>
@@ -141,16 +303,18 @@ use yii\helpers\Html;
                                             <label style="color: #666; font-weight: bold; font-size: 12px;">Last Login</label>
                                             <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
                                                 <i class="fa fa-clock-o" style="margin-right: 8px; color: #FF9800;"></i>
-                                                <?= $user['last_login'] ? date('M d, Y h:i A', strtotime($user['last_login'])) : 'Never' ?>
+                                                <?= $user['last_login'] ? date('M d, Y h:i A', strtotime($user['last_login'])) : 'Never Logged In' ?>
                                             </div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="info-item" style="margin-bottom: 15px;">
-                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Last IP Address</label>
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Failed Login Attempts</label>
                                             <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
-                                                <i class="fa fa-globe" style="margin-right: 8px; color: #9C27B0;"></i>
-                                                <?= Html::encode($user['last_ip'] ?? '-') ?>
+                                                <i class="fa fa-exclamation-triangle" style="margin-right: 8px; color: <?= ($user['failed_login_attempts'] ?? 0) > 0 ? '#f44336' : '#4CAF50' ?>;"></i>
+                                                <span style="color: <?= ($user['failed_login_attempts'] ?? 0) > 0 ? '#f44336' : '#4CAF50' ?>;">
+                                                    <?= ($user['failed_login_attempts'] ?? 0) ?> attempt<?= ($user['failed_login_attempts'] ?? 0) != 1 ? 's' : '' ?>
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -167,6 +331,18 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                     <div class="col-md-6">
+                                        <div class="info-item" style="margin-bottom: 15px;">
+                                            <label style="color: #666; font-weight: bold; font-size: 12px;">Last Updated</label>
+                                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                                                <i class="fa fa-refresh" style="margin-right: 8px; color: #9C27B0;"></i>
+                                                <?= $user['updated_at'] ? date('M d, Y h:i A', strtotime($user['updated_at'])) : 'N/A' ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12">
                                         <div class="info-item" style="margin-bottom: 15px;">
                                             <label style="color: #666; font-weight: bold; font-size: 12px;">Account Status</label>
                                             <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 5px;">
