@@ -602,12 +602,16 @@ class PurchaseController extends Controller
                         SELECT
                             po.*,
                             s.company_name,
-                            w.warehouse_name
+                            w.warehouse_name,
+                            gr.grn_number,
+                            gr.invoice_no
                         FROM inventory_purchase_orders po
                         LEFT JOIN inventory_suppliers s
                             ON s.id=po.supplier_id
                         LEFT JOIN inventory_warehouses w
                             ON w.id=po.warehouse_id
+                        LEFT JOIN inventory_goods_receiving gr
+                            ON gr.purchase_order_id=po.id
                         {$where}
                         ORDER BY po.id DESC
                         LIMIT {$offset},{$perPage}
@@ -896,12 +900,16 @@ class PurchaseController extends Controller
             SELECT
                 po.*,
                 s.company_name,
-                w.warehouse_name
+                w.warehouse_name,
+                gr.grn_number,
+                gr.invoice_no
             FROM inventory_purchase_orders po
             LEFT JOIN inventory_suppliers s
                 ON s.id=po.supplier_id
             LEFT JOIN inventory_warehouses w
                 ON w.id=po.warehouse_id
+            LEFT JOIN inventory_goods_receiving gr
+                ON gr.purchase_order_id=po.id
             WHERE po.is_deleted=0
             ORDER BY po.id DESC
             LIMIT 20
