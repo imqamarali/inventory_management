@@ -14,8 +14,8 @@
         <div style="padding-top:10px;padding-left:13px;">
             <form id="analytics_search" onsubmit="return false;">
 
-                <input type="date" name="from_date" id="from_date" class="new-input" style="width:18%;">
-                <input type="date" name="to_date" id="to_date" class="new-input" style="width:18%;">
+                <input type="date" name="from_date" value="<?= date('Y-m-d') ?>" id="from_date" class="new-input" style="width:14%;">
+                <input type="date" name="to_date" value="<?= date('Y-m-d') ?>" id="to_date" class="new-input" style="width:14%;">
 
                 <input type="button" class="btn btn-primary"
                     onclick="searchform()"

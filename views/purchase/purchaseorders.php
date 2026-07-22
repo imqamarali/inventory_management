@@ -120,8 +120,8 @@ if (!isset($warehouses)) $warehouses = [];
                             <th>Discount</th>
                             <th>Tax</th>
                             <th>Grand Total</th>
-                            <th>Paid</th>
-                            <th>Remaining</th>
+                            <th>GRN Number</th>
+                            <th>Invoice No</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -132,8 +132,6 @@ if (!isset($warehouses)) $warehouses = [];
                             $discount = (float)($item['discount'] ?? 0);
                             $tax = (float)($item['tax'] ?? 0);
                             $grandTotal = (float)($item['grand_total'] ?? 0);
-                            $paidAmount = (float)($item['paid_amount'] ?? 0);
-                            $remainingAmount = $grandTotal - $paidAmount;
                         ?>
                             <tr>
                                 <td><?= $key + 1 ?></td>
@@ -144,8 +142,8 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td><?= number_format($discount, 2) ?></td>
                                 <td><?= number_format($tax, 2) ?></td>
                                 <td><strong><?= number_format($grandTotal, 2) ?></strong></td>
-                                <td><?= number_format($paidAmount, 2) ?></td>
-                                <td><?= number_format($remainingAmount, 2) ?></td>
+                                <td><?= Html::encode($item['grn_number'] ?? '-') ?></td>
+                                <td><?= Html::encode($item['invoice_no'] ?? '-') ?></td>
                                 <td><?= statusBadgeServer($item['status']) ?></td>
                                 <td>
                                     <button onclick="loadOrder(<?= $item['id'] ?>)">
@@ -284,8 +282,6 @@ function statusBadgeServer($status)
                 const discount = parseFloat(item.discount || 0);
                 const tax = parseFloat(item.tax || 0);
                 const grandTotal = parseFloat(item.grand_total || 0);
-                const paidAmount = parseFloat(item.paid_amount || 0);
-                const remainingAmount = grandTotal - paidAmount;
 
                 html += `
             <tr>
@@ -297,8 +293,8 @@ function statusBadgeServer($status)
                 <td>${discount.toFixed(2)}</td>
                 <td>${tax.toFixed(2)}</td>
                 <td><strong>${grandTotal.toFixed(2)}</strong></td>
-                <td>${paidAmount.toFixed(2)}</td>
-                <td>${remainingAmount.toFixed(2)}</td>
+                <td>${item.grn_number??'-'}</td>
+                <td>${item.invoice_no??'-'}</td>
                 <td>${statusBadge(item.status)}</td>
                 <td>
                     <button onclick="loadOrder(${item.id})" title="Edit">
@@ -870,7 +866,7 @@ function statusBadgeServer($status)
             <td><input type="number" class="form-control item-tax" value="${item.tax_amount||0}"></td>
             <td><input type="number" class="form-control item-total" readonly value="${item.line_total||0}"></td>
             <td><input type="text" class="form-control item-remarks" value="${item.remarks||''}"></td>
-            <td><button type="button" class="btn btn-danger btn-xs remove-item"><i class="fa fa-trash"></i></button></td>
+            <td><button type="button" class="remove-item"><i class="fa fa-trash"></i></button></td>
             </tr>`);
 
         let tr = $('#purchaseItemTable tbody tr:last');
