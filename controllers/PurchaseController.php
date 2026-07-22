@@ -1330,6 +1330,23 @@ class PurchaseController extends Controller
                     LIMIT {$offset},{$perPage}
                 ", $params)->queryAll();
 
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed purchase invoices list',
+                        'view',
+                        null,
+                        'Purchase',
+                        [
+                            'type' => 'purchase_invoices_view',
+                            'filters' => [
+                                'supplier' => $supplier_id,
+                                'status' => $status
+                            ],
+                            'page' => $page,
+                            'total_records' => $total
+                        ]
+                    );
+
                     return [
                         'success' => true,
                         'purchaseInvoices' => $purchaseInvoices,
@@ -1640,6 +1657,15 @@ class PurchaseController extends Controller
                         LIMIT {$offset},{$perPage}
                     ",$params)->queryAll();
 
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed pending purchase orders',
+                        'view',
+                        null,
+                        'Purchase',
+                        ['type' => 'pending_purchase_orders_view', 'page' => $page, 'total_records' => $total]
+                    );
+
                     return[
                         'success'=>true,
                         'pendingPurchases'=>$pendingPurchases,
@@ -1652,14 +1678,24 @@ class PurchaseController extends Controller
 
                 if(isset($post['flag']) && $post['flag']=='approve'){
 
+                    $poId = (int)$post['id'];
                     Yii::$app->db->createCommand()->update(
                         'inventory_purchase_orders',
                         [
                             'status'=>'Approved',
                             'updated_at'=>date('Y-m-d H:i:s')
                         ],
-                        ['id'=>$post['id']]
+                        ['id'=>$poId]
                     )->execute();
+
+                    // Log approval
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Approved purchase order: PO#' . $poId,
+                        'update',
+                        $poId,
+                        'Purchase',
+                        ['type' => 'purchase_order_approve']
+                    );
 
                     return[
                         'success'=>true,
@@ -1670,14 +1706,24 @@ class PurchaseController extends Controller
 
                 if(isset($post['flag']) && $post['flag']=='cancel'){
 
+                    $poId = (int)$post['id'];
                     Yii::$app->db->createCommand()->update(
                         'inventory_purchase_orders',
                         [
                             'status'=>'Cancelled',
                             'updated_at'=>date('Y-m-d H:i:s')
                         ],
-                        ['id'=>$post['id']]
+                        ['id'=>$poId]
                     )->execute();
+
+                    // Log cancellation
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Cancelled purchase order: PO#' . $poId,
+                        'update',
+                        $poId,
+                        'Purchase',
+                        ['type' => 'purchase_order_cancel']
+                    );
 
                     return[
                         'success'=>true,

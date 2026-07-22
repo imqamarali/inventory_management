@@ -2364,6 +2364,23 @@ class SaleController extends Controller
                     }
                     unset($row);
 
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed POS sales list',
+                        'view',
+                        null,
+                        'Sales',
+                        [
+                            'type' => 'pos_sales_view',
+                            'filters' => [
+                                'warehouse' => $post['warehouse_id'] ?? null,
+                                'customer' => $post['customer_id'] ?? null
+                            ],
+                            'page' => $page,
+                            'total_records' => $total
+                        ]
+                    );
+
                     return $this->jsonResponse(true, 'Data loaded successfully!', [
                         'data' => $rows,
                         'total' => (int)$total,
@@ -2634,6 +2651,23 @@ class SaleController extends Controller
                         ORDER BY si.id DESC
                         LIMIT {$offset},{$perPage}
                     ", $params)->queryAll();
+
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed sales invoices list',
+                        'view',
+                        null,
+                        'Sales',
+                        [
+                            'type' => 'sales_invoices_view',
+                            'filters' => [
+                                'customer' => $customer_id,
+                                'status' => $status
+                            ],
+                            'page' => $page,
+                            'total_records' => $total
+                        ]
+                    );
 
                     return [
                         'success' => true,
@@ -3042,6 +3076,15 @@ class SaleController extends Controller
                         LIMIT {$offset},{$perPage}
                     ", $params)->queryAll();
 
+                    // Log view action
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Viewed pending sales orders',
+                        'view',
+                        null,
+                        'Sales',
+                        ['type' => 'pending_orders_view', 'page' => $page, 'total_records' => $total]
+                    );
+
                     return [
                         'success' => true,
                         'pendingOrders' => $pendingOrders,
@@ -3054,14 +3097,24 @@ class SaleController extends Controller
 
                 if (isset($post['flag']) && $post['flag'] == 'confirm') {
 
+                    $orderId = (int)$post['id'];
                     Yii::$app->db->createCommand()->update(
                         'inventory_sales_orders',
                         [
                             'order_status' => 'Confirmed',
                             'updated_at' => date('Y-m-d H:i:s')
                         ],
-                        ['id' => $post['id']]
+                        ['id' => $orderId]
                     )->execute();
+
+                    // Log confirmation
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Confirmed sales order: SO#' . $orderId,
+                        'update',
+                        $orderId,
+                        'Sales',
+                        ['type' => 'sales_order_confirm']
+                    );
 
                     return [
                         'success' => true,
@@ -3071,14 +3124,24 @@ class SaleController extends Controller
 
                 if (isset($post['flag']) && $post['flag'] == 'cancel') {
 
+                    $orderId = (int)$post['id'];
                     Yii::$app->db->createCommand()->update(
                         'inventory_sales_orders',
                         [
                             'order_status' => 'Cancelled',
                             'updated_at' => date('Y-m-d H:i:s')
                         ],
-                        ['id' => $post['id']]
+                        ['id' => $orderId]
                     )->execute();
+
+                    // Log cancellation
+                    \app\controllers\ActivitylogsController::logActivity(
+                        'Cancelled sales order: SO#' . $orderId,
+                        'update',
+                        $orderId,
+                        'Sales',
+                        ['type' => 'sales_order_cancel']
+                    );
 
                     return [
                         'success' => true,
