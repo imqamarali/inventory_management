@@ -23,9 +23,8 @@ $accentColor = '#3498db';
         </div>
         <div class="page-content">
             <div class="row">
-                <div class="col-xs-12">
-                    <div class="widget-box" style="border-top: 2px solid; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                        
+                <div class="col-xs-12" style="padding: 0px;">
+                    
                         <div class="widget-body">
                             <div class="widget-main padding-0">
                                 <div class="row" style="margin: 0;">
@@ -62,7 +61,6 @@ $accentColor = '#3498db';
                                 </div>
                             </div>
                         </div>
-                    </div>
                 </div>
             </div>
         </div>

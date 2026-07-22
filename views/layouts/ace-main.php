@@ -278,6 +278,39 @@ $this->beginPage();
 <body>
     <?php $this->beginBody() ?>
 
+    <?php
+    // Display flash messages as SweetAlert2 alerts
+    $session = Yii::$app->session;
+    $flashes = $session->getAllFlashes(true);
+
+    if (!empty($flashes)) {
+        foreach ($flashes as $type => $message) {
+            $alertType = match($type) {
+                'success' => 'success',
+                'error' => 'error',
+                'warning' => 'warning',
+                'info' => 'info',
+                default => 'info'
+            };
+
+            echo '<script>
+                document.addEventListener("DOMContentLoaded", function() {
+                    if (typeof Swal !== "undefined") {
+                        Swal.fire({
+                            icon: "' . $alertType . '",
+                            title: "' . ($alertType === 'error' ? 'Error' : ($alertType === 'success' ? 'Success' : ($alertType === 'warning' ? 'Warning' : 'Information'))) . '",
+                            text: "' . htmlspecialchars(strip_tags($message), ENT_QUOTES, 'UTF-8') . '",
+                            confirmButtonText: "OK"
+                        });
+                    } else {
+                        alert("' . htmlspecialchars(strip_tags($message), ENT_QUOTES, 'UTF-8') . '");
+                    }
+                });
+            </script>';
+        }
+    }
+    ?>
+
     <?= $content ?>
 
     <!-- Bootstrap JS -->

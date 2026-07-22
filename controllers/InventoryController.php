@@ -56,11 +56,7 @@ class InventoryController extends Controller
         return parent::beforeAction($action);
     }
 
-    /**
-     * Check if user has permission for a specific action
-     * @param string $actionType - 'view', 'add', 'edit', 'delete'
-     * @return bool - true if user has permission
-     */
+    
     private function checkPermission($actionType = 'view')
     {
         $user_array = Yii::$app->session->get('user_array');
@@ -70,7 +66,6 @@ class InventoryController extends Controller
             return false;
         }
 
-        // Get Inventory module ID
         $moduleId = Yii::$app->db->createCommand(
             "SELECT id FROM modules WHERE LOWER(name) = 'inventory' LIMIT 1"
         )->queryScalar();
@@ -109,11 +104,6 @@ class InventoryController extends Controller
         return (bool)$permissions[$permissionField];
     }
 
-    /**
-     * Check permission and deny access if not authorized
-     * @param string $actionType - 'view', 'add', 'edit', 'delete'
-     * @return bool - true if permission granted
-     */
     private function requirePermission($actionType = 'view')
     {
         if (!$this->checkPermission($actionType)) {
@@ -125,11 +115,6 @@ class InventoryController extends Controller
         return true;
     }
 
-    /**
-     * Check module permission based on controller/action link
-     * @param string $moduleLink - e.g., 'inventory/products', 'inventory/warehouses'
-     * @return bool - true if user has view permission for the module
-     */
     private function checkModulePermission($moduleLink = 'inventory/dashboard')
     {
         $user_array = Yii::$app->session->get('user_array');
@@ -147,8 +132,7 @@ class InventoryController extends Controller
         if (!$moduleId) {
             return false;
         }
-
-        // Get user's permissions for this module
+        
         $permissions = Yii::$app->db->createCommand(
             "SELECT can_view FROM permissions
              WHERE module_id = :module_id
@@ -164,9 +148,12 @@ class InventoryController extends Controller
 
     private function requireModulePermission($moduleLink = 'inventory/dashboard')
     {
-        if (!$this->checkModulePermission($moduleLink)) {
+        $status = $this->checkModulePermission($moduleLink);
+        if (!$status) {
+            Yii::$app->session->setFlash('warning', 'You do not have permission to access this module.');
             Yii::$app->response->statusCode = 403;
-            return $this->render('@app/views/site/error-403');
+            $this->redirect(['inventory/dashboard']);
+            Yii::$app->end();
         }
     }
 
