@@ -399,6 +399,24 @@ class ProductsController extends Controller
     {
         if (Yii::$app->request->isGet) {
             $categories = Yii::$app->db->createCommand("SELECT * FROM inventory_categories WHERE is_deleted = 0 ORDER BY id ASC")->queryAll();
+
+            foreach ($categories as &$category) {
+                $category['total_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE category_id = :category_id AND is_deleted = 0",
+                    [':category_id' => $category['id']]
+                )->queryScalar();
+
+                $category['active_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE category_id = :category_id AND is_active = 1 AND is_deleted = 0",
+                    [':category_id' => $category['id']]
+                )->queryScalar();
+
+                $category['inactive_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE category_id = :category_id AND is_active = 0 AND is_deleted = 0",
+                    [':category_id' => $category['id']]
+                )->queryScalar();
+            }
+
             return $this->renderPartial('categories', ['categories' => $categories]);
         }
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
@@ -406,6 +424,18 @@ class ProductsController extends Controller
             $category = Yii::$app->request->post();
             $category_id = Yii::$app->request->post('id');
             if ($category_id && isset($category['delete']) && $category['delete'] == 1) {
+                $activeProductCount = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE category_id = :category_id AND is_active = 1 AND is_deleted = 0",
+                    [':category_id' => $category_id]
+                )->queryScalar();
+
+                if ($activeProductCount > 0) {
+                    return [
+                        'success' => false,
+                        'message' => 'Cannot delete category with active products. Please deactivate or delete all active products first.'
+                    ];
+                }
+
                 $result = Yii::$app->db->createCommand()
                     ->update(
                         'inventory_categories',
@@ -609,6 +639,24 @@ class ProductsController extends Controller
     {
         if (Yii::$app->request->isGet) {
             $vehiclemakes = Yii::$app->db->createCommand("SELECT * FROM inventory_vehicle_makes WHERE is_deleted = 0 ORDER BY id ASC")->queryAll();
+
+            foreach ($vehiclemakes as &$vehiclemake) {
+                $vehiclemake['total_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_deleted = 0",
+                    [':make_id' => $vehiclemake['id']]
+                )->queryScalar();
+
+                $vehiclemake['active_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_active = 1 AND is_deleted = 0",
+                    [':make_id' => $vehiclemake['id']]
+                )->queryScalar();
+
+                $vehiclemake['inactive_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_active = 0 AND is_deleted = 0",
+                    [':make_id' => $vehiclemake['id']]
+                )->queryScalar();
+            }
+
             return $this->renderPartial('vehiclemakes', ['vehiclemakes' => $vehiclemakes]);
         }
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
@@ -616,6 +664,18 @@ class ProductsController extends Controller
             $vehiclemake = Yii::$app->request->post();
             $vehiclemake_id = Yii::$app->request->post('id');
             if ($vehiclemake_id && isset($vehiclemake['delete']) && $vehiclemake['delete'] == 1) {
+                $activeProductCount = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_make_id = :make_id AND is_active = 1 AND is_deleted = 0",
+                    [':make_id' => $vehiclemake_id]
+                )->queryScalar();
+
+                if ($activeProductCount > 0) {
+                    return [
+                        'success' => false,
+                        'message' => 'Cannot delete vehicle make with active products. Please deactivate or delete all active products first.'
+                    ];
+                }
+
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_vehicle_makes', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => Yii::$app->user->id ?? null], 'id = :id', [':id' => $vehiclemake_id])
                     ->execute();
@@ -653,12 +713,30 @@ class ProductsController extends Controller
     {
         if (Yii::$app->request->isGet) {
             $vehiclemodels = Yii::$app->db->createCommand("
-                SELECT vm.*, v.make_name 
-                FROM inventory_vehicle_models vm 
-                LEFT JOIN inventory_vehicle_makes v ON v.id = vm.make_id 
-                WHERE vm.is_deleted = 0 
+                SELECT vm.*, v.make_name
+                FROM inventory_vehicle_models vm
+                LEFT JOIN inventory_vehicle_makes v ON v.id = vm.make_id
+                WHERE vm.is_deleted = 0
                 ORDER BY vm.id ASC
             ")->queryAll();
+
+            foreach ($vehiclemodels as &$vehiclemodel) {
+                $vehiclemodel['total_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_deleted = 0",
+                    [':model_id' => $vehiclemodel['id']]
+                )->queryScalar();
+
+                $vehiclemodel['active_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_active = 1 AND is_deleted = 0",
+                    [':model_id' => $vehiclemodel['id']]
+                )->queryScalar();
+
+                $vehiclemodel['inactive_products'] = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_active = 0 AND is_deleted = 0",
+                    [':model_id' => $vehiclemodel['id']]
+                )->queryScalar();
+            }
+
             $vehiclemakes = Yii::$app->db->createCommand("SELECT * FROM inventory_vehicle_makes WHERE is_deleted = 0 ORDER BY make_name ASC")->queryAll();
             return $this->renderPartial('vehiclemodels', ['vehiclemodels' => $vehiclemodels, 'vehiclemakes' => $vehiclemakes]);
         }
@@ -667,6 +745,18 @@ class ProductsController extends Controller
             $vehiclemodel = Yii::$app->request->post();
             $vehiclemodel_id = Yii::$app->request->post('id');
             if ($vehiclemodel_id && isset($vehiclemodel['delete']) && $vehiclemodel['delete'] == 1) {
+                $activeProductCount = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_products WHERE vehicle_model_id = :model_id AND is_active = 1 AND is_deleted = 0",
+                    [':model_id' => $vehiclemodel_id]
+                )->queryScalar();
+
+                if ($activeProductCount > 0) {
+                    return [
+                        'success' => false,
+                        'message' => 'Cannot delete vehicle model with active products. Please deactivate or delete all active products first.'
+                    ];
+                }
+
                 $result = Yii::$app->db->createCommand()
                     ->update('inventory_vehicle_models', ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s'), 'updated_by' => Yii::$app->user->id ?? null], 'id = :id', [':id' => $vehiclemodel_id])
                     ->execute();

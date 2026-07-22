@@ -458,22 +458,22 @@ function invoiceStatusBadgeServer($status)
 
                 <div class="row">
                 <div class="col-md-3">
-                <label>Subtotal (Read-Only)</label>
+                <label>Subtotal</label>
                 <input type="number" step="0.01" id="si_subtotal" class="form-control" readonly value="${subtotal.toFixed(2)}" style="background:#f5f5f5;">
                 </div>
 
                 <div class="col-md-3">
-                <label>Discount (Read-Only)</label>
+                <label>Discount</label>
                 <input type="number" step="0.01" id="si_discount" class="form-control" readonly value="${discount.toFixed(2)}" style="background:#f5f5f5;">
                 </div>
 
                 <div class="col-md-3">
-                <label>Tax (Read-Only)</label>
+                <label>Tax</label>
                 <input type="number" step="0.01" id="si_tax" class="form-control" readonly value="${tax.toFixed(2)}" style="background:#f5f5f5;">
                 </div>
 
                 <div class="col-md-3">
-                <label><strong>Grand Total (Read-Only)</strong></label>
+                <label><strong>Grand Total</strong></label>
                 <input type="number" step="0.01" readonly id="si_grand_total" class="form-control" value="${grandTotal.toFixed(2)}" style="background:#fff3cd; font-weight:bold;">
                 </div>
                 </div>
@@ -485,17 +485,17 @@ function invoiceStatusBadgeServer($status)
                 </div>
 
                 <div class="col-md-3">
-                <label><strong>Remaining Balance (Auto-Calculated)</strong></label>
+                <label><strong>Remaining Balance</strong></label>
                 <input type="number" step="0.01" readonly id="si_remaining_balance" class="form-control" value="${remainingBalance.toFixed(2)}" style="background:#f5f5f5; font-weight:bold; color:#d9534f;">
                 </div>
 
                 <div class="col-md-3">
-                <label>Order Status (Read-Only)</label>
+                <label>Order Status</label>
                 <input type="text" readonly id="si_order_status" class="form-control" value="${orderStatus}" style="background:#f5f5f5;">
                 </div>
 
                 <div class="col-md-3">
-                <label>Payment Status (Read-Only)</label>
+                <label>Payment Status</label>
                 <input type="text" readonly id="si_payment_status" class="form-control" value="${paymentStatus}" style="background:#f5f5f5;">
                 </div>
                 </div>

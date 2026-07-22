@@ -110,6 +110,31 @@ if (!isset($categories)) {
 
                                                 </div>
 
+                                                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #E3E9ED; display: flex; justify-content: space-around;">
+
+                                                    <div class="stat-mini">
+                                                        <div style="font-size: 18px; font-weight: bold; color: #2196F3;">
+                                                            <?php echo $item['total_products']; ?>
+                                                        </div>
+                                                        <div style="font-size: 12px; color: #666;">Total Products</div>
+                                                    </div>
+
+                                                    <div class="stat-mini">
+                                                        <div style="font-size: 18px; font-weight: bold; color: #4CAF50;">
+                                                            <?php echo $item['active_products']; ?>
+                                                        </div>
+                                                        <div style="font-size: 12px; color: #666;">Active</div>
+                                                    </div>
+
+                                                    <div class="stat-mini">
+                                                        <div style="font-size: 18px; font-weight: bold; color: #FF9800;">
+                                                            <?php echo $item['inactive_products']; ?>
+                                                        </div>
+                                                        <div style="font-size: 12px; color: #666;">Inactive</div>
+                                                    </div>
+
+                                                </div>
+
                                             </div>
                                         </div>
                                     <?php endforeach; ?>

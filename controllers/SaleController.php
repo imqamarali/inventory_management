@@ -2581,7 +2581,6 @@ class SaleController extends Controller
                     ];
                 }
 
-                // Get invoice data for sales order modal
                 if (isset($post['flag']) && $post['flag'] == 'get_invoice') {
                     $salesOrderId = (int)($post['sales_order_id'] ?? 0);
 
@@ -2689,7 +2688,7 @@ class SaleController extends Controller
 
                                 // Auto-set order status to Completed if fully paid
                                 if ($calculatedRemaining <= 0) {
-                                    $updateSalesOrderData['order_status'] = 'Completed';
+                                    $updateSalesOrderData['order_status'] = 'Confirmed';
                                 }
 
                                 $db->createCommand()->update(
