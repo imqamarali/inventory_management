@@ -1,11 +1,6 @@
 <?php
-
 use yii\helpers\Html;
 use yii\helpers\Url;
-
-if (!isset($stats)) $stats = ['total_months' => 0, 'paid_amount' => 0, 'remaining_amount' => 0, 'next_due_date' => null];
-if (!isset($isSuperAdmin)) $isSuperAdmin = false;
-
 ?>
 
 <div class="page-content">
@@ -15,128 +10,195 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
             <h3>
                 <i class="fa fa-credit-card"></i>
                 Payment History
-                <small>Payment Overview & Management</small>
+                <small>Payment Overview & Analytics</small>
             </h3>
         </div>
 
         <div style="display: flex; gap: 10px;">
-            <button id="refreshPayments" onclick="searchPayments()">
+            <button id="refreshDashboard" onclick="searchPayments()">
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
         </div>
     </div>
 
-    <!-- Stats Section -->
     <div class="stats-grid">
 
-            <div class="stat-card blue">
-                <div class="stat-header">
-                    <span class="stat-title">Total Months</span>
-                    <div class="stat-icon">
-                        <i class="fa fa-calendar"></i>
-                    </div>
+        <!-- Total Months -->
+        <div class="stat-card blue">
+
+            <div class="stat-header">
+
+                <span class="stat-title">
+                    Total Months
+                </span>
+
+                <div class="stat-icon">
+                    <i class="fa fa-calendar"></i>
                 </div>
-                <div class="stat-value"><?= $stats['total_months'] ?></div>
-                <div class="stat-subtitle">Invoice Records</div>
+
             </div>
 
-            <div class="stat-card green">
-                <div class="stat-header">
-                    <span class="stat-title">Paid Amount</span>
-                    <div class="stat-icon">
-                        <i class="fa fa-check-circle"></i>
-                    </div>
-                </div>
-                <div class="stat-value">Rs. <?= number_format($stats['paid_amount'], 2) ?></div>
-                <div class="stat-subtitle">Completed Payments</div>
+            <div class="stat-value" id="total_months">
+                <?= $stats['total_months'] ?>
             </div>
 
-            <div class="stat-card orange">
-                <div class="stat-header">
-                    <span class="stat-title">Remaining Amount</span>
-                    <div class="stat-icon">
-                        <i class="fa fa-hourglass"></i>
-                    </div>
-                </div>
-                <div class="stat-value">Rs. <?= number_format($stats['remaining_amount'], 2) ?></div>
-                <div class="stat-subtitle">Pending Payment</div>
-            </div>
-
-            <div class="stat-card purple">
-                <div class="stat-header">
-                    <span class="stat-title">Next Due</span>
-                    <div class="stat-icon">
-                        <i class="fa fa-calendar-check-o"></i>
-                    </div>
-                </div>
-                <div class="stat-value">
-                    <?php if ($stats['next_due_date']): ?>
-                        <?= date('M d, Y', strtotime($stats['next_due_date'])) ?>
-                    <?php else: ?>
-                        <small>No Pending</small>
-                    <?php endif; ?>
-                </div>
-                <div class="stat-subtitle">Payment Due Date</div>
+            <div class="stat-subtitle">
+                Invoice Records
             </div>
 
         </div>
 
-    <!-- Payment Table Section -->
-    <div class="dashboard-box">
-        <h4>
-            <i class="fa fa-table"></i>
-            Payment Records
-        </h4>
 
-        <!-- Search & Filter Section -->
-        <div class="dashboard-filters" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
-            <form id="payment_search" onsubmit="return false;">
+        <!-- Paid Amount -->
+        <div class="stat-card green">
 
-                <input type="text" name="invoice_number" id="invoice_number" class="new-input" style="width:18%;" placeholder="Invoice #">
+            <div class="stat-header">
 
-                <select name="status" id="status" class="new-input" style="width:15%;">
-                    <option value="">All Status</option>
-                    <option value="unpaid">Unpaid</option>
-                    <option value="partial">Partial</option>
-                    <option value="paid">Paid</option>
-                </select>
+                <span class="stat-title">
+                    Paid Amount
+                </span>
 
-                <input type="date" name="from_date" id="from_date" class="new-input" style="width:14%;">
-                <input type="date" name="to_date" id="to_date" class="new-input" style="width:14%;">
+                <div class="stat-icon">
+                    <i class="fa fa-check-circle"></i>
+                </div>
 
-                <input type="text" name="per_page" id="per_page" value="20" class="new-input" style="width:6%;" placeholder="Records?">
+            </div>
 
-                <input type="button" class="btn btn-primary"
-                    onclick="searchPayments()"
-                    value="Search"
-                    style="height:30px;padding:0 10px;margin-top:-3px;margin-left:5px;" />
+            <div class="stat-value" id="paid_amount">
+                Rs. <?= number_format($stats['paid_amount'], 2) ?>
+            </div>
 
-            </form>
+            <div class="stat-subtitle">
+                Completed Payments
+            </div>
+
         </div>
 
-            <div class="table-responsive">
-                <table class="table table-striped table-bordered table-hover" id="payment_table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Invoice #</th>
-                            <th>Contract</th>
-                            <th>Invoice Date</th>
-                            <th>Due Date</th>
-                            <th>Amount</th>
-                            <th>Paid Amount</th>
-                            <th>Remaining</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Data will be loaded here -->
-                    </tbody>
-                </table>
 
-                <div id="paginationArea" class="text-center"></div>
+
+
+        <!-- Remaining Amount -->
+        <div class="stat-card orange">
+
+            <div class="stat-header">
+
+                <span class="stat-title">
+                    Remaining Amount
+                </span>
+
+                <div class="stat-icon">
+                    <i class="fa fa-hourglass"></i>
+                </div>
+
+            </div>
+
+            <div class="stat-value" id="remaining_amount">
+                Rs. <?= number_format($stats['remaining_amount'], 2) ?>
+            </div>
+
+            <div class="stat-subtitle">
+                Pending Payment
+            </div>
+
+        </div>
+
+
+
+
+        <!-- Next Payment Due -->
+        <div class="stat-card purple">
+
+            <div class="stat-header">
+
+                <span class="stat-title">
+                    Next Due
+                </span>
+
+                <div class="stat-icon">
+                    <i class="fa fa-calendar-check-o"></i>
+                </div>
+
+            </div>
+
+            <div class="stat-value" id="next_due_date">
+                <?php if ($stats['next_due_date']): ?>
+                    <?= date('M d, Y', strtotime($stats['next_due_date'])) ?>
+                <?php else: ?>
+                    <small>No Pending</small>
+                <?php endif; ?>
+            </div>
+
+            <div class="stat-subtitle">
+                Payment Due Date
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Payment Records Section -->
+    <div class="section-title">
+        <h4><i class="fa fa-table"></i> Payment Records</h4>
+    </div>
+
+    <div class="row">
+
+        <div class="col-md-12">
+
+            <div class="dashboard-box">
+
+                <!-- Search & Filter Section -->
+                <div class="dashboard-filters" style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee;">
+                    <form id="payment_search" onsubmit="return false;">
+
+                        <input type="text" name="invoice_number" id="invoice_number" class="new-input" style="width:18%;" placeholder="Invoice #">
+
+                        <select name="status" id="status" class="new-input" style="width:15%;">
+                            <option value="">All Status</option>
+                            <option value="unpaid">Unpaid</option>
+                            <option value="partial">Partial</option>
+                            <option value="paid">Paid</option>
+                        </select>
+
+                        <input type="date" name="from_date" id="from_date" class="new-input" style="width:14%;">
+                        <input type="date" name="to_date" id="to_date" class="new-input" style="width:14%;">
+
+                        <input type="text" name="per_page" id="per_page" value="20" class="new-input" style="width:6%;" placeholder="Records?">
+
+                        <input type="button" class="btn btn-primary"
+                            onclick="searchPayments()"
+                            value="Search"
+                            style="height:30px;padding:0 10px;margin-top:-3px;margin-left:5px;" />
+
+                    </form>
+                </div>
+
+                <!-- Payment Table -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover" id="payment_table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Invoice #</th>
+                                <th>Contract</th>
+                                <th>Invoice Date</th>
+                                <th>Due Date</th>
+                                <th>Amount</th>
+                                <th>Paid Amount</th>
+                                <th>Remaining</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data will be loaded here -->
+                        </tbody>
+                    </table>
+
+                    <div id="paginationArea" class="text-center"></div>
+
+                </div>
 
             </div>
 
@@ -315,6 +377,24 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
         box-shadow: 0 0 5px rgba(102, 126, 234, 0.2);
     }
 
+    .section-title {
+        margin-top: 30px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+        padding-bottom: 10px;
+    }
+
+    .section-title h4 {
+        color: #333;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .section-title i {
+        margin-right: 8px;
+        color: #667eea;
+    }
+
     .badge-paid { background-color: #4CAF50; color: white; }
     .badge-unpaid { background-color: #F44336; color: white; }
     .badge-partial { background-color: #FF9800; color: white; }
@@ -325,18 +405,34 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
 
     .table {
         font-size: 13px;
+        margin-bottom: 0;
     }
 
     .table tbody tr:hover {
         background-color: #f9f9f9;
     }
+
+    .loading {
+        opacity: 0.6;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+    }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-    // Load payment history on page load
-    searchPayments();
+    $(function() {
+        searchPayments();
+    });
 
     function searchPayments(page = 1) {
+        showLoading();
+
         const data = new FormData();
         data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
         data.append('flag', 'load');
@@ -353,16 +449,18 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
         })
         .then(res => res.json())
         .then(res => {
+            hideLoading();
             if (res.success) {
                 renderPayments(res.invoices);
                 renderPagination(res.page, res.totalPages, 'searchPayments');
             } else {
-                alert('Error: ' + (res.message || 'Failed to load'));
+                showError(res.message || 'Failed to load');
             }
         })
         .catch(error => {
+            hideLoading();
             console.error(error);
-            alert('Error loading payment history');
+            showError('Error loading payment history');
         });
     }
 
@@ -474,6 +572,24 @@ if (!isset($isSuperAdmin)) $isSuperAdmin = false;
 
     function viewInvoiceDetails(invoiceId) {
         alert('Invoice Details: ' + invoiceId);
-        // Can be expanded with more details
+    }
+
+    function showLoading() {
+        $(".stat-value").each(function() {
+            $(this).addClass("loading").html("&nbsp;&nbsp;&nbsp;&nbsp;");
+        });
+    }
+
+    function hideLoading() {
+        $(".stat-value").removeClass("loading");
+    }
+
+    function showError(message) {
+        const alert = $(`<div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa fa-exclamation-circle"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`);
+        $(document.body).prepend(alert);
+        setTimeout(() => alert.fadeOut(), 5000);
     }
 </script>
