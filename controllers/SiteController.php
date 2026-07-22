@@ -124,6 +124,17 @@ class SiteController extends Controller
                     ->update('system_users', ['last_login' => date('Y-m-d H:i:s')], ['id' => $user->id])
                     ->execute();
 
+                // Check for pending invoices and access restrictions
+                $paymentStatus = $this->checkPaymentStatus($user->id, $user->role_id ?? null);
+                if ($paymentStatus['status'] === 'restricted' && !$paymentStatus['is_super_admin']) {
+                    Yii::$app->session->setFlash('error', 'System access restricted. Please update your payment status.');
+                    Yii::$app->user->logout();
+                    return $this->redirect(['site/login']);
+                }
+
+                // Store pending invoice info in session for modal display
+                Yii::$app->session['pending_invoice_info'] = $paymentStatus['pending_info'] ?? null;
+
                 return $this->redirect(['inventory/dashboard']);
             } else {
                 $attempts = (int)Yii::$app->cache->get($attemptsKey) + 1;
@@ -1000,6 +1011,122 @@ class SiteController extends Controller
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     created_by INT,
                     updated_by INT
+                ) ENGINE=InnoDB;",
+
+                "CREATE TABLE IF NOT EXISTS system_contracts (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    contract_number VARCHAR(100) UNIQUE NOT NULL,
+                    contract_name VARCHAR(255) NOT NULL,
+                    contract_type ENUM('monthly','yearly') DEFAULT 'monthly',
+                    contractor_name VARCHAR(255),
+                    contractor_cnic VARCHAR(50),
+                    contractor_phone VARCHAR(50),
+                    contractor_email VARCHAR(150),
+                    contractor_address TEXT,
+                    installation_date DATE,
+                    contract_start_date DATE,
+                    contract_end_date DATE,
+                    monthly_charges DECIMAL(15,2) DEFAULT 0,
+                    yearly_charges DECIMAL(15,2) DEFAULT 0,
+                    monthly_due_date INT DEFAULT 1,
+                    maximum_extension_days INT DEFAULT 15,
+                    system_status ENUM('active','inactive','suspended','expired') DEFAULT 'active',
+                    contract_description LONGTEXT,
+                    policy_description LONGTEXT,
+                    contractor_info LONGTEXT,
+                    full_description LONGTEXT,
+                    attachment_file VARCHAR(500),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    created_by INT,
+                    updated_by INT,
+                    is_active TINYINT DEFAULT 1,
+                    is_deleted TINYINT DEFAULT 0,
+                    INDEX(contract_number),
+                    INDEX(system_status)
+                ) ENGINE=InnoDB;",
+
+                "CREATE TABLE IF NOT EXISTS system_invoices (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    invoice_number VARCHAR(100) UNIQUE NOT NULL,
+                    contract_id INT NOT NULL,
+                    invoice_month VARCHAR(7),
+                    invoice_year INT,
+                    invoice_date DATE,
+                    due_date DATE,
+                    extended_due_date DATE,
+                    amount DECIMAL(15,2) DEFAULT 0,
+                    description TEXT,
+                    invoice_status ENUM('draft','sent','pending','partial','paid','overdue','cancelled') DEFAULT 'pending',
+                    payment_status ENUM('unpaid','partial','paid') DEFAULT 'unpaid',
+                    paid_amount DECIMAL(15,2) DEFAULT 0,
+                    remaining_amount DECIMAL(15,2) DEFAULT 0,
+                    invoice_file VARCHAR(500),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    created_by INT,
+                    updated_by INT,
+                    is_active TINYINT DEFAULT 1,
+                    is_deleted TINYINT DEFAULT 0,
+                    INDEX(contract_id),
+                    INDEX(invoice_number),
+                    INDEX(invoice_status),
+                    INDEX(payment_status),
+                    INDEX(due_date),
+                    FOREIGN KEY(contract_id) REFERENCES system_contracts(id) ON UPDATE CASCADE
+                ) ENGINE=InnoDB;",
+
+                "CREATE TABLE IF NOT EXISTS system_payment_proofs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    invoice_id INT NOT NULL,
+                    proof_number VARCHAR(100) UNIQUE NOT NULL,
+                    proof_date DATE,
+                    amount DECIMAL(15,2),
+                    payment_method VARCHAR(50),
+                    bank_name VARCHAR(150),
+                    transaction_id VARCHAR(100),
+                    document_file VARCHAR(500),
+                    document_name VARCHAR(255),
+                    document_type VARCHAR(50),
+                    description TEXT,
+                    verification_status ENUM('pending','verified','rejected') DEFAULT 'pending',
+                    verified_by INT,
+                    verified_at DATETIME,
+                    rejection_reason TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    created_by INT,
+                    updated_by INT,
+                    is_active TINYINT DEFAULT 1,
+                    is_deleted TINYINT DEFAULT 0,
+                    INDEX(invoice_id),
+                    INDEX(proof_number),
+                    INDEX(verification_status),
+                    FOREIGN KEY(invoice_id) REFERENCES system_invoices(id) ON UPDATE CASCADE
+                ) ENGINE=InnoDB;",
+
+                "CREATE TABLE IF NOT EXISTS system_payments (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    payment_number VARCHAR(100) UNIQUE NOT NULL,
+                    invoice_id INT NOT NULL,
+                    payment_date DATE,
+                    payment_method VARCHAR(50),
+                    amount DECIMAL(15,2),
+                    reference_number VARCHAR(100),
+                    bank_name VARCHAR(150),
+                    transaction_id VARCHAR(100),
+                    notes TEXT,
+                    payment_status ENUM('pending','completed','failed','cancelled') DEFAULT 'pending',
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    created_by INT,
+                    updated_by INT,
+                    is_active TINYINT DEFAULT 1,
+                    is_deleted TINYINT DEFAULT 0,
+                    INDEX(invoice_id),
+                    INDEX(payment_number),
+                    INDEX(payment_status),
+                    FOREIGN KEY(invoice_id) REFERENCES system_invoices(id) ON UPDATE CASCADE
                 ) ENGINE=InnoDB;"
             ];
 
@@ -1012,6 +1139,12 @@ class SiteController extends Controller
 
             // Insert default tax rates
             $this->insertDefaultTaxRates($db);
+
+            // Insert Super Admin role
+            $this->insertSuperAdminRole($db);
+
+            // Insert default system plan
+            $this->insertDefaultSystemPlan($db);
 
             $transaction->commit();
             echo json_encode(['success' => true, 'message' => 'All inventory tables created successfully with default data.']);
@@ -1133,6 +1266,196 @@ class SiteController extends Controller
             }
         } catch (\Exception $e) {
             // Silently fail - tax rates may not exist yet
+        }
+    }
+
+    private function insertSuperAdminRole($db)
+    {
+        try {
+            $now = date('Y-m-d H:i:s');
+            $adminId = 1;
+
+            // Check if Super Admin role exists
+            $existing = $db->createCommand(
+                "SELECT id FROM rolesWHERE role_name = 'Super Admin'"
+            )->queryScalar();
+
+            if (!$existing) {
+                $db->createCommand()->insert('system_roles', [
+                    'role_name' => 'Super Admin',
+                    'role_description' => 'Super Administrator with full system access and payment management',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                    'created_by' => $adminId,
+                    'updated_by' => $adminId,
+                    'is_active' => 1,
+                    'is_deleted' => 0
+                ])->execute();
+
+                $superAdminRoleId = $db->getLastInsertID();
+
+                // Get all modules
+                $modules = $db->createCommand("SELECT id FROM modules WHERE is_deleted = 0")->queryAll();
+
+                // Grant all permissions to Super Admin
+                foreach ($modules as $module) {
+                    $moduleId = $module['id'];
+
+                    // Check if permission already exists
+                    $existingPerm = $db->createCommand(
+                        "SELECT id FROM permissions WHERE role_id = :role_id AND module_id = :module_id"
+                    )->bindValues([':role_id' => $superAdminRoleId, ':module_id' => $moduleId])->queryScalar();
+
+                    if (!$existingPerm) {
+                        $db->createCommand()->insert('permissions', [
+                            'role_id' => $superAdminRoleId,
+                            'module_id' => $moduleId,
+                            'can_view' => 1,
+                            'can_add' => 1,
+                            'can_edit' => 1,
+                            'can_delete' => 1,
+                            'created_at' => $now,
+                            'updated_at' => $now,
+                            'created_by' => $adminId,
+                            'updated_by' => $adminId,
+                            'is_deleted' => 0
+                        ])->execute();
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fail - role may not exist yet
+        }
+    }
+
+    private function checkPaymentStatus($userId, $roleId = null)
+    {
+        $db = Yii::$app->db;
+        $today = date('Y-m-d');
+
+        // Check if user is Super Admin
+        $isSuperAdmin = $db->createCommand(
+            "SELECT COUNT(*) FROM roles sr
+             JOIN system_users su ON su.role_id = sr.id
+             WHERE sr.name = 'Super Admin' AND su.id = :user_id"
+        )->bindValue(':user_id', $userId)->queryScalar() > 0;
+
+        // Get active contract
+        $contract = $db->createCommand(
+            "SELECT * FROM system_contracts WHERE system_status = 'active' AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1"
+        )->queryOne();
+
+        if (!$contract) {
+            return ['status' => 'ok', 'is_super_admin' => $isSuperAdmin];
+        }
+
+        // Get pending/overdue invoices
+        $pendingInvoices = $db->createCommand(
+            "SELECT * FROM system_invoices
+             WHERE contract_id = :contract_id AND payment_status != 'paid' AND is_deleted = 0
+             ORDER BY due_date ASC"
+        )->bindValue(':contract_id', $contract['id'])->queryAll();
+
+        if (empty($pendingInvoices)) {
+            return ['status' => 'ok', 'is_super_admin' => $isSuperAdmin];
+        }
+
+        $isOverdue = false;
+        $pendingInfo = [];
+
+        foreach ($pendingInvoices as $invoice) {
+            $extendedDate = strtotime($invoice['extended_due_date']);
+
+            if (strtotime($today) > $extendedDate) {
+                $isOverdue = true;
+                break;
+            }
+
+            $pendingInfo[] = [
+                'invoice_id' => $invoice['id'],
+                'invoice_number' => $invoice['invoice_number'],
+                'invoice_month' => $invoice['invoice_month'],
+                'amount' => $invoice['amount'],
+                'due_date' => $invoice['due_date'],
+                'extended_due_date' => $invoice['extended_due_date'],
+                'remaining_amount' => $invoice['remaining_amount'],
+                'days_remaining' => ceil((strtotime($invoice['extended_due_date']) - strtotime($today)) / 86400)
+            ];
+        }
+
+        $status = $isOverdue ? 'restricted' : 'warning';
+
+        return [
+            'status' => $status,
+            'is_super_admin' => $isSuperAdmin,
+            'pending_info' => $pendingInfo,
+            'contract_id' => $contract['id'],
+            'is_overdue' => $isOverdue
+        ];
+    }
+
+    private function insertDefaultSystemPlan($db)
+    {
+        try {
+            $now = date('Y-m-d H:i:s');
+            $adminId = 1;
+
+            // Check if default contract exists
+            $existing = $db->createCommand(
+                "SELECT id FROM system_contracts WHERE contract_number = 'DEFAULT-001'"
+            )->queryScalar();
+
+            if (!$existing) {
+                $contractDescription = "This is the default system contract for the inventory management system.\n\n";
+                $contractDescription .= "Contract Type: Monthly Subscription\n";
+                $contractDescription .= "Monthly Charges: Applicable as per the agreement.\n";
+                $contractDescription .= "Payment Terms: Due on the specified date each month.\n";
+                $contractDescription .= "Extension Policy: " . "15 days grace period allowed beyond due date.\n";
+
+                $policyDescription = "PAYMENT POLICY\n\n";
+                $policyDescription .= "1. Payment Terms: Monthly subscription charges are due on or before the specified due date.\n";
+                $policyDescription .= "2. Payment Methods: Bank transfer, online payment, or check.\n";
+                $policyDescription .= "3. Grace Period: A maximum of 15 days extension is provided beyond the due date.\n";
+                $policyDescription .= "4. Service Suspension: If payment is not received within the extended period, system access will be restricted to Super Admin only.\n";
+                $policyDescription .= "5. Proof of Payment: Upload proof of payment through the system for verification.\n";
+                $policyDescription .= "6. Invoice Generation: Monthly invoices are automatically generated and can be downloaded from the system.\n";
+                $policyDescription .= "7. Refund Policy: No refunds for partial months. Cancellation requires 30 days notice.\n";
+
+                $contractorInfo = "System Administrator\n";
+                $contractorInfo .= "Email: admin@example.com\n";
+                $contractorInfo .= "Phone: +1-555-0000\n";
+                $contractorInfo .= "Address: Your Company Address\n";
+
+                $db->createCommand()->insert('system_contracts', [
+                    'contract_number' => 'DEFAULT-001',
+                    'contract_name' => 'Default System Contract',
+                    'contract_type' => 'monthly',
+                    'contractor_name' => 'Company Administrator',
+                    'contractor_cnic' => '00000-0000000-0',
+                    'contractor_phone' => '+1-555-0000',
+                    'contractor_email' => 'admin@example.com',
+                    'contractor_address' => 'Your Company Address',
+                    'installation_date' => date('Y-m-d'),
+                    'contract_start_date' => date('Y-m-d'),
+                    'monthly_charges' => 0,
+                    'yearly_charges' => 0,
+                    'monthly_due_date' => 1,
+                    'maximum_extension_days' => 15,
+                    'system_status' => 'active',
+                    'contract_description' => $contractDescription,
+                    'policy_description' => $policyDescription,
+                    'contractor_info' => $contractorInfo,
+                    'full_description' => "This is the system contract governing the use of the inventory management system. All users must comply with the payment terms and conditions outlined herein.",
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                    'created_by' => $adminId,
+                    'updated_by' => $adminId,
+                    'is_active' => 1,
+                    'is_deleted' => 0
+                ])->execute();
+            }
+        } catch (\Exception $e) {
+            // Silently fail - contracts table may not exist yet
         }
     }
 }

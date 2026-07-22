@@ -328,6 +328,11 @@ $this->beginPage();
     });
     </script>
 
+    <!-- Payment Invoice Modal -->
+    <?php if (Yii::$app->session->get('pending_invoice_info')): ?>
+        <?php echo $this->render('payment_modal'); ?>
+    <?php endif; ?>
+
     <?php $this->endBody() ?>
 </body>
 

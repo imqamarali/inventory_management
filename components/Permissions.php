@@ -17,25 +17,31 @@ class Permissions extends Component
 {
     public function getMenus($active = null, $role_id = null)
     {
+        // Get role_id from session if not provided
+        $role_id = $role_id ?? Yii::$app->session->get('user_array')['role_id'];
 
-        $role_id = Yii::$app->session->get('user_array')['role_id'];
-        $modules = Yii::$app->db->createCommand("SELECT * FROM modules WHERE 1=1 AND type=1  AND active=1 ORDER BY order_by ASC")->queryAll();
-        // echo json_encode($modules);
-        // exit;
+        // Get sidebar modules (type=1)
+        $modules = Yii::$app->db->createCommand(
+            "SELECT * FROM modules
+             WHERE type=1 AND active=1
+             ORDER BY order_by ASC"
+        )->queryAll();
+
         $moduleList = [];
-        foreach ($modules as $module) {
-            $submenus = [];
 
-            // Module has no features - get direct module permissions
-            $permissions = Yii::$app->db->createCommand("
-                        SELECT * FROM permissions
-                        WHERE module_id = :module_id
-                        AND feature_id IS NULL
-                        AND role_id = :role_id")
+        foreach ($modules as $module) {
+            // Get module permissions
+            $permissions = Yii::$app->db->createCommand(
+                "SELECT * FROM permissions
+                 WHERE module_id = :module_id
+                 AND role_id = :role_id
+                 LIMIT 1"
+            )
                 ->bindValue(':module_id', $module['id'])
                 ->bindValue(':role_id', $role_id)
                 ->queryOne();
 
+            // Only include modules where user has view permission
             if ($permissions && $permissions['can_view']) {
                 $moduleList[] = [
                     'id' => $module['id'],
@@ -47,11 +53,11 @@ class Permissions extends Component
                     'is_active' => (int) $module['active'],
                     'active' => false,
                     'submenus' => [],
-                    'permission_id' => $permissions['id'],
-                    'can_view' => (int) $permissions['can_view'],
-                    'can_add' => (int) $permissions['can_add'],
-                    'can_edit' => (int) $permissions['can_edit'],
-                    'can_delete' => (int) $permissions['can_delete'],
+                    'permission_id' => $permissions['id'] ?? null,
+                    'can_view' => (int) ($permissions['can_view'] ?? 0),
+                    'can_add' => (int) ($permissions['can_add'] ?? 0),
+                    'can_edit' => (int) ($permissions['can_edit'] ?? 0),
+                    'can_delete' => (int) ($permissions['can_delete'] ?? 0),
                 ];
             }
         }
@@ -60,10 +66,11 @@ class Permissions extends Component
     }
     public function getTopbar($active = null, $role_id = null)
     {
-        $role_id = Yii::$app->session->get('user_array')['role_id'];
+        // Get role_id from session if not provided
+        $role_id = $role_id ?? Yii::$app->session->get('user_array')['role_id'];
         $school_id = Yii::$app->session->get('user_array')['school_id'] ?? null;
 
-        // Build query with school_id filter
+        // Build query with school_id filter for topbar modules (type=2)
         $query = "SELECT * FROM modules WHERE type=2 AND active=1";
         $params = [];
 
@@ -82,17 +89,18 @@ class Permissions extends Component
 
         $moduleList = [];
         foreach ($modules as $module) {
+            // Get module permissions
             $permissions = Yii::$app->db->createCommand(
                 "SELECT * FROM permissions
-                        WHERE module_id = :module_id
-                        AND feature_id IS NULL
-                        AND role_id = :role_id"
+                 WHERE module_id = :module_id
+                 AND role_id = :role_id
+                 LIMIT 1"
             )
                 ->bindValue(':module_id', $module['id'])
                 ->bindValue(':role_id', $role_id)
                 ->queryOne();
 
-            // Only include modules with permissions and can_view = 1
+            // Only include modules with view permission
             if (!empty($permissions) && $permissions['can_view'] == 1) {
                 $moduleList[] = [
                     'id' => $module['id'],
@@ -104,10 +112,10 @@ class Permissions extends Component
                     'icon' => $module['icon'],
                     'active' => (int)$module['active'],
                     'order_by' => $module['order_by'] ?? 0,
-                    'can_view' => (int)$permissions['can_view'],
-                    'can_add' => (int)$permissions['can_add'],
-                    'can_edit' => (int)$permissions['can_edit'],
-                    'can_delete' => (int)$permissions['can_delete'],
+                    'can_view' => (int)($permissions['can_view'] ?? 0),
+                    'can_add' => (int)($permissions['can_add'] ?? 0),
+                    'can_edit' => (int)($permissions['can_edit'] ?? 0),
+                    'can_delete' => (int)($permissions['can_delete'] ?? 0),
                 ];
             }
         }

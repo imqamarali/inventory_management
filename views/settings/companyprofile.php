@@ -54,6 +54,16 @@ if (!isset($profile)) {
                         </div>
 
                         <div class="form-group">
+                            <label class="control-label col-xs-12 col-sm-3">Company Tagline</label>
+                            <div class="col-xs-12 col-sm-8">
+                                <input type="text" class="form-control" name="company_tagline" id="company_tagline"
+                                       value="<?= htmlspecialchars($profile['company_tagline'] ?? '') ?>"
+                                       placeholder="e.g., Your Company Motto">
+                                <small class="text-muted">Short tagline displayed in navbar</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
                             <label class="control-label col-xs-12 col-sm-3">Address</label>
                             <div class="col-xs-12 col-sm-8">
                                 <textarea class="form-control" name="company_address" placeholder="Street address" rows="3"><?= htmlspecialchars($profile['company_address'] ?? '') ?></textarea>
@@ -215,6 +225,19 @@ if (!isset($profile)) {
                         <input type="hidden" name="<?= Yii::$app->request->csrfParam ?>" value="<?= Yii::$app->request->getCsrfToken() ?>">
 
                         <div class="form-group">
+                            <label class="control-label col-xs-12 col-sm-3">Navbar Color</label>
+                            <div class="col-xs-12 col-sm-8">
+                                <div class="input-group">
+                                    <input type="color" class="form-control" id="navbar_color" name="navbar_color"
+                                           value="<?= htmlspecialchars($profile['navbar_color'] ?? '#0f4c29') ?>"
+                                           style="padding: 5px; height: 40px;">
+                                    <span class="input-group-addon" style="padding: 5px; background-color: <?= htmlspecialchars($profile['navbar_color'] ?? '#0f4c29') ?>; border-radius: 4px;"></span>
+                                </div>
+                                <small class="text-muted">Choose the color for the top navigation bar</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
                             <label class="control-label col-xs-12 col-sm-3">Company Logo</label>
                             <div class="col-xs-12 col-sm-8">
                                 <?php if (!empty($profile['company_logo'])): ?>
@@ -235,8 +258,8 @@ if (!isset($profile)) {
                             <label class="control-label col-xs-12 col-sm-3"></label>
                             <div class="col-xs-12 col-sm-8">
                                 <button type="submit" class="btn btn-sm btn-success">
-                                    <i class="ace-icon fa fa-upload"></i>
-                                    Upload Logo
+                                    <i class="ace-icon fa fa-save"></i>
+                                    Save Logo & Branding
                                 </button>
                             </div>
                         </div>

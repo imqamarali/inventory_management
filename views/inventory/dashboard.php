@@ -3,28 +3,70 @@
 use yii\helpers\Html;
 use yii\helpers\Url;
 
-// Get current school information
-$school_id = Yii::$app->session->get('user_array')['school_id'] ?? null;
-$current_school = null;
-if ($school_id) {
-    try {
-        $current_school = Yii::$app->db->createCommand('SELECT * FROM school WHERE school_id = :school_id')
-            ->bindValue(':school_id', $school_id)
-            ->queryOne();
-    } catch (\Exception $e) {
-        $current_school = null;
-    }
-}
-$navbar_color = $current_school['navbar_color'] ?? '#0f4c29';
-$school_name = $current_school['school_name'] ?? 'School Management System';
-$student_name = (Yii::$app->session->get('user_array')['first_name'] ?? '') . ' ' . (Yii::$app->session->get('user_array')['last_name'] ?? 'Student');
-$this->title = 'Student Dashboard';
+// Get navbar color from settings
+$navbar_color = Yii::$app->db->createCommand(
+    "SELECT setting_value FROM inventory_settings WHERE setting_key='navbar_color' AND is_deleted=0 LIMIT 1"
+)->queryScalar() ?: '#0f4c29';
+
+$companyName = Yii::$app->db->createCommand(
+    "SELECT setting_value FROM inventory_settings WHERE setting_key='company_name' AND is_deleted=0 LIMIT 1"
+)->queryScalar() ?: 'Inventory Management System';
+
+$user_array = Yii::$app->session->get('user_array') ?? [];
+$userFirstName = $user_array['first_name'] ?? 'User';
+$userLastName = $user_array['last_name'] ?? '';
+$student_name = trim($userFirstName . ' ' . $userLastName);
+$this->title = 'Dashboard';
 ?>
 
 <style>
     body {
         font-family: 'Poppins', sans-serif;
         font-size: 13px;
+    }
+
+    /* Dashboard Header */
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: linear-gradient(135deg, <?= $navbar_color ?>f5 0%, <?= $navbar_color ?>dd 100%);
+        border-radius: 8px;
+        color: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .dashboard-header h3 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        color: white;
+    }
+
+    .dashboard-header h3 small {
+        display: block;
+        font-size: 12px;
+        font-weight: 400;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 3px;
+    }
+
+    .dashboard-header button {
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.3s ease;
+    }
+
+    .dashboard-header button:hover {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(255, 255, 255, 0.5);
     }
 
     /* Welcome Banner */
@@ -102,24 +144,8 @@ $this->title = 'Student Dashboard';
         font-size: 11px;
     }
 </style>
+
 <div class="page-content">
-
-    <div class="dashboard-header">
-        <div>
-            <h3>
-                <i class="fa fa-shopping-bag"></i>
-                Inventory Dashboard
-                <small>Inventory Overview & Analytics</small>
-            </h3>
-        </div>
-
-        <div>
-            <button id="refreshDashboard">
-                <i class="fa fa-refresh"></i>
-                Refresh
-            </button>
-        </div>
-    </div>
     <div class="welcome-banner">
         <?php
         $photo_path = $student_data['photo_path'] ?? null;
@@ -142,7 +168,12 @@ $this->title = 'Student Dashboard';
                 <span id="current-date"><?= date('l, F j, Y') ?></span>
                 <span style="font-weight: 600; font-size: 18px;" id="current-time"></span>
             </p>
+
         </div>
+        <button id="refreshDashboard" style="background: transparent;border: none;">
+            <i class="fa fa-refresh"></i>
+            Refresh
+        </button>
     </div>
 
 

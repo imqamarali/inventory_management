@@ -162,23 +162,19 @@ class InventoryController extends Controller
         return $permissions && (bool)$permissions['can_view'];
     }
 
-    /**
-     * Require module permission and deny access if not authorized
-     * @param string $moduleLink - e.g., 'inventory/products'
-     */
     private function requireModulePermission($moduleLink = 'inventory/dashboard')
     {
         if (!$this->checkModulePermission($moduleLink)) {
             Yii::$app->response->statusCode = 403;
-            throw new \yii\web\ForbiddenHttpException('You do not have permission to access this module.');
+            return $this->render('@app/views/site/error-403');
         }
     }
 
 
     public function actionDashboard()
     {
-        // Check view permission
-        // $this->requirePermission('view');
+        
+        $this->requireModulePermission('inventory/dashboard');
 
         Yii::$app->Component->Activitylog('Viewed inventory dashboard', 'view', null, 'Inventory', ['module' => 'dashboard']);
         $user_array = Yii::$app->session->get('user_array');

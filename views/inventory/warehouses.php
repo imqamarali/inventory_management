@@ -6,8 +6,7 @@ if (!isset($warehouses)) {
 
 ?>
  
-<div class="main-content">
-    <div class="main-content-inner">
+<div class="main-content"> 
         <div class="breadcrumbs ace-save-state" id="breadcrumbs">
             <ul class="breadcrumb">
                 <li>
@@ -137,8 +136,7 @@ if (!isset($warehouses)) {
                         </div>
                     </div>
                 </div> 
-        </div>
-    </div>
+        </div> 
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

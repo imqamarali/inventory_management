@@ -145,9 +145,11 @@ function getSetting($settings, $key, $default = '') {
                                     <option value="dark" <?= getSetting($settings, 'theme', 'light') === 'dark' ? 'selected' : '' ?>>Dark</option>
                                     <option value="auto" <?= getSetting($settings, 'theme', 'light') === 'auto' ? 'selected' : '' ?>>Auto (System)</option>
                                 </select>
+                                
+                                <small class="text-muted">Select Default System Theme</small>
                             </div>
                         </div>
-
+                        <hr>
                         <div class="form-group">
                             <label class="control-label col-xs-12 col-sm-3">Items Per Page</label>
                             <div class="col-xs-12 col-sm-8">
@@ -156,6 +158,7 @@ function getSetting($settings, $key, $default = '') {
                                 <small class="text-muted">Default pagination size</small>
                             </div>
                         </div>
+                        <hr>
 
                         <div class="form-group">
                             <label class="control-label col-xs-12 col-sm-3">
@@ -165,6 +168,7 @@ function getSetting($settings, $key, $default = '') {
                             </label>
                         </div>
 
+                        <hr>
                         <div class="form-group">
                             <label class="control-label col-xs-12 col-sm-3">
                                 <input type="checkbox" name="show_tooltips" class="ace" value="1"
@@ -173,6 +177,7 @@ function getSetting($settings, $key, $default = '') {
                             </label>
                         </div>
 
+                        <hr>
                         <div class="form-group">
                             <label class="control-label col-xs-12 col-sm-3"></label>
                             <div class="col-xs-12 col-sm-8">
@@ -203,6 +208,7 @@ function getSetting($settings, $key, $default = '') {
                                     <option value="fr" <?= getSetting($settings, 'language', 'en') === 'fr' ? 'selected' : '' ?>>French</option>
                                     <option value="de" <?= getSetting($settings, 'language', 'en') === 'de' ? 'selected' : '' ?>>German</option>
                                 </select>
+                                <small class="text-muted">Select Default System Language</small>
                             </div>
                         </div>
 
@@ -218,6 +224,7 @@ function getSetting($settings, $key, $default = '') {
                                     <option value="Europe/Paris">Paris (CET)</option>
                                     <option value="Asia/Tokyo">Tokyo (JST)</option>
                                 </select>
+                                <small class="text-muted">Select Default Region</small>
                             </div>
                         </div>
 
@@ -229,6 +236,7 @@ function getSetting($settings, $key, $default = '') {
                                     <option value="m/d/Y" <?= getSetting($settings, 'date_format', 'Y-m-d') === 'm/d/Y' ? 'selected' : '' ?>>MM/DD/YYYY</option>
                                     <option value="d/m/Y" <?= getSetting($settings, 'date_format', 'Y-m-d') === 'd/m/Y' ? 'selected' : '' ?>>DD/MM/YYYY</option>
                                 </select>
+                                <small class="text-muted">Select Default System Date Format</small>
                             </div>
                         </div>
 
@@ -239,6 +247,9 @@ function getSetting($settings, $key, $default = '') {
                                     <option value="H:i:s" <?= getSetting($settings, 'time_format', 'H:i:s') === 'H:i:s' ? 'selected' : '' ?>>24-hour (HH:MM:SS)</option>
                                     <option value="h:i:s A" <?= getSetting($settings, 'time_format', 'H:i:s') === 'h:i:s A' ? 'selected' : '' ?>>12-hour (HH:MM:SS AM/PM)</option>
                                 </select>
+                                <small class="text-muted">Select System Time Format</small>
+                                 
+
                             </div>
                         </div>
 
