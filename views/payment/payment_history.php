@@ -223,6 +223,36 @@ DATA DISPLAYED:
 
         loadDashboard();
 
+        $("#payInvoiceBtn").click(function() {
+            $.ajax({
+                url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    flag: "get_current_invoice",
+                    "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
+                },
+                success: function(response) {
+                    if (response.success && response.invoice) {
+                        openPayInvoiceModal(response.invoice);
+                    } else {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'No Invoice',
+                            text: response.message || 'No invoice available for payment.'
+                        });
+                    }
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Unable to load invoice.'
+                    });
+                }
+            });
+        });
+
         $("#refreshDashboard").click(function() {
 
             loadDashboard();
@@ -468,37 +498,6 @@ DATA DISPLAYED:
 
     }
 
-    // Pay Invoice Button Click
-    $("#payInvoiceBtn").click(function() {
-        $.ajax({
-            url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
-            type: "POST",
-            dataType: "json",
-            data: {
-                flag: "get_current_invoice",
-                "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
-            },
-            success: function(response) {
-                if (response.success && response.invoice) {
-                    openPayInvoiceModal(response.invoice);
-                } else {
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'No Invoice',
-                        text: response.message || 'No invoice available for payment.'
-                    });
-                }
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Unable to load invoice.'
-                });
-            }
-        });
-    });
-
     function openPayInvoiceModalFromId(invoiceId) {
         $.ajax({
             url: "<?= Yii::$app->urlManager->createUrl('payment/payment-history') ?>",
@@ -595,7 +594,7 @@ DATA DISPLAYED:
         Swal.fire({
             title: 'Pay Invoice',
             html: paymentHtml,
-            width:"1200px",
+            width:"500px",
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'Submit Payment',
