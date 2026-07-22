@@ -18,10 +18,9 @@ use yii\helpers\Html;
         </div>
 
         <div class="page-content" style="padding: 8px;">
-            <div class="row" style="margin: 0;">
-                <!-- Left Column -->
+            <!-- Profile Card at Top Left -->
+            <div class="row" style="margin: 0; margin-bottom: 8px;">
                 <div class="col-md-2" style="padding: 4px;">
-                    <!-- Profile Card -->
                     <div class="widget-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.2);">
                         <div class="widget-body" style="padding: 12px;">
                             <div class="text-center">
@@ -57,18 +56,20 @@ use yii\helpers\Html;
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Middle Column - Personal & Contact Info -->
-                <div class="col-md-4" style="padding: 4px;">
+            <!-- Row 1: Personal Information (Full Width) -->
+            <div class="row" style="margin: 0; margin-bottom: 8px;">
+                <div class="col-md-12" style="padding: 4px;">
                     <div class="widget-box" style="margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <div class="widget-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                            <h4 class="widget-title" style="margin: 0; font-size: 12px; font-weight: bold;">
+                            <h4 class="widget-title" style="margin: 0; font-size: 13px; font-weight: bold;">
                                 <i class="fa fa-user"></i> Personal Information
                             </h4>
                         </div>
                         <div class="widget-body" style="padding: 10px;">
                             <div class="row" style="margin: 0;">
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-2" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">First Name</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #2196F3;">
@@ -76,7 +77,7 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-2" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">Last Name</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #2196F3;">
@@ -84,10 +85,23 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div class="row" style="margin: 0;">
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Username</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #9C27B0;">
+                                            <?= Html::encode($user['username'] ?? '-') ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Email</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #2196F3; word-break: break-word;">
+                                            <?= Html::encode($user['email'] ?? '-') ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">Phone</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #4CAF50;">
@@ -95,7 +109,7 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-2" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">WhatsApp</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #25D366;">
@@ -106,7 +120,7 @@ use yii\helpers\Html;
                             </div>
 
                             <div class="row" style="margin: 0;">
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-3" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">Date of Birth</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #FF6B6B;">
@@ -114,7 +128,7 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-3" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">Gender</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #FF1493;">
@@ -129,36 +143,50 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Email</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #2196F3; word-break: break-all;">
-                                    <i class="fa fa-envelope"></i> <?= Html::encode($user['email'] ?? '-') ?>
+                                <div class="col-md-3" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Account Status</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; border-left: 2px solid #4CAF50;">
+                                            <span class="label" style="background-color: <?= ($user['status'] ?? 0) ? '#4CAF50' : '#FF9800' ?>; color: white; padding: 3px 8px; font-size: 10px; display: inline-block;">
+                                                <?= ($user['status'] ?? 0) ? '✓ Enabled' : '○ Disabled' ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Reference</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #9C27B0;">
+                                            <i class="fa fa-link"></i> <?= Html::encode($user['referance'] ?? '-') ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Third Column - Location & Social -->
-                <div class="col-md-3" style="padding: 4px;">
+            <!-- Row 2: Location & Social (Full Width) -->
+            <div class="row" style="margin: 0; margin-bottom: 8px;">
+                <div class="col-md-12" style="padding: 4px;">
                     <div class="widget-box" style="margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <div class="widget-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                            <h4 class="widget-title" style="margin: 0; font-size: 12px; font-weight: bold;">
-                                <i class="fa fa-map-marker"></i> Location & Social
+                            <h4 class="widget-title" style="margin: 0; font-size: 13px; font-weight: bold;">
+                                <i class="fa fa-map-marker"></i> Location & Social Media
                             </h4>
                         </div>
                         <div class="widget-body" style="padding: 10px;">
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Address</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #2196F3; min-height: 30px;">
-                                    <i class="fa fa-home"></i> <?= Html::encode($user['address'] ?? '-') ?>
-                                </div>
-                            </div>
-
                             <div class="row" style="margin: 0;">
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-3" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Address</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #2196F3; min-height: 30px;">
+                                            <i class="fa fa-home"></i> <?= Html::encode($user['address'] ?? '-') ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">City</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #FF9800;">
@@ -166,7 +194,7 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-6" style="padding: 3px;">
+                                <div class="col-md-2" style="padding: 3px;">
                                     <div style="margin-bottom: 6px;">
                                         <label style="color: #999; font-size: 10px; font-weight: bold;">Country</label>
                                         <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 12px; border-left: 2px solid #4CAF50;">
@@ -174,103 +202,130 @@ use yii\helpers\Html;
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Social Media</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; border-left: 2px solid #9C27B0;">
-                                    <div style="font-size: 11px; line-height: 1.4;">
-                                        <?php if (!empty($user['facebook'])): ?>
-                                            <div><i class="fa fa-facebook" style="color: #1877F2;"></i> <?= Html::encode($user['facebook']) ?></div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($user['instagram'])): ?>
-                                            <div><i class="fa fa-instagram" style="color: #E4405F;"></i> <?= Html::encode($user['instagram']) ?></div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($user['pinterest'])): ?>
-                                            <div><i class="fa fa-pinterest" style="color: #E60B3F;"></i> <?= Html::encode($user['pinterest']) ?></div>
-                                        <?php endif; ?>
-                                        <?php if (empty($user['facebook']) && empty($user['instagram']) && empty($user['pinterest'])): ?>
-                                            <div style="color: #999;">No social media linked</div>
-                                        <?php endif; ?>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Facebook</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #1877F2; word-break: break-word;">
+                                            <i class="fa fa-facebook" style="color: #1877F2;"></i> <?= Html::encode($user['facebook'] ?? '-') ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Instagram</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #E4405F; word-break: break-word;">
+                                            <i class="fa fa-instagram" style="color: #E4405F;"></i> <?= Html::encode($user['instagram'] ?? '-') ?>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-1" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Pinterest</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #E60B3F; word-break: break-word;">
+                                            <i class="fa fa-pinterest" style="color: #E60B3F;"></i> <?= Html::encode($user['pinterest'] ?? '-') ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <?php if (!empty($user['about'])): ?>
-                            <div>
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">About</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #2196F3; max-height: 60px; overflow-y: auto;">
-                                    <?= Html::encode($user['about']) ?>
+                            <div class="row" style="margin: 0;">
+                                <div class="col-md-12" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">About</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #2196F3; max-height: 50px; overflow-y: auto;">
+                                            <?= Html::encode($user['about']) ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Right Column - Account Info -->
-                <div class="col-md-3" style="padding: 4px;">
+            <!-- Row 3: Account & Security (Full Width) -->
+            <div class="row" style="margin: 0;">
+                <div class="col-md-12" style="padding: 4px;">
                     <div class="widget-box" style="margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <div class="widget-header" style="padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #e3e9f3;">
-                            <h4 class="widget-title" style="margin: 0; font-size: 12px; font-weight: bold;">
+                            <h4 class="widget-title" style="margin: 0; font-size: 13px; font-weight: bold;">
                                 <i class="fa fa-lock"></i> Account & Security
                             </h4>
                         </div>
                         <div class="widget-body" style="padding: 10px;">
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Account Created</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #2196F3;">
-                                    <i class="fa fa-calendar"></i> <?= date('M d, Y', strtotime($user['created_at'] ?? 'now')) ?><br>
-                                    <small style="opacity: 0.7;"><?= date('h:i A', strtotime($user['created_at'] ?? 'now')) ?></small>
+                            <div class="row" style="margin: 0;">
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Account Created</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #2196F3;">
+                                            <i class="fa fa-calendar"></i> <?= date('M d, Y', strtotime($user['created_at'] ?? 'now')) ?><br>
+                                            <small style="opacity: 0.7;"><?= date('h:i A', strtotime($user['created_at'] ?? 'now')) ?></small>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Last Updated</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #9C27B0;">
-                                    <i class="fa fa-refresh"></i> <?= $user['updated_at'] ? date('M d, Y', strtotime($user['updated_at'])) : 'N/A' ?><br>
-                                    <?php if ($user['updated_at']): ?>
-                                        <small style="opacity: 0.7;"><?= date('h:i A', strtotime($user['updated_at'])) ?></small>
-                                    <?php endif; ?>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Last Updated</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #9C27B0;">
+                                            <i class="fa fa-refresh"></i> <?= $user['updated_at'] ? date('M d, Y', strtotime($user['updated_at'])) : 'N/A' ?><br>
+                                            <?php if ($user['updated_at']): ?>
+                                                <small style="opacity: 0.7;"><?= date('h:i A', strtotime($user['updated_at'])) ?></small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Last Login</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #FF9800;">
-                                    <i class="fa fa-clock-o"></i> <?= $user['last_login'] ? date('M d, Y', strtotime($user['last_login'])) : 'Never' ?><br>
-                                    <?php if ($user['last_login']): ?>
-                                        <small style="opacity: 0.7;"><?= date('h:i A', strtotime($user['last_login'])) ?></small>
-                                    <?php endif; ?>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Last Login</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; font-size: 11px; border-left: 2px solid #FF9800;">
+                                            <i class="fa fa-clock-o"></i> <?= $user['last_login'] ? date('M d, Y', strtotime($user['last_login'])) : 'Never' ?><br>
+                                            <?php if ($user['last_login']): ?>
+                                                <small style="opacity: 0.7;"><?= date('h:i A', strtotime($user['last_login'])) ?></small>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Failed Login Attempts</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; border-left: 2px solid <?= ($user['failed_login_attempts'] ?? 0) > 0 ? '#f44336' : '#4CAF50' ?>;">
-                                    <span style="font-size: 14px; font-weight: bold; color: <?= ($user['failed_login_attempts'] ?? 0) > 0 ? '#f44336' : '#4CAF50' ?>;">
-                                        <?= ($user['failed_login_attempts'] ?? 0) ?>
-                                    </span>
-                                    <span style="font-size: 11px; color: #999;"> attempt<?= ($user['failed_login_attempts'] ?? 0) != 1 ? 's' : '' ?></span>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Failed Attempts</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; border-left: 2px solid <?= ($user['failed_login_attempts'] ?? 0) > 0 ? '#f44336' : '#4CAF50' ?>;">
+                                            <span style="font-size: 16px; font-weight: bold; color: <?= ($user['failed_login_attempts'] ?? 0) > 0 ? '#f44336' : '#4CAF50' ?>;">
+                                                <?= ($user['failed_login_attempts'] ?? 0) ?>
+                                            </span>
+                                            <span style="font-size: 10px; color: #999;"> attempt<?= ($user['failed_login_attempts'] ?? 0) != 1 ? 's' : '' ?></span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="margin-bottom: 6px;">
-                                <label style="color: #999; font-size: 10px; font-weight: bold;">Status</label>
-                                <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; border-left: 2px solid #4CAF50;">
-                                    <span class="label" style="background-color: <?= ($user['status'] ?? 0) ? '#4CAF50' : '#FF9800' ?>; color: white; padding: 3px 8px; font-size: 10px; display: inline-block;">
-                                        <?= ($user['status'] ?? 0) ? '✓ Enabled' : '○ Disabled' ?>
-                                    </span>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">Account Active</label>
+                                        <div style="background: #f9f9f9; padding: 6px; border-radius: 3px; border-left: 2px solid #4CAF50;">
+                                            <span class="label" style="background-color: <?= ($user['is_active'] ?? 0) ? '#4CAF50' : '#FF9800' ?>; color: white; padding: 3px 8px; font-size: 10px; display: inline-block;">
+                                                <?= ($user['is_active'] ?? 0) ? '✓ Yes' : '○ No' ?>
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e3e9f3;">
-                                <button class="btn btn-sm btn-primary" onclick="showChangePasswordModal()" style="width: 48%; padding: 5px; font-size: 11px;">
-                                    <i class="fa fa-key"></i> Change Password
-                                </button>
-                                <button class="btn btn-sm btn-warning" onclick="logoutConfirm()" style="width: 48%; margin-left: 4%; padding: 5px; font-size: 11px;">
-                                    <i class="fa fa-sign-out"></i> Logout
-                                </button>
+                                <div class="col-md-2" style="padding: 3px;">
+                                    <div style="margin-bottom: 6px;">
+                                        <label style="color: #999; font-size: 10px; font-weight: bold;">&nbsp;</label>
+                                        <div style="display: flex; gap: 4px; margin-bottom: 6px;">
+                                            <button class="btn btn-primary" onclick="showChangePasswordModal()" style="flex: 1; padding: 5px; font-size: 11px;">
+                                                <i class="fa fa-key"></i> Password
+                                            </button>
+                                            <button class="btn btn-warning" onclick="logoutConfirm()" style="flex: 1; padding: 5px; font-size: 11px;">
+                                                <i class="fa fa-sign-out"></i> Logout
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -382,7 +437,7 @@ use yii\helpers\Html;
     .widget-title {
         margin: 0;
         color: #333;
-        font-size: 12px;
+        font-size: 13px;
         font-weight: bold;
     }
 
@@ -416,11 +471,6 @@ use yii\helpers\Html;
 
     .btn-warning:hover {
         background-color: #F57C00;
-    }
-
-    .btn-sm {
-        padding: 5px 10px;
-        font-size: 11px;
     }
 
     .label {
