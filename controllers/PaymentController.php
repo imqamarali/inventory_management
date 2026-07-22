@@ -229,24 +229,6 @@ class PaymentController extends Controller
 
         $stats['next_due_date'] = $nextDue['next_due_date'] ?? null;
 
-        // Payment status distribution
-        $paymentStatusChart = $db->createCommand(
-            "SELECT payment_status as status, COUNT(*) as total
-             FROM system_invoices
-             WHERE is_deleted = 0
-             GROUP BY payment_status"
-        )->queryAll();
-
-        // Monthly payment trend
-        $monthlyPaymentChart = $db->createCommand(
-            "SELECT DATE_FORMAT(invoice_date, '%b %Y') as month, SUM(amount) as total
-             FROM system_invoices
-             WHERE is_deleted = 0
-             GROUP BY YEAR(invoice_date), MONTH(invoice_date)
-             ORDER BY invoice_date DESC
-             LIMIT 12"
-        )->queryAll();
-
         // Latest invoices
         $latestInvoices = $db->createCommand(
             "SELECT si.invoice_number, sc.contract_name, si.invoice_date, si.payment_status, si.amount
@@ -271,8 +253,6 @@ class PaymentController extends Controller
         return [
             'success' => true,
             'stats' => $stats,
-            'paymentStatusChart' => $paymentStatusChart,
-            'monthlyPaymentChart' => $monthlyPaymentChart,
             'latestInvoices' => $latestInvoices,
             'pendingPayments' => $pendingPayments
         ];

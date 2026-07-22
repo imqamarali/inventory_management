@@ -113,40 +113,6 @@ DATA DISPLAYED:
 
     </div>
 
-    <div class="row">
-
-        <div class="col-md-6">
-
-            <div class="dashboard-box">
-
-                <h4>
-                    <i class="fa fa-pie-chart"></i>
-                    Payment Status Distribution
-                </h4>
-
-                <canvas id="paymentStatusChart" height="220"></canvas>
-
-            </div>
-
-        </div>
-
-        <div class="col-md-6">
-
-            <div class="dashboard-box">
-
-                <h4>
-                    <i class="fa fa-bar-chart"></i>
-                    Monthly Payment Trend
-                </h4>
-
-                <canvas id="monthlyPaymentChart" height="220"></canvas>
-
-            </div>
-
-        </div>
-
-    </div>
-
     <div class="row" style="margin-top:15px;">
 
         <div class="col-md-6">
@@ -246,12 +212,6 @@ DATA DISPLAYED:
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    var paymentStatusChart = null;
-    var monthlyPaymentChart = null;
-</script>
-
 <script>
 
     $(function() {
@@ -278,7 +238,8 @@ DATA DISPLAYED:
             dataType: "json",
 
             data: {
-                flag: "load_dashboard"
+                flag: "load_dashboard",
+                "<?= Yii::$app->request->csrfParam ?>": "<?= Yii::$app->request->getCsrfToken() ?>"
             },
 
             success: function(response) {
@@ -288,8 +249,6 @@ DATA DISPLAYED:
                 if (response.success) {
 
                     loadStatistics(response.stats);
-                    loadPaymentStatusChart(response.paymentStatusChart);
-                    loadMonthlyPaymentChart(response.monthlyPaymentChart);
                     loadLatestInvoices(response.latestInvoices);
                     loadPendingPayments(response.pendingPayments);
 
@@ -423,142 +382,6 @@ DATA DISPLAYED:
             }
 
         });
-
-    }
-
-    function loadPaymentStatusChart(data) {
-
-        if (paymentStatusChart) {
-            paymentStatusChart.destroy();
-        }
-
-        let labels = [];
-        let values = [];
-
-        $.each(data, function(i, row) {
-
-            labels.push(row.status);
-            values.push(parseInt(row.total));
-
-        });
-
-        paymentStatusChart = new Chart(
-            document.getElementById("paymentStatusChart"), {
-
-                type: "doughnut",
-
-                data: {
-
-                    labels: labels,
-
-                    datasets: [{
-                        data: values,
-                        backgroundColor: [
-                            "#3498db",
-                            "#2ecc71",
-                            "#f39c12",
-                            "#9b59b6",
-                            "#1abc9c",
-                            "#e74c3c"
-                        ]
-                    }]
-
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    plugins: {
-
-                        legend: {
-
-                            position: "bottom"
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        );
-
-    }
-
-    function loadMonthlyPaymentChart(data) {
-
-        if (monthlyPaymentChart) {
-            monthlyPaymentChart.destroy();
-        }
-
-        let labels = [];
-        let values = [];
-
-        $.each(data, function(i, row) {
-
-            labels.push(row.month);
-            values.push(parseFloat(row.total));
-
-        });
-
-        monthlyPaymentChart = new Chart(
-            document.getElementById("monthlyPaymentChart"), {
-
-                type: "line",
-
-                data: {
-
-                    labels: labels,
-
-                    datasets: [{
-
-                        label: "Payment Amount",
-
-                        data: values,
-
-                        fill: true,
-
-                        borderColor: "#27ae60",
-
-                        backgroundColor: "rgba(39,174,96,.15)",
-
-                        tension: .4
-
-                    }]
-
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    plugins: {
-
-                        legend: {
-
-                            display: false
-
-                        }
-
-                    },
-
-                    scales: {
-
-                        y: {
-
-                            beginAtZero: true
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        );
 
     }
 
