@@ -36,6 +36,9 @@ if (!isset($activities)) $activities = [];
                     </button>
                 </div>
             </form>
+            <div id="total_records_info" style="margin-top: 10px; font-size: 12px; color: #7f8c8d; display: none;">
+                <i class="fa fa-info-circle"></i> <span id="total_records_count">0</span> total activity records in system
+            </div>
         </div>
 
         <div id="report_container" class="widget-main">
@@ -72,13 +75,13 @@ if (!isset($activities)) $activities = [];
                 Swal.close();
                 if (d.success) {
                     currentReportData = d.logs || [];
-                    renderTable(d.logs, d.summary);
+                    renderTable(d.logs, d.summary, d.page, d.perPage, d.total);
                 } else Swal.fire('Error', d.message || 'Failed to load logs', 'error');
             })
             .catch(e => {Swal.close(); Swal.fire('Error', e.message, 'error');});
     };
 
-    function renderTable(rows, summary) {
+    function renderTable(rows, summary, page = 1, perPage = 20, total = 0) {
         let html = '';
         if (summary) {
             html += `<div class="stats-grid">
@@ -127,7 +130,23 @@ if (!isset($activities)) $activities = [];
             html += '<tr><td colspan="8" class="text-center">No activity logs found</td></tr>';
         }
         html += '</tbody></table></div>';
+
+        // Add pagination info
+        if (rows && rows.length > 0) {
+            const from = ((page - 1) * perPage) + 1;
+            const to = Math.min(from + rows.length - 1, total);
+            html += `<div class="pagination-info">Showing ${from} to ${to} of ${total} records</div>`;
+        }
+
         document.getElementById('report_container').innerHTML = html;
+
+        // Update total records info
+        if (total > 0) {
+            document.getElementById('total_records_count').textContent = total.toLocaleString('en-US');
+            document.getElementById('total_records_info').style.display = 'block';
+        } else {
+            document.getElementById('total_records_info').style.display = 'none';
+        }
     }
 
     function htmlEscape(text) {
@@ -192,18 +211,18 @@ if (!isset($activities)) $activities = [];
 .stats-grid {
     margin-bottom: 15px;
     display: flex;
-    gap: 15px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
 .stat-card {
     flex: 1;
-    min-width: 220px;
+    min-width: 180px;
     background: white;
     border: 1px solid #e9ecef;
     border-left: 4px solid;
     border-radius: 4px;
-    padding: 15px;
+    padding: 10px 12px;
     margin-bottom: 0;
 }
 
@@ -247,16 +266,25 @@ if (!isset($activities)) $activities = [];
 .stat-card.purple .stat-icon { background: rgba(155, 89, 182, 0.1); color: #9b59b6; }
 
 .stat-value {
-    font-size: 24px;
+    font-size: 18px;
     font-weight: 700;
     color: #2d3748;
-    margin-bottom: 5px;
+    margin-bottom: 3px;
     line-height: 1.2;
 }
 
 .stat-subtitle {
-    font-size: 11px;
+    font-size: 10px;
     color: #95a5a6;
+}
+
+.pagination-info {
+    text-align: right;
+    padding: 10px 15px;
+    font-size: 12px;
+    color: #7f8c8d;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
 }
 
 .table-responsive {
