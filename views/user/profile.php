@@ -27,12 +27,14 @@ if(!isset($user))
                     <div class="widget-box">
                         <div class="widget-body" style="padding: 12px;">
                             <div class="text-center">
-                                <div style="width: 80px; height: 80px; background: white; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid #e3e9f3;">
+                                <div id="profilePictureContainer" style="width: 80px; height: 80px; background: white; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid #e3e9f3; position: relative; cursor: pointer;">
                                     <?php if (!empty($user['profile_picture'])): ?>
-                                        <img src="<?= Html::encode($user['profile_picture']) ?>" style="width: 100%; height: 100%; object-fit: cover;" alt="Profile">
+                                        <img id="profileImagePreview" src="<?= Html::encode($user['profile_picture']) ?>" style="width: 100%; height: 100%; object-fit: cover;" alt="Profile">
                                     <?php else: ?>
-                                        <i class="ace-icon fa fa-user fa-3x" style="color: #667eea;"></i>
+                                        <i id="profileImageIcon" class="ace-icon fa fa-user fa-3x" style="color: #667eea;"></i>
                                     <?php endif; ?>
+                                    <input type="file" id="profilePictureInput" accept="image/*" style="display: none;">
+                                    <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0) url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2220%22 height=%2220%22 viewBox=%220 0 24 24%22 fill=%22white%22><path d=%22M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z%22/></svg>') center no-repeat; background-size: 20px 20px; cursor: pointer; opacity: 0; transition: opacity 0.3s;" id="profilePictureOverlay" onmouseover="this.style.opacity='1'; this.style.backgroundColor='rgba(0,0,0,0.5)';" onmouseout="this.style.opacity='0'; this.style.backgroundColor='rgba(0,0,0,0)';"></div>
                                 </div>
                                 <h4 style="margin: 6px 0; font-weight: bold; font-size: 14px;">
                                     <?= Html::encode(trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) ?: 'User') ?>
@@ -436,6 +438,101 @@ if(!isset($user))
             if (result.isConfirmed) {
                 window.location.href = 'index.php?r=site/logout';
             }
+        });
+    }
+
+    // Make container and overlay clickable
+    const profileContainer = document.getElementById('profilePictureContainer');
+    const profileOverlay = document.getElementById('profilePictureOverlay');
+
+    profileContainer.addEventListener('click', function() {
+        document.getElementById('profilePictureInput').click();
+    });
+
+    profileOverlay.addEventListener('click', function(e) {
+        e.stopPropagation();
+        document.getElementById('profilePictureInput').click();
+    });
+
+    // Profile picture upload handler
+    document.getElementById('profilePictureInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            Swal.fire('Error', 'Please select an image file', 'error');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            Swal.fire('Error', 'Image size should not exceed 5MB', 'error');
+            return;
+        }
+
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const preview = event.target.result;
+            const profileImage = document.getElementById('profileImagePreview');
+            const profileIcon = document.getElementById('profileImageIcon');
+
+            if (profileIcon) {
+                profileIcon.remove();
+            }
+
+            if (profileImage) {
+                profileImage.src = preview;
+            } else {
+                const img = document.createElement('img');
+                img.id = 'profileImagePreview';
+                img.src = preview;
+                img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+                document.getElementById('profilePictureContainer').appendChild(img);
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Upload file
+        uploadProfilePicture(file);
+    });
+
+    function uploadProfilePicture(file) {
+        const formData = new FormData();
+        formData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        formData.append('flag', 'uploadProfilePicture');
+        formData.append('userId', document.getElementById('userId').value);
+        formData.append('profile_picture', file);
+
+        Swal.fire({
+            title: 'Uploading Profile Picture...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        fetch('index.php?r=user/profile', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            Swal.close();
+            if (data.success) {
+                Swal.fire('Success', data.message, 'success').then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Error', data.message, 'error');
+                location.reload();
+            }
+        })
+        .catch(e => {
+            Swal.close();
+            Swal.fire('Error', 'Failed to upload profile picture', 'error');
+            console.error(e);
         });
     }
 </script>

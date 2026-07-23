@@ -26,6 +26,8 @@ class UserController extends Controller
                 return $this->updateProfile();
             } elseif ($flag === 'changePassword') {
                 return $this->changePassword();
+            } elseif ($flag === 'uploadProfilePicture') {
+                return $this->uploadProfilePicture();
             }
 
             return ['success' => false, 'message' => 'Invalid action'];
@@ -157,6 +159,84 @@ class UserController extends Controller
             }
 
             return ['success' => false, 'message' => 'Failed to change password'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
+
+    private function uploadProfilePicture()
+    {
+        $userId = Yii::$app->request->post('userId');
+        $uploadDir = Yii::getAlias('@webroot/uploads/profile_pictures');
+
+        // Create directory if not exists
+        if (!is_dir($uploadDir)) {
+            @mkdir($uploadDir, 0755, true);
+        }
+
+        // Get uploaded file
+        $file = Yii::$app->request->files->get('profile_picture');
+
+        if (!$file) {
+            return ['success' => false, 'message' => 'No file uploaded'];
+        }
+
+        // Validate file
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+        $fileExtension = strtolower(pathinfo($file->name, PATHINFO_EXTENSION));
+
+        if (!in_array($fileExtension, $allowedExtensions)) {
+            return ['success' => false, 'message' => 'Invalid file type. Only JPG, PNG, GIF are allowed'];
+        }
+
+        if ($file->size > 5 * 1024 * 1024) {
+            return ['success' => false, 'message' => 'File size should not exceed 5MB'];
+        }
+
+        try {
+            // Generate unique filename
+            $timestamp = time();
+            $filename = $timestamp . '_' . bin2hex(random_bytes(5)) . '.' . $fileExtension;
+            $uploadPath = $uploadDir . '/' . $filename;
+
+            // Move uploaded file
+            if (!$file->saveAs($uploadPath)) {
+                return ['success' => false, 'message' => 'Failed to save file'];
+            }
+
+            // Get old profile picture path
+            $user = Yii::$app->db->createCommand(
+                "SELECT profile_picture FROM system_users WHERE id = :id LIMIT 1",
+                [':id' => $userId]
+            )->queryOne();
+
+            // Delete old profile picture if exists
+            if ($user && !empty($user['profile_picture'])) {
+                $oldPath = Yii::getAlias('@webroot/' . $user['profile_picture']);
+                if (file_exists($oldPath)) {
+                    @unlink($oldPath);
+                }
+            }
+
+            // Update database
+            $relativePath = 'uploads/profile_pictures/' . $filename;
+            $result = Yii::$app->db->createCommand()
+                ->update('system_users', [
+                    'profile_picture' => $relativePath,
+                    'updated_at' => date('Y-m-d H:i:s')
+                ], 'id = :id', [':id' => $userId])
+                ->execute();
+
+            if ($result) {
+                // Update session
+                $userArray = Yii::$app->session->get('user_array');
+                $userArray['profile_picture'] = $relativePath;
+                Yii::$app->session->set('user_array', $userArray);
+
+                return ['success' => true, 'message' => 'Profile picture uploaded successfully'];
+            }
+
+            return ['success' => false, 'message' => 'Failed to update profile picture'];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
         }
