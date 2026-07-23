@@ -180,16 +180,15 @@ class InventoryController extends Controller
             $isSuperAdmin = ($roleName === 'Super Admin');
         }
 
-        if (!$isSuperAdmin && $user_id) {
+        if (!$isSuperAdmin) {
             try {
                 $unpaidInvoices = Yii::$app->db->createCommand(
                     "SELECT si.id, si.invoice_number, si.amount, si.due_date, si.invoice_date
                      FROM system_invoices si
-                     WHERE si.user_id = :user_id
-                     AND si.payment_status = 'unpaid'
+                     WHERE si.payment_status = 'unpaid'
                      AND si.is_deleted = 0
                      ORDER BY si.due_date ASC"
-                )->bindValue(':user_id', $user_id)->queryAll();
+                )->queryAll();
             } catch (\Exception $e) {
                 \Yii::error("Error fetching unpaid invoices: " . $e->getMessage());
             }
