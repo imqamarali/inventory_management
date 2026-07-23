@@ -522,11 +522,11 @@ if(!isset($user))
             Swal.close();
             if (data.success) {
                 Swal.fire('Success', data.message, 'success').then(() => {
-                    location.reload();
+                    // location.reload();
                 });
             } else {
                 Swal.fire('Error', data.message, 'error');
-                location.reload();
+                // location.reload();
             }
         })
         .catch(e => {

@@ -5,6 +5,7 @@ namespace app\controllers;
 use Yii;
 use yii\web\Controller;
 use yii\web\Response;
+use yii\web\UploadedFile;
 
 class UserController extends Controller
 {
@@ -174,8 +175,8 @@ class UserController extends Controller
             @mkdir($uploadDir, 0755, true);
         }
 
-        // Get uploaded file
-        $file = Yii::$app->request->files->get('profile_picture');
+        // Get uploaded file using Yii2's UploadedFile
+        $file = UploadedFile::getInstanceByName('profile_picture');
 
         if (!$file) {
             return ['success' => false, 'message' => 'No file uploaded'];
