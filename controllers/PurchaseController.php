@@ -18,6 +18,16 @@ class PurchaseController extends Controller
         Yii::$app->response->format = Response::FORMAT_JSON;
         return array_merge(['success' => $success, 'message' => $message], $data);
     }
+    protected function isSuperAdmin()
+    {
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if (!$roleId) return false;
+
+        return Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+        )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+    }
+
     private function generateDocNo($prefix) {
         return $prefix . '-' . date('Ymd') . '-' . date('His') . '-' . mt_rand(100, 999);
     }

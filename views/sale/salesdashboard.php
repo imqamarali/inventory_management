@@ -53,10 +53,21 @@ FINANCE INTEGRATION:
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
+            <?php
+                $isSuperAdmin = false;
+                if (isset(Yii::$app->session['user_array']['role_id'])) {
+                    $roleId = Yii::$app->session['user_array']['role_id'];
+                    $isSuperAdmin = Yii::$app->db->createCommand(
+                        "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+                    )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+                }
+            ?>
+            <?php if ($isSuperAdmin): ?>
             <button id="truncateSalesBtn" style="margin-left: 10px;    cursor: pointer;">
                 <i class="fa fa-trash"></i>
                 Truncate Sale Records
             </button>
+            <?php endif; ?>
         </div>
     </div> 
     <div class="stats-grid"> 

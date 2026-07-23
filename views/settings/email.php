@@ -90,7 +90,9 @@ if (!isset($config)) {
                                 <span class="required">*</span> SMTP Password
                             </label>
                             <div class="col-xs-12 col-sm-8">
-                                <input type="password" class="form-control" id="email_smtp_password" name="email_smtp_password"
+                                <input type="password" class="form-control" id="email_smtp_password"
+                                        value="<?= htmlspecialchars($config['email_smtp_password'] ?? '') ?>"
+                                        name="email_smtp_password"
                                        placeholder="SMTP password or app password" required>
                                 <small class="text-muted">Your SMTP password (not stored in plain text)</small>
                             </div>

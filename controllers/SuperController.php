@@ -3,22 +3,33 @@
 namespace app\controllers;
 
 use Yii;
+use yii\filters\AccessControl;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
 class SuperController extends Controller
 {
+    public function behaviors()
+    {
+        return [
+            'access' => [
+                'class' => AccessControl::class,
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'roles' => ['@'],
+                    ],
+                ],
+            ],
+        ];
+    }
+
     /**
      * Ensure only authenticated users can access SuperController.
      */
     public function beforeAction($action)
     {
-        if (!Yii::$app->session->has('user_array')) {
-            $this->redirect(['site/index']);
-            return false;
-        }
-
         // Keep behaviour consistent with other controllers (CSRF often disabled)
         $this->enableCsrfValidation = false;
 

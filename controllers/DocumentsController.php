@@ -1900,4 +1900,498 @@ class DocumentsController extends Controller
 
         $pdf->Output('POS-' . ($pos['pos_no'] ?? 'UNKNOWN') . '.pdf', 'I');
     }
+
+    public function actionContractprint()
+    {
+        try {
+            $contractId = (int)Yii::$app->request->get('id');
+
+            if ($contractId <= 0) {
+                Yii::$app->response->format = 'html';
+                return $this->renderContent('Invalid Contract ID');
+            }
+
+            $db = Yii::$app->db;
+
+            $contract = $db->createCommand(
+                "SELECT * FROM system_contracts WHERE id = :id AND is_deleted = 0 LIMIT 1"
+            )->bindValue(':id', $contractId)->queryOne();
+
+            if (!$contract) {
+                Yii::$app->response->format = 'html';
+                return $this->renderContent('Contract not found');
+            }
+
+            $this->generateContractPDF($contract);
+        } catch (\Exception $e) {
+            Yii::$app->response->format = 'html';
+            return $this->renderContent('Error: ' . $e->getMessage());
+        }
+    }
+
+    private function generateContractPDF($contract)
+    {
+        $company = $this->getCompanyInfo();
+        $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetMargins(12, 12, 12);
+        $pdf->SetAutoPageBreak(false, 12);
+        $pdf->AddPage();
+
+        // Header with company info on right
+        $pdf->SetFont('times', 'B', 20);
+        $pdf->SetXY(12, 12);
+        $pdf->Cell(110, 10, 'System Contract Document', 0, 0, 'L');
+
+        // Company info on right
+        $pdf->SetFont('times', 'B', 9);
+        $pdf->SetXY(130, 12);
+        $pdf->MultiCell(58, 3.2,
+            strtoupper($company['company_name']) . "\n" .
+            $company['company_address'] . "\n" .
+            $company['company_phone'] . "\n" .
+            $company['company_email'],
+            0, 'L'
+        );
+
+        $pdf->SetFont('times', 'I', 9);
+        $pdf->SetXY(12, 32);
+        $pdf->Cell(0, 5, 'Contract Number: ' . htmlspecialchars($contract['contract_number']), 0, 1, 'L');
+
+        $pdf->Ln(2);
+
+        // Contract Details Section
+        $pdf->SetFont('times', 'B', 10);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 6, '1. CONTRACT DETAILS', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 9);
+        $pdf->SetFillColor(245, 245, 245);
+
+        // Two columns layout
+        $col1Width = 95;
+        $col2Width = 95;
+
+        // Row 1
+        $pdf->Cell(30, 5, 'Contract Name:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, htmlspecialchars(substr($contract['contract_name'] ?? 'N/A', 0, 35)), 0, 0, 'L', true);
+        $pdf->Cell(30, 5, 'Contract Type:', 0, 0, 'L', true);
+        $contractType = $contract['contract_type'] === 'yearly' ? 'YEARLY' : 'MONTHLY';
+        $pdf->Cell(0, 5, $contractType, 0, 1, 'L', true);
+
+        // Row 2
+        $pdf->Cell(30, 5, 'Contract No:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, htmlspecialchars($contract['contract_number'] ?? 'N/A'), 0, 0, 'L', true);
+        $pdf->Cell(30, 5, 'System Status:', 0, 0, 'L', true);
+        $statusColor = strtolower($contract['system_status']) === 'active' ? '✓ ACTIVE' : strtoupper($contract['system_status']);
+        $pdf->Cell(0, 5, $statusColor, 0, 1, 'L', true);
+
+        $pdf->Ln(2);
+
+        // Contractor Information Section
+        $pdf->SetFont('times', 'B', 10);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 6, '2. CONTRACTOR INFORMATION', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 9);
+        $pdf->SetFillColor(245, 245, 245);
+
+        // Row 1
+        $pdf->Cell(30, 5, 'Name:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, htmlspecialchars(substr($contract['contractor_name'] ?? 'N/A', 0, 35)), 0, 0, 'L', true);
+        $pdf->Cell(30, 5, 'CNIC/ID:', 0, 0, 'L', true);
+        $pdf->Cell(0, 5, htmlspecialchars($contract['contractor_cnic'] ?? 'N/A'), 0, 1, 'L', true);
+
+        // Row 2
+        $pdf->Cell(30, 5, 'Email:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, htmlspecialchars(substr($contract['contractor_email'] ?? 'N/A', 0, 35)), 0, 0, 'L', true);
+        $pdf->Cell(30, 5, 'Phone:', 0, 0, 'L', true);
+        $pdf->Cell(0, 5, htmlspecialchars($contract['contractor_phone'] ?? 'N/A'), 0, 1, 'L', true);
+
+        // Address (full width)
+        $pdf->Cell(30, 5, 'Address:', 0, 0, 'L', true);
+        $pdf->Cell(0, 5, htmlspecialchars(substr($contract['contractor_address'] ?? 'N/A', 0, 60)), 0, 1, 'L', true);
+
+        $pdf->Ln(2);
+
+        // Important Dates Section
+        $pdf->SetFont('times', 'B', 10);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 6, '3. IMPORTANT DATES', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 9);
+        $pdf->SetFillColor(245, 245, 245);
+
+        // Row 1
+        $instDate = $contract['installation_date'] ? date('d M, Y', strtotime($contract['installation_date'])) : 'N/A';
+        $pdf->Cell(30, 5, 'Installation:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, $instDate, 0, 0, 'L', true);
+        $startDate = $contract['contract_start_date'] ? date('d M, Y', strtotime($contract['contract_start_date'])) : 'N/A';
+        $pdf->Cell(30, 5, 'Start Date:', 0, 0, 'L', true);
+        $pdf->Cell(0, 5, $startDate, 0, 1, 'L', true);
+
+        // Row 2
+        $endDate = $contract['contract_end_date'] ? date('d M, Y', strtotime($contract['contract_end_date'])) : 'N/A';
+        $pdf->Cell(30, 5, 'End Date:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, $endDate, 0, 0, 'L', true);
+        $pdf->Cell(30, 5, 'Due Date:', 0, 0, 'L', true);
+        $pdf->Cell(0, 5, $contract['monthly_due_date'] . ' of month', 0, 1, 'L', true);
+
+        // Row 3
+        $pdf->Cell(30, 5, 'Extension Days:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, $contract['maximum_extension_days'] . ' days', 0, 0, 'L', true);
+        $pdf->Cell(30, 5, '', 0, 0, 'L', true);
+        $pdf->Cell(0, 5, '', 0, 1, 'L', true);
+
+        $pdf->Ln(2);
+
+        // Financial Details Section
+        $pdf->SetFont('times', 'B', 10);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 6, '4. FINANCIAL DETAILS', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 9);
+        $pdf->SetFillColor(245, 245, 245);
+
+        // Row 1
+        $pdf->Cell(30, 5, 'Monthly Charges:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 5, 'PKR ' . number_format($contract['monthly_charges'], 2), 0, 0, 'L', true);
+        $pdf->Cell(30, 5, 'Yearly Charges:', 0, 0, 'L', true);
+        $pdf->Cell(0, 5, 'PKR ' . number_format($contract['yearly_charges'], 2), 0, 1, 'L', true);
+
+        $pdf->Ln(2);
+
+        // Descriptions Section (Compact)
+        $descriptions = [];
+        if (!empty($contract['contract_description'])) {
+            $descriptions[] = 'Contract: ' . substr($contract['contract_description'], 0, 50) . (strlen($contract['contract_description']) > 50 ? '...' : '');
+        }
+        if (!empty($contract['policy_description'])) {
+            $descriptions[] = 'Policy: ' . substr($contract['policy_description'], 0, 50) . (strlen($contract['policy_description']) > 50 ? '...' : '');
+        }
+
+        if (!empty($descriptions)) {
+            $pdf->SetFont('times', 'B', 10);
+            $pdf->SetFillColor(15, 76, 41);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->Cell(0, 6, '5. ADDITIONAL INFORMATION', 0, 1, 'L', true);
+
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetFont('times', '', 8);
+            $pdf->SetFillColor(245, 245, 245);
+            foreach ($descriptions as $desc) {
+                $pdf->Cell(0, 4, $desc, 0, 1, 'L', true);
+            }
+            $pdf->Ln(1);
+        }
+
+        // Signature Section
+        $currentY = $pdf->GetY();
+        $pageHeight = $pdf->getPageHeight();
+
+        // Check if we need new page for signatures
+        if ($currentY + 30 > $pageHeight - 15) {
+            $pdf->AddPage();
+            $pdf->SetMargins(12, 12, 12);
+        }
+
+        $pdf->Ln(4);
+
+        $pdf->SetFont('times', 'B', 10);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 6, 'AUTHORIZED SIGNATURES', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 9);
+        $pdf->Ln(2);
+
+        // Developer/System Signature
+        $pdf->Cell(95, 4, 'System Developer/Manager', 0, 0, 'C');
+        $pdf->Cell(95, 4, 'Contractor/Client', 0, 1, 'C');
+
+        // Signature lines
+        $pdf->Cell(95, 18, '', 1, 0, 'C');
+        $pdf->Cell(95, 18, '', 1, 1, 'C');
+
+        $pdf->SetFont('times', '', 8);
+        $pdf->Cell(95, 4, 'Name & Signature', 0, 0, 'C');
+        $pdf->Cell(95, 4, 'Name & Signature', 0, 1, 'C');
+
+        $pdf->Ln(2);
+
+        $pdf->Cell(95, 4, 'Date: _______________', 0, 0, 'C');
+        $pdf->Cell(95, 4, 'Date: _______________', 0, 1, 'C');
+
+        // Footer
+        $pdf->Ln(3);
+        $pdf->SetFont('times', 'B', 8);
+        $pdf->SetFillColor(50, 50, 50);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 5, 'Generated on: ' . date('d M, Y \a\t H:i:s') . ' | Inventory Management System', 0, 1, 'C', true);
+
+        $pdf->Output('CONTRACT-' . $contract['contract_number'] . '.pdf', 'I');
+    }
+
+    public function actionBillpaymentprint()
+    {
+        try {
+            $invoiceId = (int)Yii::$app->request->get('id');
+
+            if ($invoiceId <= 0) {
+                Yii::$app->response->format = 'html';
+                return $this->renderContent('Invalid Invoice ID');
+            }
+
+            $db = Yii::$app->db;
+
+            $invoice = $db->createCommand(
+                "SELECT si.*, sc.contract_name FROM system_invoices si
+                 LEFT JOIN system_contracts sc ON sc.id = si.contract_id
+                 WHERE si.id = :id AND si.is_deleted = 0 LIMIT 1"
+            )->bindValue(':id', $invoiceId)->queryOne();
+
+            if (!$invoice) {
+                Yii::$app->response->format = 'html';
+                return $this->renderContent('Invoice not found');
+            }
+
+            // Get payment records for this invoice
+            $payments = $db->createCommand(
+                "SELECT sp.* FROM system_payment_proofs sp
+                 WHERE sp.invoice_id = :id AND sp.is_deleted = 0
+                 ORDER BY sp.created_at DESC"
+            )->bindValue(':id', $invoiceId)->queryAll();
+
+            $this->generateBillPaymentPDF($invoice, $payments);
+        } catch (\Exception $e) {
+            Yii::$app->response->format = 'html';
+            return $this->renderContent('Error: ' . $e->getMessage());
+        }
+    }
+
+    private function generateBillPaymentPDF($invoice, $payments = [])
+    {
+        $company = $this->getCompanyInfo();
+        $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 15);
+        $pdf->AddPage();
+
+        // Header with company info
+        $pdf->SetFont('times', 'B', 24);
+        $pdf->SetXY(15, 15);
+        $pdf->Cell(110, 10, 'PAYMENT RECEIPT', 0, 0, 'L');
+
+        // Company info on right
+        $pdf->SetFont('times', 'B', 10);
+        $pdf->SetXY(130, 15);
+        $pdf->MultiCell(55, 4,
+            strtoupper($company['company_name']) . "\n" .
+            $company['company_address'] . "\n" .
+            $company['company_phone'] . "\n" .
+            $company['company_email'],
+            0, 'L'
+        );
+
+        $pdf->SetFont('times', 'I', 10);
+        $pdf->SetXY(15, 35);
+        $pdf->Cell(0, 5, 'Invoice #: ' . htmlspecialchars($invoice['invoice_number']), 0, 1, 'L');
+
+        $pdf->Ln(3);
+
+        // Invoice Summary Section
+        $pdf->SetFont('times', 'B', 11);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 7, 'INVOICE INFORMATION', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 10);
+        $pdf->SetFillColor(245, 245, 245);
+
+        // Two columns
+        $col1Width = 95;
+
+        // Row 1
+        $pdf->Cell(30, 6, 'Invoice #:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 6, htmlspecialchars($invoice['invoice_number'] ?? 'N/A'), 0, 0, 'L', true);
+        $pdf->Cell(30, 6, 'Invoice Date:', 0, 0, 'L', true);
+        $invoiceDate = $invoice['invoice_date'] ? date('M d, Y', strtotime($invoice['invoice_date'])) : 'N/A';
+        $pdf->Cell(0, 6, $invoiceDate, 0, 1, 'L', true);
+
+        // Row 2
+        $pdf->Cell(30, 6, 'Contract:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 6, htmlspecialchars(substr($invoice['contract_name'] ?? 'N/A', 0, 30)), 0, 0, 'L', true);
+        $pdf->Cell(30, 6, 'Due Date:', 0, 0, 'L', true);
+        $dueDate = $invoice['due_date'] ? date('M d, Y', strtotime($invoice['due_date'])) : 'N/A';
+        $pdf->Cell(0, 6, $dueDate, 0, 1, 'L', true);
+
+        $pdf->Ln(2);
+
+        // Amount Information Section
+        $pdf->SetFont('times', 'B', 11);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 7, 'PAYMENT DETAILS', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 10);
+        $pdf->SetFillColor(245, 245, 245);
+
+        // Row 1 - Amounts
+        $totalAmount = (float)($invoice['amount'] ?? 0);
+        $paidAmount = (float)($invoice['paid_amount'] ?? 0);
+        $pdf->Cell(30, 6, 'Total Amount:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 6, 'PKR ' . number_format($totalAmount, 2), 0, 0, 'L', true);
+        $pdf->Cell(30, 6, 'Paid Amount:', 0, 0, 'L', true);
+        $pdf->SetFillColor(200, 255, 200);
+        $pdf->Cell(0, 6, 'PKR ' . number_format($paidAmount, 2), 0, 1, 'L', true);
+
+        // Row 2 - Remaining
+        $remaining = $totalAmount - $paidAmount;
+        $pdf->SetFillColor(245, 245, 245);
+        $pdf->Cell(30, 6, 'Remaining:', 0, 0, 'L', true);
+        $pdf->Cell($col1Width - 30, 6, 'PKR ' . number_format(max(0, $remaining), 2), 0, 0, 'L', true);
+        $pdf->Cell(30, 6, 'Status:', 0, 0, 'L', true);
+        $statusText = $remaining <= 0 ? 'PAID' : 'UNPAID';
+        $pdf->Cell(0, 6, $statusText, 0, 1, 'L', true);
+
+        $pdf->Ln(2);
+
+        // Payment History Section
+        if (!empty($payments)) {
+            $pdf->SetFont('times', 'B', 11);
+            $pdf->SetFillColor(15, 76, 41);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->Cell(0, 7, 'PAYMENT HISTORY', 0, 1, 'L', true);
+
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetFont('times', 'B', 10);
+            $pdf->SetFillColor(220, 220, 220);
+
+            // Table header
+            $pdf->Cell(35, 6, 'Payment Date', 1, 0, 'C', true);
+            $pdf->Cell(30, 6, 'Amount', 1, 0, 'R', true);
+            $pdf->Cell(35, 6, 'Method', 1, 0, 'C', true);
+            $pdf->Cell(0, 6, 'Transaction ID', 1, 1, 'L', true);
+
+            $pdf->SetFont('times', '', 9);
+            $pdf->SetFillColor(245, 245, 245);
+
+            // Table rows
+            foreach ($payments as $payment) {
+                $payDate = $payment['proof_date'] ? date('M d, Y', strtotime($payment['proof_date'])) : 'N/A';
+                $paymentAmount = (float)($payment['amount'] ?? 0);
+                $pdf->Cell(35, 6, $payDate, 1, 0, 'C', true);
+                $pdf->Cell(30, 6, 'PKR ' . number_format($paymentAmount, 2), 1, 0, 'R', true);
+                $pdf->Cell(35, 6, ucfirst(str_replace('_', ' ', $payment['payment_method'] ?? 'N/A')), 1, 0, 'C', true);
+                $pdf->Cell(0, 6, substr($payment['transaction_id'] ?? 'N/A', 0, 20), 1, 1, 'L', true);
+            }
+
+            $pdf->Ln(2);
+        }
+
+        // Payment Method & Details
+        if (!empty($payments)) {
+            $latestPayment = $payments[0];
+            $pdf->SetFont('times', 'B', 11);
+            $pdf->SetFillColor(15, 76, 41);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->Cell(0, 7, 'LATEST PAYMENT INFORMATION', 0, 1, 'L', true);
+
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetFont('times', '', 10);
+            $pdf->SetFillColor(245, 245, 245);
+
+            // Payment method info
+            $pdf->Cell(30, 6, 'Payment Method:', 0, 0, 'L', true);
+            $pdf->Cell($col1Width - 30, 6, ucfirst(str_replace('_', ' ', $latestPayment['payment_method'] ?? 'N/A')), 0, 0, 'L', true);
+            $pdf->Cell(30, 6, 'Proof Date:', 0, 0, 'L', true);
+            $proofDate = $latestPayment['proof_date'] ? date('M d, Y', strtotime($latestPayment['proof_date'])) : 'N/A';
+            $pdf->Cell(0, 6, $proofDate, 0, 1, 'L', true);
+
+            if (!empty($latestPayment['transaction_id'])) {
+                $pdf->Cell(30, 6, 'Transaction ID:', 0, 0, 'L', true);
+                $pdf->Cell(0, 6, htmlspecialchars($latestPayment['transaction_id']), 0, 1, 'L', true);
+            }
+
+            $pdf->Ln(2);
+
+            // User Comments Section
+            if (!empty($latestPayment['comments'])) {
+                $pdf->SetFont('times', 'B', 11);
+                $pdf->SetFillColor(15, 76, 41);
+                $pdf->SetTextColor(255, 255, 255);
+                $pdf->Cell(0, 7, 'USER COMMENTS', 0, 1, 'L', true);
+
+                $pdf->SetTextColor(0, 0, 0);
+                $pdf->SetFont('times', '', 10);
+                $pdf->SetFillColor(245, 245, 245);
+                $pdf->MultiCell(0, 5, htmlspecialchars($latestPayment['comments']), 1, 'L', true);
+                $pdf->Ln(2);
+            }
+
+            // Admin Comments Section
+            if (!empty($latestPayment['admin_comments'])) {
+                $pdf->SetFont('times', 'B', 11);
+                $pdf->SetFillColor(15, 76, 41);
+                $pdf->SetTextColor(255, 255, 255);
+                $pdf->Cell(0, 7, 'APPROVAL COMMENTS', 0, 1, 'L', true);
+
+                $pdf->SetTextColor(0, 0, 0);
+                $pdf->SetFont('times', '', 10);
+                $pdf->SetFillColor(200, 255, 200);
+                $pdf->MultiCell(0, 5, htmlspecialchars($latestPayment['admin_comments']), 1, 'L', true);
+                $pdf->Ln(2);
+            }
+        }
+
+        // Verification Status
+        $pdf->SetFont('times', 'B', 11);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 7, 'VERIFICATION STATUS', 0, 1, 'L', true);
+
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont('times', '', 10);
+        $pdf->SetFillColor(200, 255, 200);
+
+        $verificationStatus = !empty($payments) ? 'PAYMENT VERIFIED' : 'PAYMENT VERIFIED';
+        $pdf->Cell(0, 6, '✓ ' . $verificationStatus, 0, 1, 'L', true);
+
+        $pdf->Ln(3);
+
+        // Terms & Conditions
+        $pdf->SetFont('times', 'B', 10);
+        $pdf->SetFillColor(245, 245, 245);
+        $pdf->Cell(0, 6, 'Terms & Conditions:', 0, 1, 'L', true);
+
+        $pdf->SetFont('times', '', 9);
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->MultiCell(0, 4,
+            "• This is an official payment receipt generated from the Inventory Management System.\n" .
+            "• Payment verification is completed by the authorized personnel.\n" .
+            "• All payment proofs have been verified and approved.\n" .
+            "• For any queries, please contact the administration team.",
+            1, 'L'
+        );
+
+        $pdf->Ln(3);
+
+        // Footer
+        $pdf->SetFont('times', 'B', 9);
+        $pdf->SetFillColor(15, 76, 41);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->Cell(0, 6, 'Generated on: ' . date('M d, Y \a\t H:i:s') . ' | Inventory Management System', 0, 1, 'C', true);
+
+        $pdf->Output('PAYMENT-RECEIPT-' . $invoice['invoice_number'] . '.pdf', 'I');
+    }
 }

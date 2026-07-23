@@ -1119,6 +1119,16 @@ class SaleController extends Controller
         }
     }
 
+    protected function isSuperAdmin()
+    {
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if (!$roleId) return false;
+
+        return Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+        )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+    }
+
     public function behaviors()
     {
         return [

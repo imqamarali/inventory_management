@@ -23,6 +23,16 @@ class FinanceController extends Controller
             'message' => $message,
         ], $data);
     }
+    protected function isSuperAdmin()
+    {
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if (!$roleId) return false;
+
+        return Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+        )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+    }
+
     private function generateDocNo($prefix)
     {
         return $prefix . '-' . date('Ymd') . '-' . date('His') . '-' . mt_rand(100, 999);
@@ -2276,8 +2286,15 @@ class FinanceController extends Controller
             return $this->jsonResponse(false, 'Invalid request method');
         }
 
-        $password = Yii::$app->request->post('password', '');
         $user_id = $this->currentUserId();
+
+        // Only allow Super Admin to truncate
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if ($roleId !== 1) {
+            return $this->jsonResponse(false, 'Unauthorized. Only Super Admin can truncate records.');
+        }
+
+        $password = Yii::$app->request->post('password', '');
 
         // Verify password against admin user
         $admin = Yii::$app->db->createCommand(

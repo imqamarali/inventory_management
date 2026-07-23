@@ -77,13 +77,22 @@ class SiteController extends Controller
         $ip = Yii::$app->request->userIP;
         $lockKey = "login_lockout_$ip";
         $attemptsKey = "login_attempts_$ip";
+        $isAjax = Yii::$app->request->isAjax;
 
         if (Yii::$app->cache->get($lockKey)) {
             // Calculate remaining lockout time
             $lockoutTime = Yii::$app->cache->get($lockKey . '_time');
             $remainingSeconds = max(0, $lockoutTime - time());
 
-            Yii::$app->session->setFlash('error', 'Too many login attempts. Please try again later.');
+            $errorMsg = 'Too many login attempts. Please try again later.';
+            if ($isAjax) {
+                return $this->asJson([
+                    'success' => false,
+                    'message' => $errorMsg
+                ]);
+            }
+
+            Yii::$app->session->setFlash('error', $errorMsg);
             $this->layout = false;
             return $this->render('login', [
                 'model' => new LoginForm(),
@@ -100,6 +109,71 @@ class SiteController extends Controller
                 Yii::$app->cache->delete($attemptsKey);
                 $user = Yii::$app->user->identity;
 
+                // Check if 2FA is enabled for this user
+                $twoFactorSettings = Yii::$app->db->createCommand(
+                    "SELECT * FROM login_auth_settings WHERE user_id = :user_id AND two_factor_enabled = 1"
+                )->bindValue(':user_id', $user->id)->queryOne();
+
+                if ($twoFactorSettings) {
+                    // 2FA is enabled - Generate OTP and redirect to verification page
+                    $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                    $method = $twoFactorSettings['auth_method'];
+                    $deliveredTo = $method === 'sms' ? $twoFactorSettings['phone_number'] : $twoFactorSettings['email_address'];
+
+                    // Delete old OTP for user
+                    Yii::$app->db->createCommand(
+                        "DELETE FROM otp_verification WHERE user_id = :user_id AND is_verified = 0"
+                    )->bindValue(':user_id', $user->id)->execute();
+
+                    // Save OTP
+                    Yii::$app->db->createCommand(
+                        "INSERT INTO otp_verification
+                        (user_id, otp_code, delivery_method, delivered_to, expires_at)
+                        VALUES (:user_id, :otp, :method, :delivered_to, DATE_ADD(NOW(), INTERVAL 10 MINUTE))"
+                    )
+                        ->bindValue(':user_id', $user->id)
+                        ->bindValue(':otp', $otp)
+                        ->bindValue(':method', $method)
+                        ->bindValue(':delivered_to', $deliveredTo)
+                        ->execute();
+
+                    // Store user info temporarily in session for OTP verification
+                    Yii::$app->session['pending_otp_user'] = $user->id;
+                    Yii::$app->session['otp_temp_user'] = [
+                        'id' => $user->id,
+                        'username' => $user->username,
+                        'email' => $user->email ?? null,
+                        'first_name' => $user->first_name ?? null,
+                        'last_name' => $user->last_name ?? null,
+                        'phone' => $user->phone ?? null,
+                        'role_id' => $user->role_id ?? null,
+                        'profile_picture' => $user->profile_picture ?? null
+                    ];
+
+                    // Log out temporary login
+                    Yii::$app->user->logout(false);
+
+                    // Send OTP notification
+                    $this->sendOtpNotification($user->id, $otp, $method, $deliveredTo);
+
+                    if ($isAjax) {
+                        return $this->asJson([
+                            'success' => true,
+                            'requires_2fa' => true,
+                            'user_id' => $user->id,
+                            'message' => 'OTP sent. Please verify.'
+                        ]);
+                    }
+
+                    $this->layout = false;
+                    return $this->render('otp-verification', [
+                        'user_id' => $user->id,
+                        'method' => $method,
+                        'delivered_to' => $this->maskContact($deliveredTo, $method)
+                    ]);
+                }
+
+                // 2FA not enabled - Direct login
                 $session = Yii::$app->session;
                 $session->open();
                 $session['user_array'] = [
@@ -127,13 +201,28 @@ class SiteController extends Controller
                 // Check for pending invoices and access restrictions
                 $paymentStatus = $this->checkPaymentStatus($user->id, $user->role_id ?? null);
                 if ($paymentStatus['status'] === 'restricted' && !$paymentStatus['is_super_admin']) {
-                    Yii::$app->session->setFlash('error', 'System access restricted. Please update your payment status.');
+                    $errorMsg = 'System access restricted. Please update your payment status.';
+                    Yii::$app->session->setFlash('error', $errorMsg);
                     Yii::$app->user->logout();
+                    if ($isAjax) {
+                        return $this->asJson([
+                            'success' => false,
+                            'message' => $errorMsg
+                        ]);
+                    }
                     return $this->redirect(['site/login']);
                 }
 
                 // Store pending invoice info in session for modal display
                 Yii::$app->session['pending_invoice_info'] = $paymentStatus['pending_info'] ?? null;
+
+                if ($isAjax) {
+                    return $this->asJson([
+                        'success' => true,
+                        'requires_2fa' => false,
+                        'message' => 'Login successful'
+                    ]);
+                }
 
                 return $this->redirect(['inventory/dashboard']);
             } else {
@@ -144,10 +233,24 @@ class SiteController extends Controller
                     $lockoutEndTime = time() + $this->lockoutDuration;
                     Yii::$app->cache->set($lockKey, true, $this->lockoutDuration);
                     Yii::$app->cache->set($lockKey . '_time', $lockoutEndTime, $this->lockoutDuration);
-                    Yii::$app->session->setFlash('error', 'Account temporarily locked. Try again in 5 minutes.');
+                    $errorMsg = 'Account temporarily locked. Try again in 5 minutes.';
+                    if ($isAjax) {
+                        return $this->asJson([
+                            'success' => false,
+                            'message' => $errorMsg
+                        ]);
+                    }
+                    Yii::$app->session->setFlash('error', $errorMsg);
                 } else {
                     $remaining = $this->maxLoginAttempts - $attempts;
-                    Yii::$app->session->setFlash('error', "Invalid credentials. Attempts remaining: $remaining");
+                    $errorMsg = "Invalid credentials. Attempts remaining: $remaining";
+                    if ($isAjax) {
+                        return $this->asJson([
+                            'success' => false,
+                            'message' => $errorMsg
+                        ]);
+                    }
+                    Yii::$app->session->setFlash('error', $errorMsg);
                 }
             }
         }
@@ -160,6 +263,163 @@ class SiteController extends Controller
             'lockoutEndTime' => null,
             'remainingSeconds' => 0
         ]);
+    }
+
+    private function sendOtpNotification($userId, $otp, $method, $deliveredTo)
+    {
+        $user = Yii::$app->db->createCommand(
+            "SELECT username, email, first_name FROM system_users WHERE id = :user_id"
+        )->bindValue(':user_id', $userId)->queryOne();
+
+        if ($method === 'email') {
+            $this->sendLoginOtpViaEmail($user, $otp);
+        } elseif ($method === 'sms') {
+            $this->sendLoginOtpViaSMS($user, $otp);
+        }
+    }
+
+    private function sendLoginOtpViaEmail($user, $otp)
+    {
+        try {
+            $companyName = Yii::$app->db->createCommand(
+                "SELECT setting_value FROM inventory_settings WHERE setting_key = 'company_name' LIMIT 1"
+            )->queryScalar() ?: 'Inventory System';
+
+            $companyEmail = Yii::$app->db->createCommand(
+                "SELECT setting_value FROM inventory_settings WHERE setting_key = 'company_email' LIMIT 1"
+            )->queryScalar() ?: 'noreply@inventory-system.local';
+
+            $htmlBody = $this->getLoginOtpEmailTemplate($user['first_name'] ?? $user['username'], $otp, $companyName);
+            $toEmail = $user['email'];
+
+            $headers = "MIME-Version: 1.0\r\n";
+            $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+            $headers .= "From: " . $companyName . " <" . $companyEmail . ">\r\n";
+            $headers .= "Reply-To: <" . $companyEmail . ">\r\n";
+
+            $subject = "Login Verification Code - " . $companyName;
+
+            @mail($toEmail, $subject, $htmlBody, $headers);
+        } catch (\Exception $e) {
+            error_log('Login OTP Email Send Error: ' . $e->getMessage());
+        }
+    }
+
+    private function sendLoginOtpViaSMS($user, $otp)
+    {
+        try {
+            $companyName = Yii::$app->db->createCommand(
+                "SELECT setting_value FROM inventory_settings WHERE setting_key = 'company_name' LIMIT 1"
+            )->queryScalar() ?: 'Inventory System';
+
+            $smsMessage = "Your " . $companyName . " login OTP is: $otp. This code expires in 10 minutes. Do not share this code.";
+
+            // TODO: Implement SMS sending via Twilio, AWS SNS, Nexmo, or similar
+            // Example for Twilio:
+            // $client = new \Twilio\Rest\Client($accountSid, $authToken);
+            // $client->messages->create($phoneNumber, ['from' => $fromNumber, 'body' => $smsMessage]);
+        } catch (\Exception $e) {
+            error_log('Login OTP SMS Send Error: ' . $e->getMessage());
+        }
+    }
+
+    private function getLoginOtpEmailTemplate($userName, $otp, $companyName)
+    {
+        $timestamp = date('F d, Y \a\t g:i A');
+        $companyEmail = Yii::$app->db->createCommand(
+            "SELECT setting_value FROM inventory_settings WHERE setting_key = 'company_email' LIMIT 1"
+        )->queryScalar() ?: 'support@inventory-system.local';
+
+        return '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .content { padding: 30px 20px; }
+        .greeting { color: #2c3e50; font-size: 16px; }
+        .otp-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 8px; text-align: center; margin: 25px 0; }
+        .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 8px; margin: 15px 0; font-family: monospace; }
+        .otp-text { font-size: 14px; margin: 10px 0; }
+        .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .warning strong { color: #856404; }
+        .warning p { margin: 5px 0; color: #856404; font-size: 13px; }
+        .info-box { background-color: #e7f3ff; border-left: 4px solid #3498db; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .info-box p { margin: 5px 0; color: #004085; font-size: 13px; }
+        .footer { background-color: #f9f9f9; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #eee; }
+        .footer p { margin: 5px 0; color: #7f8c8d; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Login Verification Required</h1>
+        </div>
+
+        <div class="content">
+            <p class="greeting">Hello ' . htmlspecialchars($userName) . ',</p>
+
+            <p>We received a login request for your account. To complete your login, please verify your identity using the code below:</p>
+
+            <div class="otp-box">
+                <p class="otp-text">Your One-Time Password (OTP):</p>
+                <div class="otp-code">' . htmlspecialchars($otp) . '</div>
+                <p class="otp-text" style="font-size: 12px; opacity: 0.9;">Valid for 10 minutes</p>
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ Security Alert:</strong>
+                <p>Never share this code with anyone, including ' . htmlspecialchars($companyName) . ' staff. We will never ask for your OTP via email or phone.</p>
+            </div>
+
+            <div class="info-box">
+                <p><strong>Did you try to log in?</strong></p>
+                <p>If this was not you, your account may be compromised. Please change your password immediately or contact support at ' . htmlspecialchars($companyEmail) . '</p>
+            </div>
+
+            <h3 style="color: #2c3e50;">Next Steps:</h3>
+            <ol style="color: #555; line-height: 1.8;">
+                <li>Go to the login page of ' . htmlspecialchars($companyName) . '</li>
+                <li>Enter your username and password (if you haven\'t already)</li>
+                <li>Paste this code: <strong>' . htmlspecialchars($otp) . '</strong></li>
+                <li>Click "Verify OTP" to complete login</li>
+            </ol>
+
+            <p style="color: #666; font-size: 13px; text-align: center; margin-top: 25px;">
+                <strong>Sent:</strong> ' . $timestamp . '
+            </p>
+        </div>
+
+        <div class="footer">
+            <p><strong>' . htmlspecialchars($companyName) . ' - Security Team</strong></p>
+            <p>' . htmlspecialchars($companyEmail) . '</p>
+            <p style="margin-top: 10px; color: #999; font-size: 11px;">This is an automated security email. Please do not reply.</p>
+        </div>
+    </div>
+</body>
+</html>
+        ';
+    }
+
+    private function maskContact($contact, $type)
+    {
+        if ($type === 'sms') {
+            // Mask phone: +923001234567 -> +923001***567
+            return substr_replace($contact, '***', -4, 3);
+        } else {
+            // Mask email: user@example.com -> u***@example.com
+            $parts = explode('@', $contact);
+            if (count($parts) === 2) {
+                $masked = substr($parts[0], 0, 1) . '***';
+                return $masked . '@' . $parts[1];
+            }
+            return $contact;
+        }
     }
 
     public function actionLogout()
@@ -1399,7 +1659,8 @@ class SiteController extends Controller
 
         foreach ($pendingInvoices as $invoice) {
             // $extendedDate = strtotime($invoice['extended_due_date']);
-            $extendedDate = date('Y-m-d', strtotime($invoice['due_date'] . ' +5 days'));
+            $invoice['extended_due_date'] = strtotime($invoice['due_date'] . ' +5 days');
+            $extendedDate = date('Y-m-d', strtotime($invoice['extended_due_date']));
             if (strtotime($today) > $extendedDate) {
                 $isOverdue = true;
                 break;
@@ -1540,5 +1801,11 @@ class SiteController extends Controller
         } catch (\Exception $e) {
             // Silently fail - contracts table may not exist yet
         }
+    }
+
+    public function actionDebugRole()
+    {
+        $this->layout = false;
+        return $this->render('debug-role');
     }
 }

@@ -11,6 +11,16 @@ use yii\filters\VerbFilter;
 class InventoryController extends Controller
 {  
 
+    protected function isSuperAdmin()
+    {
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if (!$roleId) return false;
+
+        return Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+        )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+    }
+
     public function behaviors()
     {
         return [
@@ -454,6 +464,12 @@ class InventoryController extends Controller
             return ['success' => false, 'message' => 'Invalid request method'];
         }
 
+        // Only allow Super Admin to truncate
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if ($roleId !== 1) {
+            return ['success' => false, 'message' => 'Unauthorized. Only Super Admin can truncate records.'];
+        }
+
         $password = Yii::$app->request->post('password', '');
         $user_id = $this->currentUserId();
 
@@ -540,6 +556,12 @@ class InventoryController extends Controller
 
         if (!Yii::$app->request->isPost) {
             return ['success' => false, 'message' => 'Invalid request method'];
+        }
+
+        // Only allow Super Admin to truncate
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if ($roleId !== 1) {
+            return ['success' => false, 'message' => 'Unauthorized. Only Super Admin can truncate records.'];
         }
 
         $password = Yii::$app->request->post('password', '');

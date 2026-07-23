@@ -3,11 +3,27 @@
 namespace app\controllers;
 
 use Yii;
+use yii\filters\AccessControl;
 use yii\web\Controller;
 use yii\web\Response;
 
 class PaymentController extends Controller
 {
+    public function behaviors()
+    {
+        return [
+            'access' => [
+                'class' => AccessControl::class,
+                'rules' => [
+                    [
+                        'allow' => true,
+                        'roles' => ['@'],
+                    ],
+                ],
+            ],
+        ];
+    }
+
     public function beforeAction($action)
     {
         $this->enableCsrfValidation = true;
@@ -338,6 +354,7 @@ class PaymentController extends Controller
     {
         $invoiceId = Yii::$app->request->post('invoice_id');
         $comments = Yii::$app->request->post('comments', '');
+        $transactionId = Yii::$app->request->post('transaction_id', '');
         $userId = $this->currentUserId();
 
         if (!$invoiceId || empty($_FILES['documents']['name'])) {
@@ -370,14 +387,15 @@ class PaymentController extends Controller
 
                     Yii::$app->db->createCommand(
                         "INSERT INTO system_payment_proofs
-                        (invoice_id, proof_number, proof_date, document_file, document_name, verification_status, comments, created_by, created_at)
-                        VALUES (:invoice_id, :proof_number, NOW(), :document_file, :document_name, 'pending', :comments, :created_by, NOW())"
+                        (invoice_id, proof_number, proof_date, document_file, document_name, verification_status, comments, transaction_id, created_by, created_at)
+                        VALUES (:invoice_id, :proof_number, NOW(), :document_file, :document_name, 'pending', :comments, :transaction_id, :created_by, NOW())"
                     )
                         ->bindValue(':invoice_id', $invoiceId)
                         ->bindValue(':proof_number', $proofNumber)
                         ->bindValue(':document_file', 'uploads/payment_proofs/' . $uniqueFileName)
                         ->bindValue(':document_name', $fileName)
                         ->bindValue(':comments', $comments)
+                        ->bindValue(':transaction_id', $transactionId)
                         ->bindValue(':created_by', $userId)
                         ->execute();
 
@@ -453,26 +471,72 @@ class PaymentController extends Controller
             ];
         }
 
-        // Get invoice by ID
+        // Get invoice by ID with safety checks
         $invoice = $db->createCommand(
             "SELECT si.*, sc.contract_name
              FROM system_invoices si
-             JOIN system_contracts sc ON sc.id = si.contract_id
+             LEFT JOIN system_contracts sc ON sc.id = si.contract_id
              WHERE si.id = :id AND si.is_deleted = 0
              LIMIT 1"
         )->bindValue(':id', $invoiceId)->queryOne();
 
-        if ($invoice) {
+        if (!$invoice) {
             return [
-                'success' => true,
-                'invoice' => $invoice
+                'success' => false,
+                'message' => 'Invoice not found.'
             ];
         }
 
-        return [
-            'success' => false,
-            'message' => 'Invoice not found.'
+        // Get payment history with comments
+        $paymentHistory = [];
+        try {
+            $paymentProofs = $db->createCommand(
+                "SELECT spp.*, su.first_name, su.last_name
+                 FROM system_payment_proofs spp
+                 LEFT JOIN system_users su ON su.id = spp.created_by
+                 WHERE spp.invoice_id = :id AND spp.is_deleted = 0
+                 ORDER BY spp.created_at DESC"
+            )->bindValue(':id', $invoiceId)->queryAll();
+
+            foreach ($paymentProofs as $proof) {
+                $paymentRecord = [
+                    'id' => $proof['id'] ?? 0,
+                    'amount' => (float)($proof['amount'] ?? 0),
+                    'payment_method' => $proof['payment_method'] ?? 'N/A',
+                    'transaction_id' => $proof['transaction_id'] ?? '',
+                    'user_comments' => $proof['comments'] ?? '',
+                    'created_at' => $proof['created_at'] ?? date('Y-m-d H:i:s'),
+                    'approval_comments' => ''
+                ];
+
+                // Get approval comments if this payment was approved
+                $approval = $db->createCommand(
+                    "SELECT comments FROM system_payment_approvals
+                     WHERE proof_id = :proof_id AND status = 'approved'
+                     ORDER BY created_at DESC LIMIT 1"
+                )->bindValue(':proof_id', $proof['id'])->queryOne();
+
+                if ($approval && !empty($approval['comments'])) {
+                    $paymentRecord['approval_comments'] = $approval['comments'];
+                }
+
+                $paymentHistory[] = $paymentRecord;
+            }
+        } catch (\Exception $e) {
+            // If table doesn't exist yet, just continue without payment history
+            $paymentHistory = [];
+        }
+
+        $result = [
+            'success' => true,
+            'invoice' => $invoice
         ];
+
+        if (!empty($paymentHistory)) {
+            $result['invoice']['payment_history'] = $paymentHistory;
+        }
+
+        return $result;
     }
 
     public function actionPrintInvoice()
@@ -626,10 +690,25 @@ class PaymentController extends Controller
                 return ['success' => false, 'message' => 'No documents found.'];
             }
 
+            // Get payment information including transaction_id and comments
+            $paymentInfo = Yii::$app->db->createCommand(
+                "SELECT transaction_id, comments, admin_comments
+                 FROM system_payment_proofs
+                 WHERE invoice_id = :invoice_id AND is_deleted = 0
+                 LIMIT 1"
+            )->bindValue(':invoice_id', $invoiceId)->queryOne();
+
+            $transactionId = $paymentInfo['transaction_id'] ?? '';
+            $userComment = $paymentInfo['comments'] ?? '';
+            $adminComment = $paymentInfo['admin_comments'] ?? '';
+
             return [
                 'success' => true,
                 'invoiceNumber' => $invoice['invoice_number'],
-                'documents' => $documents
+                'documents' => $documents,
+                'transaction_id' => $transactionId,
+                'user_comment' => $userComment,
+                'admin_comment' => $adminComment
             ];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];

@@ -76,22 +76,22 @@ if (!isset($warehouses)) {
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-barcode"></i>
-                                                            <span>Code: <?php echo htmlspecialchars($item['warehouse_code']); ?></span>
+                                                            <span>Code: <?php echo htmlspecialchars($item['warehouse_code']??''); ?></span>
                                                         </div>
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-map-marker"></i>
-                                                            <span>City: <?php echo htmlspecialchars($item['city']); ?></span>
+                                                            <span>City: <?php echo htmlspecialchars($item['city']??''); ?></span>
                                                         </div>
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-map"></i>
-                                                            <span>Province: <?php echo htmlspecialchars($item['province']); ?></span>
+                                                            <span>Province: <?php echo htmlspecialchars($item['province']??''); ?></span>
                                                         </div>
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-globe"></i>
-                                                            <span>Country: <?php echo htmlspecialchars($item['country']); ?></span>
+                                                            <span>Country: <?php echo htmlspecialchars($item['country']??''); ?></span>
                                                         </div>
 
                                                     </div>
@@ -101,27 +101,27 @@ if (!isset($warehouses)) {
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-home"></i>
-                                                            <span>Address: <?php echo htmlspecialchars($item['address']); ?></span>
+                                                            <span>Address: <?php echo htmlspecialchars($item['address']??''); ?></span>
                                                         </div>
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-user"></i>
-                                                            <span>Contact: <?php echo htmlspecialchars($item['contact_person']); ?></span>
+                                                            <span>Contact: <?php echo htmlspecialchars($item['contact_person']??''); ?></span>
                                                         </div>
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-phone"></i>
-                                                            <span>Phone: <?php echo htmlspecialchars($item['phone']); ?></span>
+                                                            <span>Phone: <?php echo htmlspecialchars($item['phone']??''); ?></span>
                                                         </div>
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-envelope"></i>
-                                                            <span>Email: <?php echo htmlspecialchars($item['email']); ?></span>
+                                                            <span>Email: <?php echo htmlspecialchars($item['email']??''); ?></span>
                                                         </div>
 
                                                         <div class="stat-item">
                                                             <i class="ace-icon fa fa-comment"></i>
-                                                            <span>Remarks: <?php echo htmlspecialchars($item['remarks']); ?></span>
+                                                            <span>Remarks: <?php echo htmlspecialchars($item['remarks']??''); ?></span>
                                                         </div>
 
                                                     </div>

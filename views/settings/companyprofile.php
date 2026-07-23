@@ -159,13 +159,7 @@ if (!isset($profile)) {
                                 <select class="form-control" name="currency">
                                     <option value="">-- Select Currency --</option>
                                     <option value="USD" <?= ($profile['currency'] ?? '') === 'USD' ? 'selected' : '' ?>>US Dollar (USD)</option>
-                                    <option value="EUR" <?= ($profile['currency'] ?? '') === 'EUR' ? 'selected' : '' ?>>Euro (EUR)</option>
-                                    <option value="GBP" <?= ($profile['currency'] ?? '') === 'GBP' ? 'selected' : '' ?>>British Pound (GBP)</option>
-                                    <option value="JPY" <?= ($profile['currency'] ?? '') === 'JPY' ? 'selected' : '' ?>>Japanese Yen (JPY)</option>
-                                    <option value="INR" <?= ($profile['currency'] ?? '') === 'INR' ? 'selected' : '' ?>>Indian Rupee (INR)</option>
-                                    <option value="CAD" <?= ($profile['currency'] ?? '') === 'CAD' ? 'selected' : '' ?>>Canadian Dollar (CAD)</option>
-                                    <option value="AUD" <?= ($profile['currency'] ?? '') === 'AUD' ? 'selected' : '' ?>>Australian Dollar (AUD)</option>
-                                    <option value="CHF" <?= ($profile['currency'] ?? '') === 'CHF' ? 'selected' : '' ?>>Swiss Franc (CHF)</option>
+                                    <option value="INR" <?= ($profile['currency'] ?? '') === 'INR' ? 'selected' : '' ?>>Pakistani Rupee (PKR)</option>
                                 </select>
                                 <small class="text-muted">Currency for transactions and reports</small>
                             </div>

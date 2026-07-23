@@ -1,28 +1,4 @@
-<!--
-================================================================================
-PAYMENT HISTORY VIEW
-================================================================================
-PURPOSE: Comprehensive payment overview with KPIs, trends, and invoice tracking
 
-FUNCTIONALITY:
-- Display key payment metrics and statistics
-- Show payment status distribution
-- Track payment history and trends
-- Display monthly payment information
-- List recent invoices and payment status
-- Track payment amounts and due dates
-- Provide quick navigation to payment modules
-
-DATA DISPLAYED:
-- Total invoice records
-- Paid amount and remaining amount
-- Next payment due date
-- Payment status breakdown
-- Monthly payment trends
-- Recent invoices and payment status
-
-================================================================================
--->
 <?php
 
 if(!isset($csrfToken))
@@ -165,7 +141,7 @@ if(!isset($isSuperAdmin))
 
                             <tr>
 
-                                <td colspan="6" class="text-center">
+                                <td colspan="8" class="text-center">
                                     Loading...
                                 </td>
 
@@ -201,11 +177,11 @@ if(!isset($isSuperAdmin))
         $("#payInvoiceBtn").click(function() {
             let ajaxData = {
                 flag: "get_current_invoice",
-                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+                "_csrf": "<?php echo addslashes($csrfToken??""); ?>"
             };
 
             $.ajax({
-                url: "<?php echo addslashes($paymentApiUrl); ?>",
+                url: "<?php echo addslashes($paymentApiUrl??""); ?>",
                 type: "POST",
                 dataType: "json",
                 data: ajaxData,
@@ -245,11 +221,11 @@ if(!isset($isSuperAdmin))
 
         let dashboardData = {
             flag: "load_dashboard",
-            "_csrf": "<?php echo addslashes($csrfToken); ?>"
+            "_csrf": "<?php echo addslashes($csrfToken??""); ?>"
         };
 
         $.ajax({
-            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            url: "<?php echo addslashes($paymentApiUrl??""); ?>",
             type: "POST",
             dataType: "json",
             data: dashboardData,
@@ -431,7 +407,7 @@ if(!isset($isSuperAdmin))
 
                 let actionHtml = '';
                 if (row.payment_status === 'paid') {
-                    actionHtml = '<button onclick="printInvoice(' + row.id + ')" title="Print Invoice"><i class="fa fa-print"></i></button>';
+                    actionHtml = '<div style="display: flex; gap: 5px;"><button onclick="printPaymentReceipt(' + row.id + ')" title="Print Payment Receipt" style="cursor: pointer;"><i class="fa fa-print"></i> Receipt</button></div>';
                 } else if (row.payment_status === 'pending_approval') {
                     if (isSuperAdmin) {
                         actionHtml = '<button onclick="openApprovalModal(' + row.id + ', \'' + row.invoice_number + '\')" title="Update Payment"><i class="fa fa-edit"></i> Update</button>';
@@ -457,11 +433,11 @@ if(!isset($isSuperAdmin))
         let invoiceData = {
             flag: "get_invoice_by_id",
             invoice_id: invoiceId,
-            "_csrf": "<?php echo addslashes($csrfToken); ?>"
+            "_csrf": "<?php echo addslashes($csrfToken??""); ?>"
         };
 
         $.ajax({
-            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            url: "<?php echo addslashes($paymentApiUrl??""); ?>",
             type: "POST",
             dataType: "json",
             data: invoiceData,
@@ -481,6 +457,267 @@ if(!isset($isSuperAdmin))
                     icon: 'error',
                     title: 'Error',
                     text: 'Unable to load invoice details.'
+                });
+            }
+        });
+    }
+
+    function buildPaymentHistoryHTML(invoice) {
+        if (!invoice.payment_history || invoice.payment_history.length === 0) {
+            return '';
+        }
+
+        let html = '<div style="margin-top: 20px; border-top: 2px solid #e8e8e8; padding-top: 20px;">';
+        html += '<h4 style="color:#2c3e50;margin:0 0 15px;font-size:14px; font-weight: 600;">Payment History & Comments</h4>';
+
+        invoice.payment_history.forEach(function(payment, idx) {
+            let paymentDate = payment.created_at ? new Date(payment.created_at).toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'}) : 'N/A';
+            let amount = Number(payment.amount || 0).toLocaleString();
+            let method = (payment.payment_method || 'N/A').replace(/_/g, ' ').toUpperCase();
+            let transId = payment.transaction_id ? '| <strong>ID:</strong> ' + payment.transaction_id : '';
+
+            html += '<div style="background:#f8f9fa;padding:12px;margin-bottom:10px;border-radius:4px;border-left:4px solid #3498db;">';
+            html += '<div style="font-size:12px;color:#7f8c8d;text-transform:uppercase;font-weight:600;margin-bottom:6px;">Payment #' + (idx + 1) + ' - ' + paymentDate + '</div>';
+            html += '<div style="font-size:13px;color:#2c3e50;margin-bottom:8px;">';
+            html += '<strong>Amount:</strong> PKR ' + amount + ' | <strong>Method:</strong> ' + method + ' ' + transId;
+            html += '</div>';
+
+            if (payment.user_comments) {
+                html += '<div style="font-size:12px;color:#555;background:#fff;padding:8px;border-radius:3px;margin-top:6px;">';
+                html += '<strong style="color:#2c3e50;">Your Comments:</strong><br/>' + payment.user_comments;
+                html += '</div>';
+            }
+
+            if (payment.approval_comments) {
+                html += '<div style="font-size:12px;color:#27ae60;background:#f0fdf4;padding:8px;border-radius:3px;margin-top:6px;">';
+                html += '<strong style="color:#27ae60;">✓ Admin Approval Comments:</strong><br/>' + payment.approval_comments;
+                html += '</div>';
+            }
+
+            html += '</div>';
+        });
+
+        html += '</div>';
+        return html;
+    }
+
+    function handleFilePreview() {
+        let fileInput = document.getElementById('paymentProof');
+        if (!fileInput || fileInput.files.length === 0) {
+            return;
+        }
+
+        let file = fileInput.files[0];
+        if (!file) return;
+
+        // Validate file type
+        let allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+        if (!allowedTypes.includes(file.type)) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid File Type',
+                text: 'Please upload only JPG, PNG, or PDF files.'
+            });
+            fileInput.value = '';
+            document.getElementById('fileStatusContainer').style.display = 'none';
+            return;
+        }
+
+        let fileSize = file.size || 0;
+        let maxFileSize = 5 * 1024 * 1024;
+
+        if (fileSize > maxFileSize) {
+            Swal.fire({
+                icon: 'error',
+                title: 'File Too Large',
+                text: 'File exceeds 5MB limit. Please choose a smaller file.'
+            });
+            fileInput.value = '';
+            document.getElementById('fileStatusContainer').style.display = 'none';
+            return;
+        }
+
+        let isImage = file.type.startsWith('image/');
+        let isPDF = file.type === 'application/pdf';
+        let reader = new FileReader();
+
+        reader.onload = function(e) {
+            showProofPreviewModal(e.target.result, file, isImage, isPDF);
+        };
+
+        reader.readAsDataURL(file);
+    }
+
+    function showProofPreviewModal(dataUrl, file, isImage, isPDF) {
+        let previewContent = '';
+
+        if (isImage) {
+            previewContent = '<img src="' + dataUrl + '" style="max-width: 100%; max-height: 500px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer;" onclick="viewFullImage(this.src)" title="Click to expand">';
+        } else if (isPDF) {
+            previewContent = '<iframe src="' + dataUrl + '" style="width: 100%; height: 500px; border-radius: 4px; border: 1px solid #ddd;"></iframe>' +
+                           '<div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; text-align: center;">' +
+                           '<p style="margin: 0; font-size: 12px; color: #7f8c8d;"><i class="fa fa-file-pdf-o"></i> ' + file.name + ' (' + (file.size / 1024).toFixed(2) + ' KB)</p>' +
+                           '</div>';
+        }
+
+        // Create custom overlay modal that doesn't close parent
+        let overlay = document.createElement('div');
+        overlay.id = 'proofPreviewOverlay';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
+
+        let modal = document.createElement('div');
+        modal.style.cssText = 'background: white; border-radius: 8px; padding: 30px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);';
+
+        let content = '<div>' +
+                     '<h3 style="margin: 0 0 20px; color: #2c3e50; font-size: 18px; text-align: center;"><strong>Verify Payment Proof</strong></h3>' +
+                     '<div style="margin: 20px 0; background: #f9f9f9; padding: 15px; border-radius: 4px; border: 1px solid #e8e8e8;">' + previewContent + '</div>' +
+                     '<div style="display: flex; gap: 10px; justify-content: center; margin-top: 25px;">' +
+                     '<button id="confirmProofBtn" style="padding: 10px 25px; background: #27ae60; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 14px;">✓ OK - Keep This File</button>' +
+                     '<button id="cancelProofBtn" style="padding: 10px 25px; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 14px;">✕ Cancel - Upload New</button>' +
+                     '</div>' +
+                     '</div>';
+
+        modal.innerHTML = content;
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Confirm button
+        document.getElementById('confirmProofBtn').addEventListener('click', function() {
+            document.getElementById('fileStatusName').textContent = file.name;
+            document.getElementById('fileStatusContainer').style.display = 'block';
+            overlay.remove();
+        });
+
+        // Cancel button
+        document.getElementById('cancelProofBtn').addEventListener('click', function() {
+            document.getElementById('paymentProof').value = '';
+            document.getElementById('fileStatusContainer').style.display = 'none';
+            overlay.remove();
+        });
+
+        // Close on overlay click
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+                document.getElementById('paymentProof').value = '';
+                document.getElementById('fileStatusContainer').style.display = 'none';
+                overlay.remove();
+            }
+        });
+    }
+
+    function viewFullImage(src) {
+        Swal.fire({
+            title: 'Payment Proof Preview',
+            imageUrl: src,
+            imageWidth: 600,
+            imageHeight: 'auto',
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            confirmButtonColor: '#0f4c29'
+        });
+    }
+
+function submitPaymentWithFile(invoiceId, maxAmount, transactionId, fileObj) {
+        let files = [fileObj];
+        let comments = document.getElementById('paymentComments') ? document.getElementById('paymentComments').value || '' : '';
+
+        if (!invoiceId || invoiceId <= 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Invoice',
+                text: 'Invoice ID is invalid.'
+            });
+            return;
+        }
+
+        if (!maxAmount || maxAmount <= 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Amount',
+                text: 'Invoice amount is invalid.'
+            });
+            return;
+        }
+
+        if (!files || files.length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Payment Proof Required',
+                text: 'Please upload payment proof.'
+            });
+            return;
+        }
+
+        for (let i = 0; i < files.length; i++) {
+            if (!files[i]) continue;
+            let fileSize = files[i].size || 0;
+            let maxFileSize = 5 * 1024 * 1024;
+
+            if (fileSize > maxFileSize) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'File Too Large',
+                    text: (files[i].name || 'File') + ' exceeds 5MB limit.'
+                });
+                return;
+            }
+        }
+
+        let formData = new FormData();
+        formData.append('flag', 'upload_proof');
+        formData.append('invoice_id', invoiceId);
+        formData.append('payment_amount', maxAmount);
+        formData.append('comments', comments || '');
+        formData.append('transaction_id', transactionId || '');
+        formData.append('_csrf', "<?php echo addslashes($csrfToken??""); ?>");
+
+        for (let i = 0; i < files.length; i++) {
+            if (files[i]) {
+                formData.append('documents[]', files[i]);
+            }
+        }
+
+        Swal.fire({
+            title: '⏳ Verifying Payment',
+            html: '<div style="margin: 20px 0;"><div class="spinner-border" role="status" style="color: #3498db;"><span class="sr-only"></span></div><p style="margin-top: 15px; color: #7f8c8d;">Please wait while your payment is being verified...</p></div>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        $.ajax({
+            url: "<?php echo addslashes($paymentApiUrl??""); ?>",
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                Swal.close();
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '✓ Payment Submitted',
+                        html: '<div style="text-align: left; line-height: 1.8;"><p>Your payment has been submitted successfully.</p><p style="color: #3498db; font-weight: 600;">Status: Pending Verification</p><p style="color: #7f8c8d; font-size: 13px;">Our admin team will verify your payment shortly. You will be notified once verification is complete.</p></div>',
+                        confirmButtonColor: '#27ae60'
+                    }).then(() => {
+                        loadDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: response.message || 'Failed to submit payment. Please try again.'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'An error occurred while submitting payment. Please try again.'
                 });
             }
         });
@@ -582,16 +819,28 @@ if(!isset($isSuperAdmin))
 
                 </div>
 
-                <div style="margin: 20px 0;">
-                    <label style="display: block; margin-bottom: 10px; font-weight: 500; color: #2c3e50;">Full Payment Amount (PKR):</label>
-                    <input type="text" id="paymentAmount" placeholder="Full payment amount" style="width: 100%; padding: 12px; border: 2px solid #e74c3c; border-radius: 4px; background-color: #fdf5f7; font-size: 16px; font-weight: bold; color: #e74c3c;" readonly value="PKR ${Number(invoice.remaining_amount).toLocaleString()}">
-                    <small style="color: #e74c3c; display: block; margin-top: 8px; font-weight: 600;">⚠️ Full payment required to complete this invoice</small>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin: 20px 0;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 13px;">Full Payment Amount (PKR) *</label>
+                        <input type="text" id="paymentAmount" placeholder="Full payment amount" style="width: 100%; padding: 10px; border: 2px solid #e74c3c; border-radius: 4px; background-color: #fdf5f7; font-size: 14px; font-weight: bold; color: #e74c3c;" readonly value="PKR ${Number(invoice.remaining_amount || 0).toLocaleString()}">
+                        <small style="color: #e74c3c; display: block; margin-top: 5px; font-weight: 600;">Full payment required</small>
+                    </div>
+
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 13px;">Transaction ID (Reference/UTR) *</label>
+                        <input type="text" id="transactionId" placeholder="UTR, Cheque No, Reference ID" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;">
+                        <small style="color: #7f8c8d; display: block; margin-top: 5px;">e.g., UTR number or Cheque number</small>
+                    </div>
+
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #2c3e50; font-size: 13px;">Upload Payment Proof *</label>
+                        <input type="file" id="paymentProof" accept=".pdf,.jpg,.jpeg,.png" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                        <small style="color: #7f8c8d; display: block; margin-top: 5px;">JPG, PNG, PDF only (Max 5MB)</small>
+                    </div>
                 </div>
 
-                <div style="margin: 20px 0;">
-                    <label style="display: block; margin-bottom: 10px; font-weight: 500;">Upload Payment Proof:</label>
-                    <input type="file" id="paymentProof" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">Supported: PDF, JPG, PNG, DOC, DOCX (Max 5MB each)</small>
+                <div id="fileStatusContainer" style="margin: 15px 0; padding: 12px; background: #f0fdf4; border-radius: 4px; border-left: 4px solid #27ae60; display: none;">
+                    <p style="margin: 0; font-size: 13px; color: #27ae60;"><strong>✓ File Ready:</strong> <span id="fileStatusName"></span></p>
                 </div>
 
                 <div style="margin: 20px 0;">
@@ -599,11 +848,12 @@ if(!isset($isSuperAdmin))
                     <textarea id="paymentComments" placeholder="Add any remarks or comments about this payment..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-height: 80px; font-family: Arial, sans-serif; resize: vertical;"></textarea>
                     <small style="color: #7f8c8d; display: block; margin-top: 5px;">Your comments will be visible to the admin for verification</small>
                 </div>
+
+                ${buildPaymentHistoryHTML(invoice)}
             </div>
         `;
 
         Swal.fire({
-            // title: 'Pay Invoice',
             html: paymentHtml,
             width:"900px",
             showCancelButton: true,
@@ -611,21 +861,57 @@ if(!isset($isSuperAdmin))
             confirmButtonColor: '#27ae60',
             cancelButtonText: 'Cancel',
             didOpen: function() {
-                // Auto-fill payment amount with remaining amount
-                document.getElementById('paymentAmount').value = invoice.remaining_amount;
+                document.getElementById('paymentAmount').value = 'PKR ' + Number(invoice.remaining_amount || 0).toLocaleString();
+
+                let fileInput = document.getElementById('paymentProof');
+                if (fileInput) {
+                    fileInput.addEventListener('change', handleFilePreview);
+                }
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                submitPayment(invoice.id, invoice.remaining_amount);
+                let transactionId = (document.getElementById('transactionId').value || '').trim();
+
+                if (!transactionId) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Transaction ID Required',
+                        text: 'Please enter a transaction ID or reference number.'
+                    });
+                    return;
+                }
+
+                let fileInput = document.getElementById('paymentProof');
+                if (!fileInput || fileInput.files.length === 0) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Proof Required',
+                        text: 'Please upload at least one payment proof document.'
+                    });
+                    return;
+                }
+
+                let file = fileInput.files[0];
+                submitPaymentWithFile(invoice.id, invoice.remaining_amount, transactionId, file);
             }
         });
     }
 
     function submitPayment(invoiceId, maxAmount) {
         let files = document.getElementById('paymentProof').files;
+        let transactionId = (document.getElementById('transactionId').value || '').trim();
 
         // Full payment only validation
-        if (maxAmount <= 0) {
+        if (!invoiceId || invoiceId <= 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Invalid Invoice',
+                text: 'Invoice ID is invalid.'
+            });
+            return;
+        }
+
+        if (!maxAmount || maxAmount <= 0) {
             Swal.fire({
                 icon: 'error',
                 title: 'Invalid Amount',
@@ -634,20 +920,11 @@ if(!isset($isSuperAdmin))
             return;
         }
 
-        if (maxAmount > 0 && files.length === 0) {
+        if (!files || files.length === 0) {
             Swal.fire({
                 icon: 'error',
                 title: 'Payment Proof Required',
-                text: 'Please upload payment proof to complete the full payment of PKR ' + Number(maxAmount).toLocaleString()
-            });
-            return;
-        }
-
-        if (files.length === 0) {
-            Swal.fire({
-                icon: 'error',
-                title: 'No Files',
-                text: 'Please upload at least one payment proof document.'
+                text: 'Please upload payment proof to complete the full payment of PKR ' + Number(maxAmount || 0).toLocaleString()
             });
             return;
         }
@@ -655,23 +932,43 @@ if(!isset($isSuperAdmin))
         // Prepare FormData (Full payment)
         let formData = new FormData();
         let comments = document.getElementById('paymentComments').value || '';
+        let transactionId1 = document.getElementById('transactionId').value || '';
 
         formData.append('flag', 'upload_proof');
         formData.append('invoice_id', invoiceId);
         formData.append('payment_amount', maxAmount);
-        formData.append('comments', comments);
-        formData.append('_csrf', "<?php echo addslashes($csrfToken); ?>");
+        formData.append('comments', comments || '');
+        formData.append('transaction_id', transactionId1 || '');
+        formData.append('_csrf', "<?php echo addslashes($csrfToken??""); ?>");
 
+        // Validate files
         for (let i = 0; i < files.length; i++) {
-            if (files[i].size > 5 * 1024 * 1024) {
+            if (!files[i]) {
+                continue;
+            }
+
+            let fileSize = files[i].size || 0;
+            let maxFileSize = 5 * 1024 * 1024; // 5MB
+
+            if (fileSize > maxFileSize) {
                 Swal.fire({
                     icon: 'error',
                     title: 'File Too Large',
-                    text: files[i].name + ' exceeds 5MB limit.'
+                    text: (files[i].name || 'File') + ' exceeds 5MB limit.'
                 });
                 return;
             }
             formData.append('documents[]', files[i]);
+        }
+
+        // Final validation: ensure we have at least one file
+        if (formData.getAll('documents[]').length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'No Valid Files',
+                text: 'Please upload at least one valid payment proof document.'
+            });
+            return;
         }
 
         Swal.fire({
@@ -685,7 +982,7 @@ if(!isset($isSuperAdmin))
         });
 
         $.ajax({
-            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            url: "<?php echo addslashes($paymentApiUrl??""); ?>",
             type: 'POST',
             data: formData,
             processData: false,
@@ -722,7 +1019,11 @@ if(!isset($isSuperAdmin))
     }
 
     function printInvoice(invoiceId) {
-        window.open("<?php echo addslashes($printInvoiceUrl); ?>" + "?id=" + invoiceId, '_blank');
+        window.open("<?php echo addslashes($printInvoiceUrl??""); ?>" + "?id=" + invoiceId, '_blank');
+    }
+
+    function printPaymentReceipt(invoiceId) {
+        window.open("index.php?r=documents/billpaymentprint&id=" + invoiceId, '_blank');
     }
 
     function openApprovalModal(invoiceId, invoiceNumber) {
@@ -778,14 +1079,14 @@ if(!isset($isSuperAdmin))
         });
 
         $.ajax({
-            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            url: "<?php echo addslashes($paymentApiUrl??""); ?>",
             type: 'POST',
             dataType: 'json',
             data: {
                 flag: 'approve_payment',
                 invoice_id: invoiceId,
                 comments: comments,
-                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+                "_csrf": "<?php echo addslashes($csrfToken??""); ?>"
             },
             success: function(response) {
                 Swal.close();
@@ -828,14 +1129,14 @@ if(!isset($isSuperAdmin))
         });
 
         $.ajax({
-            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            url: "<?php echo addslashes($paymentApiUrl??""); ?>",
             type: 'POST',
             dataType: 'json',
             data: {
                 flag: 'reject_payment',
                 invoice_id: invoiceId,
                 comments: comments,
-                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+                "_csrf": "<?php echo addslashes($csrfToken??""); ?>"
             },
             success: function(response) {
                 Swal.close();
@@ -869,17 +1170,20 @@ if(!isset($isSuperAdmin))
 
     function viewDocuments(invoiceId) {
         $.ajax({
-            url: "<?php echo addslashes($paymentApiUrl); ?>",
+            url: "<?php echo addslashes($paymentApiUrl??""); ?>",
             type: 'POST',
             dataType: 'json',
             data: {
                 flag: 'get_invoice_documents',
                 invoice_id: invoiceId,
-                "_csrf": "<?php echo addslashes($csrfToken); ?>"
+                "_csrf": "<?php echo addslashes($csrfToken??""); ?>"
             },
             success: function(response) {
                 if (response.success && response.documents && response.documents.length > 0) {
-                    displayDocumentsModal(response.invoiceNumber, response.documents);
+                    let transactionId = response.transaction_id ? response.transaction_id : '';
+                    let userComment = response.user_comment ? response.user_comment : '';
+                    let adminComment = response.admin_comment ? response.admin_comment : '';
+                    displayDocumentsModal(response.invoiceNumber, response.documents, transactionId, userComment, adminComment);
                 } else {
                     Swal.fire({
                         icon: 'info',
@@ -898,8 +1202,36 @@ if(!isset($isSuperAdmin))
         });
     }
 
-    function displayDocumentsModal(invoiceNumber, documents) {
-        let docList = '<ul style="list-style-type: disc; text-align: left; padding-left: 25px; margin: 15px 0;">';
+    function displayDocumentsModal(invoiceNumber, documents, transactionId, userComment, adminComment) {
+        let docList = '<div style="text-align: left;">';
+
+        // Display Transaction ID if available
+        if (transactionId) {
+            docList += '<div style="margin-bottom: 20px; padding: 12px; background: #ecf0f1; border-left: 4px solid #3498db; border-radius: 3px;">' +
+                      '<strong style="color: #2c3e50;">Transaction ID:</strong> <span style="font-family: monospace; color: #e74c3c;">' + transactionId + '</span>' +
+                      '</div>';
+        }
+
+        // Display User Comments if available
+        if (userComment) {
+            docList += '<div style="margin-bottom: 20px; padding: 12px; background: #e8f4f8; border-left: 4px solid #27ae60; border-radius: 3px;">' +
+                      '<strong style="color: #27ae60;"><i class="fa fa-user"></i> Your Comments:</strong>' +
+                      '<div style="margin-top: 8px; color: #2c3e50; font-size: 13px; line-height: 1.6;">' + userComment + '</div>' +
+                      '</div>';
+        }
+
+        // Display Admin Comments if available
+        if (adminComment) {
+            docList += '<div style="margin-bottom: 20px; padding: 12px; background: #f0e6f6; border-left: 4px solid #8e44ad; border-radius: 3px;">' +
+                      '<strong style="color: #8e44ad;"><i class="fa fa-shield"></i> Admin Comments:</strong>' +
+                      '<div style="margin-top: 8px; color: #2c3e50; font-size: 13px; line-height: 1.6;">' + adminComment + '</div>' +
+                      '</div>';
+        }
+
+        // Display Documents
+        docList += '<div style="margin-top: 20px; border-top: 1px solid #bdc3c7; padding-top: 15px;">' +
+                  '<strong style="color: #2c3e50; display: block; margin-bottom: 12px;">Payment Documents:</strong>' +
+                  '<ul style="list-style-type: disc; padding-left: 25px; margin: 0;">';
 
         documents.forEach(function(doc, index) {
             let docPath = doc.document_file ? doc.document_file : '';
@@ -923,12 +1255,12 @@ if(!isset($isSuperAdmin))
                       '</li>';
         });
 
-        docList += '</ul>';
+        docList += '</ul></div></div>';
 
         Swal.fire({
             title: 'Payment Documents - Invoice #' + invoiceNumber,
             html: docList,
-            width: '700px',
+            width: '750px',
             confirmButtonText: 'Close',
             confirmButtonColor: '#3498db'
         });

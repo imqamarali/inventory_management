@@ -2,6 +2,10 @@
 
 use yii\helpers\Url;
 use yii\widgets\ActiveForm;
+if(!isset($model))
+{
+    $model= null;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -402,6 +406,131 @@ use yii\widgets\ActiveForm;
         cursor: not-allowed;
         pointer-events: none;
     }
+
+    /* OTP Verification Section Styles */
+    #otpSection {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    #otpInput {
+        width: 100%;
+        /* padding: 15px 10px; */
+        font-size: 24px;
+        letter-spacing: 8px;
+        font-weight: bold;
+        text-align: center;
+        border: 2px solid #d5d5d5;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+        transition: all 0.3s;
+        background: #ffffff;
+        color: #555;
+        margin-bottom: 20px;
+    }
+
+    #otpInput:focus {
+        outline: none;
+        border-color: #2E7CB5;
+        box-shadow: 0 0 0 3px rgba(46, 124, 181, 0.15);
+    }
+
+    #otpInput::placeholder {
+        color: #ccc;
+        letter-spacing: 8px;
+    }
+
+    .otp-timer-container {
+        text-align: center;
+        margin: 10px 0 15px 0;
+        padding: 10px;
+        background: #f0f5f9;
+        border-radius: 3px;
+        border: 1px solid #e3e8ed;
+    }
+
+    .otp-timer-container span:first-child {
+        font-size: 12px;
+        color: #777;
+        font-weight: 500;
+    }
+
+    #otpTimer {
+        font-size: 28px;
+        font-weight: bold;
+        color: #2E7CB5;
+        font-family: 'Courier New', monospace;
+        display: inline;
+        margin-left: 8px;
+        letter-spacing: 2px;
+    }
+
+    #verifyOtpBtn {
+        background: #27ae60;
+        width: 100%;
+        padding: 11px;
+        color: white;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 5px rgba(39, 174, 96, 0.3);
+        margin-bottom: 10px;
+    }
+
+    #verifyOtpBtn:hover {
+        background: #229954;
+        box-shadow: 0 3px 8px rgba(39, 174, 96, 0.4);
+    }
+
+    #verifyOtpBtn:active {
+        transform: translateY(1px);
+    }
+
+    #verifyOtpBtn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    #backToLoginBtn {
+        background: #95a5a6;
+        width: 100%;
+        padding: 11px;
+        color: white;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 2px 5px rgba(149, 165, 166, 0.3);
+    }
+
+    #backToLoginBtn:hover {
+        background: #7f8c8d;
+        box-shadow: 0 3px 8px rgba(149, 165, 166, 0.4);
+    }
+
+    #backToLoginBtn:active {
+        transform: translateY(1px);
+    }
+
+    #backToLoginBtn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
     </style>
 </head>
 
@@ -494,11 +623,39 @@ use yii\widgets\ActiveForm;
                     ])->label(false) ?>
                 </div>
 
-                <button type="submit" class="btn-login" id="loginBtn">
+                <button type="button" class="btn-login" id="loginBtn">
                     <i class="fas fa-sign-in-alt"></i> SIGN IN
                 </button>
 
                 <?php ActiveForm::end(); ?>
+
+                <!-- 2FA OTP Verification Section (Hidden by default) -->
+                <div id="otpSection" style="display: none;">
+                    <div class="welcome-text">
+                        <h3>Enter OTP Code</h3>
+                        <p>We've sent a 6-digit code to your registered email</p>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="otpInput">
+                            <i class="fas fa-key"></i> 6-Digit Code
+                        </label>
+                        <input type="text" id="otpInput" placeholder="000000" maxlength="6" pattern="[0-9]{6}" autocomplete="off">
+                    </div>
+
+                    <div class="otp-timer-container">
+                        <span>Expires in</span>
+                        <span id="otpTimer">10:00</span>
+                    </div>
+
+                    <button type="button" id="verifyOtpBtn" class="btn-login">
+                        <i class="fas fa-check"></i> VERIFY CODE
+                    </button>
+
+                    <button type="button" id="backToLoginBtn" class="btn-login">
+                        <i class="fas fa-arrow-left"></i> BACK TO LOGIN
+                    </button>
+                </div>
 
                 <div class="footer-text">
                     <p>© <?= date('Y') ?> InventoryManagementSystem. All rights reserved.</p>
@@ -556,11 +713,196 @@ use yii\widgets\ActiveForm;
         });
     });
 
-    // Loading state on form submit
-    document.getElementById('login-form').addEventListener('submit', function() {
-        const btn = document.getElementById('loginBtn');
-        btn.classList.add('loading');
-        btn.innerHTML = 'Signing in...';
+    // OTP Timer (10 minutes)
+    let otpTimeRemaining = 600; // 10 minutes in seconds
+
+    function showOtpVerification() {
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('otpSection').style.display = 'block';
+        document.getElementById('otpInput').focus();
+        startOtpTimer();
+    }
+
+    function startOtpTimer() {
+        otpTimeRemaining = 600;
+        updateOtpTimer();
+
+        const timerInterval = setInterval(() => {
+            otpTimeRemaining--;
+            updateOtpTimer();
+
+            if (otpTimeRemaining <= 0) {
+                clearInterval(timerInterval);
+                document.getElementById('otpInput').disabled = true;
+                document.getElementById('verifyOtpBtn').disabled = true;
+                alert('OTP expired. Please try again.');
+                location.reload();
+            }
+        }, 1000);
+    }
+
+    function updateOtpTimer() {
+        const minutes = Math.floor(otpTimeRemaining / 60);
+        const seconds = otpTimeRemaining % 60;
+        const formattedTime = String(minutes).padStart(1, '0') + ':' + String(seconds).padStart(2, '0');
+        document.getElementById('otpTimer').textContent = formattedTime;
+
+        if (otpTimeRemaining < 120) {
+            document.getElementById('otpTimer').style.color = '#e74c3c';
+        }
+    }
+
+    // Helper function to get CSRF token from form
+    function getCsrfToken() {
+        const csrfField = document.querySelector('input[name="_csrf"]') ||
+                         document.querySelector('input[name="csrf"]');
+        return csrfField ? csrfField.value : '';
+    }
+
+    // Attach event listeners after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // AJAX Login submission
+        const loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                const username = document.getElementById('form-username').value.trim();
+                const password = document.getElementById('form-password').value.trim();
+                const csrfToken = getCsrfToken();
+                const btn = this;
+
+                if (!username || !password) {
+                    alert('Please enter username and password');
+                    return;
+                }
+
+                btn.classList.add('loading');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+                btn.disabled = true;
+
+                let formData = 'LoginForm[username]=' + encodeURIComponent(username) +
+                              '&LoginForm[password]=' + encodeURIComponent(password);
+
+                if (csrfToken) {
+                    formData += '&_csrf=' + encodeURIComponent(csrfToken);
+                }
+
+                fetch('<?= Yii::$app->urlManager->createUrl(['site/login']) ?>', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.requires_2fa) {
+                            sessionStorage.setItem('pending_otp_user_id', data.user_id);
+                            showOtpVerification();
+                        } else {
+                            window.location.href = '<?= Yii::$app->urlManager->createUrl(['inventory/dashboard']) ?>';
+                        }
+                    } else {
+                        btn.classList.remove('loading');
+                        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> SIGN IN';
+                        btn.disabled = false;
+                        alert(data.message || 'Login failed');
+                    }
+                })
+                .catch(error => {
+                    btn.classList.remove('loading');
+                    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> SIGN IN';
+                    btn.disabled = false;
+                    alert('Connection error: ' + error.message);
+                });
+            });
+        }
+
+        // Back to login button
+        const backToLoginBtn = document.getElementById('backToLoginBtn');
+        if (backToLoginBtn) {
+            backToLoginBtn.addEventListener('click', function() {
+                document.getElementById('otpSection').style.display = 'none';
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('otpInput').value = '';
+                sessionStorage.removeItem('pending_otp_user_id');
+
+                const btn = document.getElementById('loginBtn');
+                btn.classList.remove('loading');
+                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> SIGN IN';
+                btn.disabled = false;
+                
+                location.reload();
+                return;
+            });
+        }
+
+        // OTP Verification
+        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+        if (verifyOtpBtn) {
+            verifyOtpBtn.addEventListener('click', function() {
+                const otp = document.getElementById('otpInput').value.trim();
+                const userId = sessionStorage.getItem('pending_otp_user_id');
+                const csrfToken = getCsrfToken();
+                const btn = this;
+
+                if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+                    alert('Please enter a valid 6-digit code');
+                    return;
+                }
+
+                btn.classList.add('loading');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+                btn.disabled = true;
+
+                let formData = 'user_id=' + encodeURIComponent(userId) +
+                              '&otp=' + encodeURIComponent(otp);
+
+                if (csrfToken) {
+                    formData += '&_csrf=' + encodeURIComponent(csrfToken);
+                }
+
+                fetch('<?= Yii::$app->urlManager->createUrl(['settings/verify-otp']) ?>', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = '<?= Yii::$app->urlManager->createUrl(['inventory/dashboard']) ?>';
+                    } else {
+                        btn.classList.remove('loading');
+                        btn.innerHTML = '<i class="fas fa-check"></i> VERIFY CODE';
+                        btn.disabled = false;
+                        document.getElementById('otpInput').value = '';
+                        alert(data.message || 'Invalid OTP');
+                    }
+                })
+                .catch(error => {
+                    btn.classList.remove('loading');
+                    btn.innerHTML = '<i class="fas fa-check"></i> VERIFY CODE';
+                    btn.disabled = false;
+                    alert('Connection error: ' + error.message);
+                });
+            });
+        }
+
+        // Allow Enter key to submit OTP
+        const otpInput = document.getElementById('otpInput');
+        if (otpInput) {
+            otpInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    document.getElementById('verifyOtpBtn').click();
+                }
+            });
+        }
     });
 
     // Countdown Timer for Lockout

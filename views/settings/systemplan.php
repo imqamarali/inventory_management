@@ -20,10 +20,24 @@ if (!isset($invoices)) {
                 </li>
                 <li class="active">System Plan</li>
             </ul>
-            <div class="nav-search">
-                <button type="button"  id="truncateDataBtn" style="display: none;">
+            <div class="nav-search" style="display: flex; gap: 10px;">
+                <button type="button" id="contractPrintBtn" style="display: none;  cursor: pointer;">
+                    <i class="fa fa-print"></i> Contract Print
+                </button>
+                <?php
+                    $isSuperAdmin = false;
+                    if (isset(Yii::$app->session['user_array']['role_id'])) {
+                        $roleId = Yii::$app->session['user_array']['role_id'];
+                        $isSuperAdmin = Yii::$app->db->createCommand(
+                            "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+                        )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+                    }
+                ?>
+                <?php if ($isSuperAdmin): ?>
+                <button type="button"  id="truncateDataBtn" style="cursor: pointer;">
                     <i class="fa fa-trash"></i> Truncate Data
                 </button>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -584,26 +598,14 @@ function viewInvoice(invoiceId) {
     showAlert('Info', 'Invoice view functionality will be implemented.', 'info');
 }
 
-// Check if user is Super Admin and show truncate button
-function checkSuperAdminStatus() {
-    const userId = <?= Yii::$app->user->id ?? 'null' ?>;
-    if (!userId) return;
-
-    fetch('index.php?r=settings/systemplan', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: '<?= Yii::$app->request->csrfParam ?>=<?= Yii::$app->request->getCsrfToken() ?>&flag=check_admin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.is_super_admin) {
-            document.getElementById('truncateDataBtn').style.display = 'inline-block';
-        }
-    })
-    .catch(err => console.log('Could not check admin status:', err));
+// Check if contract exists and show print button
+function checkContractStatus() {
+    const contractId = document.querySelector('input[name="contract_id"]') ? document.querySelector('input[name="contract_id"]').value : null;
+    if (contractId) {
+        document.getElementById('contractPrintBtn').style.display = 'inline-block';
+    }
 }
+
 
 // Handle truncate button click
 document.getElementById('truncateDataBtn').addEventListener('click', function() {
@@ -654,8 +656,21 @@ function performTruncate() {
     });
 }
 
+// Contract Print button handler
+document.getElementById('contractPrintBtn').addEventListener('click', function() {
+    const contractId = document.querySelector('input[name="contract_id"]') ? document.querySelector('input[name="contract_id"]').value : null;
+
+    if (!contractId) {
+        showAlert('Error!', 'Please save the contract first.', 'error');
+        return;
+    }
+
+    // Open the contract print in a new window
+    window.open('index.php?r=documents/contractprint&id=' + contractId, '_blank');
+});
+
 // Check admin status on page load
 jQuery(document).ready(function() {
-    checkSuperAdminStatus();
+    checkContractStatus();
 });
 </script>

@@ -28,6 +28,16 @@ class StockController extends Controller
         return $prefix . '-' . date('Ymd') . '-' . date('His') . '-' . mt_rand(100, 999);
     } 
 
+    protected function isSuperAdmin()
+    {
+        $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+        if (!$roleId) return false;
+
+        return Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+        )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+    }
+
     public function behaviors()
     {
         return [
@@ -118,6 +128,12 @@ class StockController extends Controller
 
             // Handle truncate stock details
             if (isset($post['flag']) && $post['flag'] == 'truncate_stock') {
+                // Only allow Super Admin to truncate
+                $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+                if ($roleId !== 1) {
+                    return ['success' => false, 'message' => 'Unauthorized. Only Super Admin can truncate records.'];
+                }
+
                 $password = Yii::$app->request->post('password', '');
                 $user_id = Yii::$app->user->id ?? 1;
 

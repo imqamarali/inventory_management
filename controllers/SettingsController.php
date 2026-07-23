@@ -15,6 +15,48 @@ class SettingsController extends Controller
         $user_array = Yii::$app->session->get('user_array');
         return $user_array['id'] ?? null;
     }
+
+    private function checkModulePermission($moduleLink = 'settings/settings')
+    {
+        $user_array = Yii::$app->session->get('user_array');
+        $role_id = $user_array['role_id'] ?? null;
+
+        if (!$role_id) {
+            return false;
+        }
+
+        $moduleId = Yii::$app->db->createCommand(
+            "SELECT id FROM modules WHERE link = :link LIMIT 1"
+        )->bindValue(':link', $moduleLink)->queryScalar();
+
+        if (!$moduleId) {
+            return false;
+        }
+
+        $permissions = Yii::$app->db->createCommand(
+            "SELECT can_view FROM permissions
+             WHERE module_id = :module_id
+             AND role_id = :role_id
+             LIMIT 1"
+        )
+            ->bindValue(':module_id', $moduleId)
+            ->bindValue(':role_id', $role_id)
+            ->queryOne();
+
+        return $permissions && (bool)$permissions['can_view'];
+    }
+
+    private function requireModulePermission($moduleLink = 'settings/settings')
+    {
+        $status = $this->checkModulePermission($moduleLink);
+        if (!$status) {
+            Yii::$app->session->setFlash('warning', 'You do not have permission to access this module.');
+            Yii::$app->response->statusCode = 403;
+            $this->redirect(['inventory/dashboard']);
+            Yii::$app->end();
+        }
+    }
+
     private function jsonResponse($success, $message, $data = [])
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
@@ -74,8 +116,11 @@ class SettingsController extends Controller
 
     public function actionSettings()
     {
+        $this->requireModulePermission('settings/settings');
+
         $modules = [
             ['name' => 'General Settings', 'controller' => 'settings/generalsettings', 'icon' => 'fa fa-cogs'],
+            ['name' => 'Login Authentication', 'controller' => 'settings/loginauthsettings', 'icon' => 'fa fa-lock'],
             ['name' => 'Company Profile', 'controller' => 'settings/companyprofile', 'icon' => 'fa fa-building'],
             ['name' => 'System Plan', 'controller' => 'settings/systemplan', 'icon' => 'fa fa-calendar-check-o'],
             ['name' => 'Account Settings', 'controller' => 'settings/accountsettings', 'icon' => 'fa fa-sitemap'],
@@ -91,9 +136,7 @@ class SettingsController extends Controller
         return $this->render('settings', compact('modules'));
     }
 
-    /* -------------------------------------------------------------
-     * General Settings (key/value store)
-     * ----------------------------------------------------------- */
+    
     public function actionGeneralsettings()
     {
         if (Yii::$app->request->isGet) {
@@ -104,8 +147,6 @@ class SettingsController extends Controller
         Yii::$app->response->format = Response::FORMAT_JSON;
         try {
             $post = Yii::$app->request->post();
-
-            // Handle bulk save from AJAX forms (FormData)
             if (isset($post['flag']) && $post['flag'] == 'save_bulk') {
                 $excludeKeys = [Yii::$app->request->csrfParam, 'flag'];
                 foreach ($post as $key => $value) {
@@ -160,9 +201,450 @@ class SettingsController extends Controller
         return $value !== false ? $value : $default;
     }
 
-    /* -------------------------------------------------------------
+    public function actionLoginauthsettings()
+    {
+        $userId = $this->currentUserId();
+
+        if (Yii::$app->request->isGet) {
+            $authSettings = Yii::$app->db->createCommand(
+                "SELECT * FROM login_auth_settings WHERE user_id = :user_id LIMIT 1"
+            )->bindValue(':user_id', $userId)->queryOne();
+
+            if (!$authSettings) {
+                $authSettings = [
+                    'two_factor_enabled' => 0,
+                    'auth_method' => 'email',
+                    'phone_number' => '',
+                    'email_address' => ''
+                ];
+            }
+
+            return $this->renderPartial('loginauthsettings', ['authSettings' => $authSettings]);
+        }
+
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
+            $post = Yii::$app->request->post();
+            $flag = $post['flag'] ?? null;
+
+            if ($flag === 'save_auth_settings') {
+                return $this->saveLoginAuthSettings($userId, $post);
+            } elseif ($flag === 'get_auth_settings') {
+                return $this->getLoginAuthSettings($userId);
+            }
+
+            return $this->jsonResponse(false, 'Invalid request.');
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, 'Error: ' . $e->getMessage());
+        }
+    }
+
+    private function saveLoginAuthSettings($userId, $post)
+    {
+        $twoFactorEnabled = $post['two_factor_enabled'] ?? 0;
+        $authMethod = $post['auth_method'] ?? 'email';
+        $phoneNumber = $post['phone_number'] ?? '';
+        $emailAddress = $post['email_address'] ?? '';
+
+        // Validate
+        if ($twoFactorEnabled && $authMethod === 'sms' && empty($phoneNumber)) {
+            return $this->jsonResponse(false, 'Phone number is required for SMS authentication.');
+        }
+        if ($twoFactorEnabled && in_array($authMethod, ['email', 'both']) && empty($emailAddress)) {
+            return $this->jsonResponse(false, 'Email address is required for Email authentication.');
+        }
+
+        // Check if settings exist
+        $exists = Yii::$app->db->createCommand(
+            "SELECT id FROM login_auth_settings WHERE user_id = :user_id LIMIT 1"
+        )->bindValue(':user_id', $userId)->queryScalar();
+
+        if ($exists) {
+            Yii::$app->db->createCommand(
+                "UPDATE login_auth_settings SET
+                    two_factor_enabled = :enabled,
+                    auth_method = :method,
+                    phone_number = :phone,
+                    email_address = :email,
+                    updated_at = NOW(),
+                    updated_by = :updated_by
+                WHERE user_id = :user_id"
+            )
+                ->bindValue(':enabled', $twoFactorEnabled)
+                ->bindValue(':method', $authMethod)
+                ->bindValue(':phone', $phoneNumber)
+                ->bindValue(':email', $emailAddress)
+                ->bindValue(':user_id', $userId)
+                ->bindValue(':updated_by', $userId)
+                ->execute();
+        } else {
+            Yii::$app->db->createCommand(
+                "INSERT INTO login_auth_settings
+                (user_id, two_factor_enabled, auth_method, phone_number, email_address, created_by)
+                VALUES (:user_id, :enabled, :method, :phone, :email, :created_by)"
+            )
+                ->bindValue(':user_id', $userId)
+                ->bindValue(':enabled', $twoFactorEnabled)
+                ->bindValue(':method', $authMethod)
+                ->bindValue(':phone', $phoneNumber)
+                ->bindValue(':email', $emailAddress)
+                ->bindValue(':created_by', $userId)
+                ->execute();
+        }
+
+        return $this->jsonResponse(true, 'Login authentication settings saved successfully.');
+    }
+
+    private function getLoginAuthSettings($userId)
+    {
+        $authSettings = Yii::$app->db->createCommand(
+            "SELECT * FROM login_auth_settings WHERE user_id = :user_id LIMIT 1"
+        )->bindValue(':user_id', $userId)->queryOne();
+
+        if (!$authSettings) {
+            return $this->jsonResponse(true, 'No settings found', ['authSettings' => null]);
+        }
+
+        return $this->jsonResponse(true, 'Settings retrieved', ['authSettings' => $authSettings]);
+    }
+
+    
+    public function actionGenerateOtp()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
+            $post = Yii::$app->request->post();
+            $userId = $post['user_id'] ?? null;
+            $method = $post['method'] ?? 'email';
+
+            if (!$userId) {
+                return ['success' => false, 'message' => 'User ID is required.'];
+            }
+
+            // Get auth settings
+            $authSettings = Yii::$app->db->createCommand(
+                "SELECT * FROM login_auth_settings WHERE user_id = :user_id"
+            )->bindValue(':user_id', $userId)->queryOne();
+
+            if (!$authSettings || !$authSettings['two_factor_enabled']) {
+                return ['success' => false, 'message' => '2FA is not enabled for this user.'];
+            }
+
+            // Generate OTP
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $deliveredTo = $method === 'sms' ? $authSettings['phone_number'] : $authSettings['email_address'];
+
+            // Delete old OTP for user
+            Yii::$app->db->createCommand(
+                "DELETE FROM otp_verification WHERE user_id = :user_id AND is_verified = 0"
+            )->bindValue(':user_id', $userId)->execute();
+
+            // Save OTP
+            Yii::$app->db->createCommand(
+                "INSERT INTO otp_verification
+                (user_id, otp_code, delivery_method, delivered_to, expires_at)
+                VALUES (:user_id, :otp, :method, :delivered_to, DATE_ADD(NOW(), INTERVAL 10 MINUTE))"
+            )
+                ->bindValue(':user_id', $userId)
+                ->bindValue(':otp', $otp)
+                ->bindValue(':method', $method)
+                ->bindValue(':delivered_to', $deliveredTo)
+                ->execute();
+
+            // Send OTP via email/SMS (implement based on your email/SMS service)
+            $this->sendOtpNotification($userId, $otp, $method, $deliveredTo);
+
+            return [
+                'success' => true,
+                'message' => 'OTP sent to ' . ($method === 'sms' ? 'phone number' : 'email address'),
+                'delivered_to' => $this->maskContact($deliveredTo, $method)
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
+
+    public function actionVerifyOtp()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
+            $post = Yii::$app->request->post();
+            $userId = $post['user_id'] ?? null;
+            $otp = $post['otp'] ?? null;
+
+            if (!$userId || !$otp) {
+                return ['success' => false, 'message' => 'User ID and OTP are required.'];
+            }
+
+            $otpRecord = Yii::$app->db->createCommand(
+                "SELECT * FROM otp_verification
+                WHERE user_id = :user_id AND otp_code = :otp
+                AND is_verified = 0 AND expires_at > NOW()
+                LIMIT 1"
+            )
+                ->bindValue(':user_id', $userId)
+                ->bindValue(':otp', $otp)
+                ->queryOne();
+
+            if (!$otpRecord) {
+                // Increment attempts
+                Yii::$app->db->createCommand(
+                    "UPDATE otp_verification SET attempts = attempts + 1 WHERE user_id = :user_id AND is_verified = 0"
+                )->bindValue(':user_id', $userId)->execute();
+                return ['success' => false, 'message' => 'Invalid or expired OTP.'];
+            }
+
+            if ($otpRecord['attempts'] >= $otpRecord['max_attempts']) {
+                return ['success' => false, 'message' => 'Maximum OTP attempts exceeded. Please request a new code.'];
+            }
+
+            // Verify OTP
+            Yii::$app->db->createCommand(
+                "UPDATE otp_verification SET is_verified = 1, verified_at = NOW()
+                WHERE id = :id"
+            )->bindValue(':id', $otpRecord['id'])->execute();
+
+            // Get temporary user data from session
+            $tempUserData = Yii::$app->session->get('otp_temp_user');
+
+            if (!$tempUserData) {
+                return ['success' => false, 'message' => 'Session expired. Please login again.'];
+            }
+
+            // Get full user data
+            $user = Yii::$app->db->createCommand(
+                "SELECT * FROM system_users WHERE id = :user_id"
+            )->bindValue(':user_id', $userId)->queryOne();
+
+            if (!$user) {
+                return ['success' => false, 'message' => 'User not found.'];
+            }
+
+            // Create authenticated session
+            $session = Yii::$app->session;
+            $session->open();
+            $session['user_array'] = [
+                'id' => $user['id'],
+                'referance' => $user['referance'] ?? null,
+                'username' => $user['username'],
+                'email' => $user['email'] ?? null,
+                'first_name' => $user['first_name'] ?? null,
+                'last_name' => $user['last_name'] ?? null,
+                'phone' => $user['phone'] ?? null,
+                'role_id' => $user['role_id'] ?? null,
+                'profile_picture' => $user['profile_picture'] ?? null,
+                'address' => $user['address'] ?? null,
+                'date_of_birth' => $user['date_of_birth'] ?? null,
+                'created_at' => $user['created_at'] ?? null,
+                'gender' => $user['gender'] ?? null,
+                'last_login' => $user['last_login'] ?? null,
+                'school_id' => $user['school_id'] ?? null
+            ];
+
+            // Update last login
+            Yii::$app->db->createCommand(
+                "UPDATE system_users SET last_login = NOW() WHERE id = :user_id"
+            )->bindValue(':user_id', $userId)->execute();
+
+            // Clear temporary session data
+            Yii::$app->session->remove('pending_otp_user');
+            Yii::$app->session->remove('otp_temp_user');
+
+            return [
+                'success' => true,
+                'message' => 'OTP verified successfully. Logging in...',
+                'redirect' => Yii::$app->urlManager->createUrl(['inventory/dashboard'])
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
+
+    private function sendOtpNotification($userId, $otp, $method, $deliveredTo)
+    {
+        $user = Yii::$app->db->createCommand(
+            "SELECT username, email, first_name FROM system_users WHERE id = :user_id"
+        )->bindValue(':user_id', $userId)->queryOne();
+
+        if ($method === 'email') {
+            $this->sendOtpViaEmail($user, $otp);
+        } elseif ($method === 'sms') {
+            $this->sendOtpViaSMS($user, $otp);
+        }
+    }
+
+    private function sendOtpViaEmail($user, $otp)
+    {
+        try {
+            $toEmail = $user['email'];
+            $fromEmail = $this->getSetting('email_from_address', 'noreply@inventory-system.local');
+            $companyName = $this->getSetting('company_name', 'Inventory System');
+
+            // Get SMTP settings
+            $smtpHost = $this->getSetting('email_smtp_host');
+            $smtpPort = (int)$this->getSetting('email_smtp_port', 587);
+            $smtpUsername = $this->getSetting('email_smtp_username');
+            $smtpPassword = $this->getSetting('email_smtp_password');
+            $encryption = $this->getSetting('email_encryption', 'tls');
+
+            // If SMTP not configured, just log
+            if (empty($smtpHost) || empty($smtpUsername) || empty($smtpPassword)) {
+                error_log('SMTP not configured for OTP email');
+                return;
+            }
+
+            $htmlBody = $this->getOtpEmailTemplate($user['first_name'] ?? $user['username'], $otp);
+            $subject = "Login Verification Code - " . $companyName;
+
+            // Send via direct SMTP
+            $this->sendEmailViaSMTP($smtpHost, $smtpPort, $smtpUsername, $smtpPassword, $encryption, $fromEmail, $toEmail, $subject, $htmlBody);
+
+            // Log the OTP send attempt
+            Yii::$app->db->createCommand(
+                "INSERT INTO activitylogs (module, activity, description, created_by, created_at)
+                 VALUES ('login', 'otp_sent', 'OTP sent via email to ' . :email, :user_id, NOW())"
+            )
+                ->bindValue(':email', $toEmail)
+                ->bindValue(':user_id', $user['id'] ?? 0)
+                ->execute();
+        } catch (\Exception $e) {
+            // Log error silently
+            error_log('OTP Email Send Error: ' . $e->getMessage());
+        }
+    }
+
+    private function sendOtpViaSMS($user, $otp)
+    {
+        try {
+            $smsMessage = "Your " . $this->getSetting('company_name', 'Inventory System') . " login OTP is: $otp\n\nThis code expires in 10 minutes. Do not share this code.";
+
+            // TODO: Implement actual SMS sending
+            // Example services to integrate:
+            // 1. Twilio
+            // 2. AWS SNS
+            // 3. Nexmo/Vonage
+            // 4. Local SMS gateway
+
+            // Log the SMS send attempt
+            Yii::$app->db->createCommand(
+                "INSERT INTO activitylogs (module, activity, description, created_by, created_at)
+                 VALUES ('login', 'otp_sent_sms', 'OTP sent via SMS', 0, NOW())"
+            )->execute();
+        } catch (\Exception $e) {
+            error_log('OTP SMS Send Error: ' . $e->getMessage());
+        }
+    }
+
+    private function getOtpEmailTemplate($userName, $otp)
+    {
+        $companyName = $this->getSetting('company_name', 'Inventory System');
+        $companyEmail = $this->getSetting('company_email', 'support@inventory-system.local');
+        $timestamp = date('F d, Y \a\t g:i A');
+
+        return '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .content { padding: 30px 20px; }
+        .greeting { color: #2c3e50; font-size: 16px; }
+        .otp-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 8px; text-align: center; margin: 25px 0; }
+        .otp-code { font-size: 48px; font-weight: bold; letter-spacing: 8px; margin: 15px 0; font-family: monospace; }
+        .otp-text { font-size: 14px; margin: 10px 0; }
+        .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .warning strong { color: #856404; }
+        .warning p { margin: 5px 0; color: #856404; font-size: 13px; }
+        .info-box { background-color: #e7f3ff; border-left: 4px solid #3498db; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .info-box p { margin: 5px 0; color: #004085; font-size: 13px; }
+        .security-tips { color: #666; font-size: 13px; line-height: 1.6; }
+        .security-tips li { margin: 8px 0; }
+        .footer { background-color: #f9f9f9; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #eee; }
+        .footer p { margin: 5px 0; color: #7f8c8d; font-size: 12px; }
+        .divider { height: 1px; background-color: #eee; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Login Verification</h1>
+        </div>
+
+        <div class="content">
+            <p class="greeting">Hello ' . htmlspecialchars($userName) . ',</p>
+
+            <p>We received a login request for your account. To continue, please verify your identity using the code below:</p>
+
+            <div class="otp-box">
+                <p class="otp-text">Your One-Time Password (OTP):</p>
+                <div class="otp-code">' . htmlspecialchars($otp) . '</div>
+                <p class="otp-text" style="font-size: 12px; opacity: 0.9;">This code expires in 10 minutes</p>
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ Security Notice:</strong>
+                <p>Never share this code with anyone. ' . htmlspecialchars($companyName) . ' staff will never ask for your OTP.</p>
+            </div>
+
+            <div class="info-box">
+                <p><strong>Need Help?</strong></p>
+                <p>If you did not attempt to log in, please ignore this email or contact our support team immediately at ' . htmlspecialchars($companyEmail) . '</p>
+            </div>
+
+            <h3 style="color: #2c3e50; margin-top: 20px;">How to Use Your OTP:</h3>
+            <ol class="security-tips">
+                <li>Go back to the login page</li>
+                <li>When prompted for the verification code, enter: <strong>' . htmlspecialchars($otp) . '</strong></li>
+                <li>Click "Verify OTP"</li>
+                <li>You will be logged in to your account</li>
+            </ol>
+
+            <h3 style="color: #2c3e50; margin-top: 20px;">Security Tips:</h3>
+            <ul class="security-tips">
+                <li>✓ Keep your email address secure and up-to-date</li>
+                <li>✓ Use a strong, unique password</li>
+                <li>✓ Never share your OTP codes</li>
+                <li>✓ Log out from public computers</li>
+                <li>✓ Enable two-factor authentication for added security</li>
+            </ul>
+
+            <div class="divider"></div>
+
+            <p style="color: #666; font-size: 13px; text-align: center;">
+                <strong>Sent:</strong> ' . $timestamp . '
+            </p>
+        </div>
+
+        <div class="footer">
+            <p><strong>' . htmlspecialchars($companyName) . '</strong></p>
+            <p>' . htmlspecialchars($companyEmail) . '</p>
+            <p style="margin-top: 10px; color: #999; font-size: 11px;">This is an automated security email. Please do not reply to this email address.</p>
+        </div>
+    </div>
+</body>
+</html>
+        ';
+    }
+
+    private function maskContact($contact, $type)
+    {
+        if ($type === 'sms') {
+            return substr_replace($contact, '***', -4, 3);
+        } else {
+            $parts = explode('@', $contact);
+            $masked = substr_replace($parts[0], '***', 1, -1);
+            return $masked . '@' . $parts[1];
+        }
+    }
+
+    /* ----------------------------------------------------------------
      * Company Profile
-     * ----------------------------------------------------------- */
+     * ---------------------------------------------------------------- */
     public function actionCompanyprofile()
     {
         $fields = ['company_name', 'company_tagline', 'company_address', 'company_phone', 'company_email', 'company_website', 'tax_number', 'currency', 'currency_symbol', 'fiscal_year_start', 'company_logo', 'navbar_color'];
@@ -639,11 +1121,11 @@ class SettingsController extends Controller
         if (Yii::$app->request->isGet) {
             $config = [];
             foreach ($fields as $field) {
-                if ($field === 'email_smtp_password') {
-                    $config[$field] = ''; // Never return password in GET
-                } else {
+                // if ($field === 'email_smtp_password') {
+                    // $config[$field] = ''; // Never return password in GET
+                // } else {
                     $config[$field] = $this->getSetting($field, '');
-                }
+                // }
             }
             return $this->renderPartial('email', ['config' => $config]);
         }
@@ -659,6 +1141,7 @@ class SettingsController extends Controller
                     $post['email_smtp_username'] ?? '',
                     $post['email_smtp_password'] ?? '',
                     $post['email_encryption'] ?? 'tls',
+                    $post['email_from_address'] ?? '',
                     $post['email_from_address'] ?? ''
                 );
                 return $this->jsonResponse($result['success'], $result['message']);
@@ -680,31 +1163,282 @@ class SettingsController extends Controller
         }
     }
 
-    private function testEmailConnection($host, $port, $username, $password, $encryption, $fromEmail)
+    /**
+     * Test email connection and send test email using PHP mail()
+     * @param string $host SMTP host
+     * @param int $port SMTP port
+     * @param string $username SMTP username
+     * @param string $password SMTP password
+     * @param string $encryption Encryption method (tls or ssl)
+     * @param string $fromEmail From email address
+     * @param string $toEmail To email address
+     * @return array Success/failure response
+     */
+    private function testEmailConnection($host, $port, $username, $password, $encryption, $fromEmail, $toEmail)
     {
         try {
             if (empty($host) || empty($port) || empty($username) || empty($password)) {
                 return ['success' => false, 'message' => 'All SMTP fields are required.'];
             }
 
-            $transport = (new \Swift_SmtpTransport($host, (int)$port, $encryption))
-                ->setUsername($username)
-                ->setPassword($password);
+            // Send test email directly via SMTP (no php.ini required)
+            return $this->sendEmailViaSMTP($host, $port, $username, $password, $encryption, $fromEmail, $toEmail);
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
 
-            $mailer = new \Swift_Mailer($transport);
-            $message = (new \Swift_Message('Test Email'))
-                ->setFrom($fromEmail ?: $username)
-                ->setTo($username)
-                ->setBody('This is a test email from Inventory System.');
+    /**
+     * Send email directly via SMTP (bypasses php.ini configuration)
+     * Works with Gmail, Office 365, SendGrid, and any SMTP server
+     * @param string $host SMTP host
+     * @param int $port SMTP port
+     * @param string $username SMTP username
+     * @param string $password SMTP password
+     * @param string $encryption Encryption type (tls, starttls, ssl)
+     * @param string $fromEmail From address
+     * @param string $toEmail To address
+     * @param string $subject Email subject (optional - uses default if not provided)
+     * @param string $htmlBody Email body (optional - uses test template if not provided)
+     * @return bool True if successful
+     */
+    private function sendEmailViaSMTP($host, $port, $username, $password, $encryption, $fromEmail, $toEmail, $subject = null, $htmlBody = null)
+    {
+        try {
+            // Convert encryption string to stream context options
+            $streamContext = [];
+            if (strtolower($encryption) === 'tls' || strtolower($encryption) === 'starttls') {
+                $streamContext = [
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    ]
+                ];
+            } elseif (strtolower($encryption) === 'ssl') {
+                $scheme = 'ssl';
+            }
 
-            if ($mailer->send($message)) {
-                return ['success' => true, 'message' => 'Test email sent successfully!'];
+            // Determine connection scheme
+            $scheme = (strtolower($encryption) === 'ssl') ? 'ssl' : 'tcp';
+
+            // Connect to SMTP server
+            $timeout = 10;
+            $fp = @stream_socket_client(
+                $scheme . '://' . $host . ':' . $port,
+                $errno,
+                $errstr,
+                $timeout,
+                STREAM_CLIENT_CONNECT,
+                stream_context_create($streamContext)
+            );
+
+            if (!$fp) {
+                return [
+                    'success' => false,
+                    'message' => 'SMTP Connection Failed: Cannot connect to ' . $host . ':' . $port . '. Error: ' . $errstr
+                ];
+            }
+
+            // Set stream timeout
+            stream_set_timeout($fp, $timeout);
+
+            // Read initial SMTP response
+            $response = fgets($fp, 1024);
+            if (strpos($response, '220') === false) {
+                fclose($fp);
+                return ['success' => false, 'message' => 'SMTP Server did not respond correctly'];
+            }
+
+            // Send EHLO
+            fwrite($fp, "EHLO localhost\r\n");
+            $response = fgets($fp, 1024);
+
+            // Start TLS if needed
+            if (strtolower($encryption) === 'tls' || strtolower($encryption) === 'starttls') {
+                fwrite($fp, "STARTTLS\r\n");
+                $response = fgets($fp, 1024);
+                if (strpos($response, '220') === false) {
+                    fclose($fp);
+                    return ['success' => false, 'message' => 'STARTTLS failed'];
+                }
+                stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+            }
+
+            // Authenticate
+            fwrite($fp, "AUTH LOGIN\r\n");
+            fgets($fp, 1024);
+
+            fwrite($fp, base64_encode($username) . "\r\n");
+            fgets($fp, 1024);
+
+            fwrite($fp, base64_encode($password) . "\r\n");
+            $authResponse = fgets($fp, 1024);
+
+            if (strpos($authResponse, '235') === false) {
+                fclose($fp);
+                return ['success' => false, 'message' => 'SMTP Authentication failed. Check username/password.'];
+            }
+
+            // Send email
+            fwrite($fp, "MAIL FROM: <" . $fromEmail . ">\r\n");
+            fgets($fp, 1024);
+
+            fwrite($fp, "RCPT TO: <" . $toEmail . ">\r\n");
+            fgets($fp, 1024);
+
+            fwrite($fp, "DATA\r\n");
+            fgets($fp, 1024);
+
+            // Build email headers and body (use defaults if not provided)
+            if (empty($subject)) {
+                $subject = "Test Email - Inventory System";
+            }
+            if (empty($htmlBody)) {
+                $htmlBody = $this->getTestEmailTemplate();
+            }
+
+            $email = "From: Inventory System <" . $fromEmail . ">\r\n";
+            $email .= "To: <" . $toEmail . ">\r\n";
+            $email .= "Subject: " . $subject . "\r\n";
+            $email .= "MIME-Version: 1.0\r\n";
+            $email .= "Content-Type: text/html; charset=UTF-8\r\n";
+            $email .= "Content-Transfer-Encoding: 7bit\r\n";
+            $email .= "X-Mailer: Inventory-System\r\n";
+            $email .= "\r\n";
+            $email .= $htmlBody;
+
+            fwrite($fp, $email . "\r\n.\r\n");
+            $sendResponse = fgets($fp, 1024);
+
+            // Close connection
+            fwrite($fp, "QUIT\r\n");
+            fclose($fp);
+
+            if (strpos($sendResponse, '250') !== false) {
+                // Log successful send
+                try {
+                    Yii::$app->db->createCommand(
+                        "INSERT INTO activitylogs (module, activity, description, created_by, created_at)
+                         VALUES ('settings', 'email_test', 'Test email sent successfully to ' . :email, :user_id, NOW())"
+                    )
+                        ->bindValue(':email', $toEmail)
+                        ->bindValue(':user_id', $this->currentUserId() ?? 0)
+                        ->execute();
+                } catch (\Exception $e) {
+                    // Silently ignore logging errors
+                }
+
+                return [
+                    'success' => true,
+                    'message' => '✓ Test email sent successfully to ' . $toEmail . '! Check your inbox (including spam/junk folder). Email configuration is working perfectly.'
+                ];
             } else {
-                return ['success' => false, 'message' => 'Failed to send test email.'];
+                return [
+                    'success' => false,
+                    'message' => 'Failed to send email. SMTP server response: ' . $sendResponse
+                ];
             }
         } catch (\Exception $e) {
-            return ['success' => false, 'message' => 'Connection failed: ' . $e->getMessage()];
+            return [
+                'success' => false,
+                'message' => 'Exception: ' . $e->getMessage()
+            ];
         }
+    }
+
+    private function getTestEmailTemplate()
+    {
+        $companyName = $this->getSetting('company_name', 'Inventory System');
+        $timestamp = date('F d, Y \a\t g:i A');
+
+        return '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .content { padding: 30px 20px; }
+        .content h2 { color: #2c3e50; font-size: 18px; margin-top: 0; }
+        .content p { color: #555; line-height: 1.6; margin: 15px 0; }
+        .test-result { background-color: #d4edda; border-left: 4px solid #28a745; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .test-result .success-icon { color: #28a745; font-size: 24px; margin-right: 10px; }
+        .test-result p { margin: 5px 0; color: #155724; }
+        .info-box { background-color: #e7f3ff; border-left: 4px solid #3498db; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .info-box strong { color: #0056b3; }
+        .info-box p { margin: 5px 0; color: #004085; font-size: 13px; }
+        .footer { background-color: #f9f9f9; padding: 20px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #eee; }
+        .footer p { margin: 5px 0; color: #7f8c8d; font-size: 12px; }
+        .divider { height: 1px; background-color: #eee; margin: 20px 0; }
+        .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✓ Email Configuration Test</h1>
+        </div>
+
+        <div class="content">
+            <h2>Email Delivery Successful!</h2>
+
+            <p>Hello,</p>
+
+            <p>This is a test email to verify that your email configuration is working correctly.</p>
+
+            <div class="test-result">
+                <div style="display: flex; align-items: center;">
+                    <span class="success-icon">✓</span>
+                    <div>
+                        <p><strong>Status: Email Delivery Successful</strong></p>
+                        <p>Your email service is configured and working properly.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <strong>Test Details:</strong>
+                <p><strong>System:</strong> ' . $companyName . '</p>
+                <p><strong>Test Time:</strong> ' . $timestamp . '</p>
+                <p><strong>Email Service:</strong> SMTP Configuration</p>
+            </div>
+
+            <div class="divider"></div>
+
+            <h3 style="color: #2c3e50; margin-top: 20px;">What This Means:</h3>
+            <ul style="color: #555; line-height: 1.8;">
+                <li>✓ SMTP server connection is working</li>
+                <li>✓ Email credentials are valid</li>
+                <li>✓ Authentication is successful</li>
+                <li>✓ Your system can send emails</li>
+            </ul>
+
+            <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                Your system is now ready to send automated emails including:
+            </p>
+            <ul style="color: #666; font-size: 14px;">
+                <li>Invoice notifications</li>
+                <li>Payment reminders</li>
+                <li>OTP verification codes</li>
+                <li>System alerts and notifications</li>
+                <li>User account emails</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><strong>Inventory Management System</strong></p>
+            <p>' . htmlspecialchars($companyName) . '</p>
+            <p style="margin-top: 10px; color: #999; font-size: 11px;">This is an automated test email. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+        ';
     }
 
     /* -------------------------------------------------------------
@@ -1156,12 +1890,23 @@ class SettingsController extends Controller
 
                 $now = date('Y-m-d H:i:s');
                 $currentMonth = date('Y-m');
+                $currentYear = date('Y');
                 $amount = $contract['contract_type'] == 'yearly' ? $contract['yearly_charges'] : $contract['monthly_charges'];
 
-                // Check if invoice already exists for current month
-                $existing = Yii::$app->db->createCommand(
-                    "SELECT id FROM system_invoices WHERE contract_id = :contract_id AND invoice_month = :month AND is_deleted = 0"
-                )->bindValues([':contract_id' => $contractId, ':month' => $currentMonth])->queryScalar();
+                // Check if invoice already exists based on contract type
+                if ($contract['contract_type'] == 'yearly') {
+                    // For yearly contracts, check if invoice exists for current year
+                    $existing = Yii::$app->db->createCommand(
+                        "SELECT id FROM system_invoices WHERE contract_id = :contract_id AND invoice_year = :year AND is_deleted = 0"
+                    )->bindValues([':contract_id' => $contractId, ':year' => $currentYear])->queryScalar();
+                    $periodMessage = 'this year';
+                } else {
+                    // For monthly contracts, check if invoice exists for current month
+                    $existing = Yii::$app->db->createCommand(
+                        "SELECT id FROM system_invoices WHERE contract_id = :contract_id AND invoice_month = :month AND is_deleted = 0"
+                    )->bindValues([':contract_id' => $contractId, ':month' => $currentMonth])->queryScalar();
+                    $periodMessage = 'this month';
+                }
 
                 if (!$existing) {
                     $dueDate = date('Y-m-' . str_pad($contract['monthly_due_date'], 2, '0', STR_PAD_LEFT));
@@ -1175,7 +1920,7 @@ class SettingsController extends Controller
                         'invoice_number' => 'INV-' . date('YmdHis') . '-' . mt_rand(1000, 9999),
                         'contract_id' => $contractId,
                         'invoice_month' => $currentMonth,
-                        'invoice_year' => date('Y'),
+                        'invoice_year' => $currentYear,
                         'invoice_date' => date('Y-m-d'),
                         'due_date' => $dueDate,
                         'extended_due_date' => $extendedDueDate,
@@ -1196,7 +1941,7 @@ class SettingsController extends Controller
                     return ['success' => true, 'message' => 'Invoice generated successfully.'];
                 }
 
-                return ['success' => true, 'message' => 'Invoice already exists for this month.'];
+                return ['success' => true, 'message' => 'Invoice already exists for ' . $periodMessage . '.'];
             }
 
             if ($flag == 'upload_payment_proof') {
