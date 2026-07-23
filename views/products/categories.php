@@ -58,7 +58,7 @@ if (!isset($categories)) {
                                                     <div style="flex: 1;">
                                                         <div class="class-name">
                                                             <i class="fa fa-tags" style="margin-right: 8px;"></i>
-                                                            <?php echo htmlspecialchars($item['category_name']); ?>
+                                                            <?php echo htmlspecialchars($item['category_name']??''); ?>
                                                         </div>
                                                     </div>
 
@@ -81,7 +81,7 @@ if (!isset($categories)) {
 
                                                     <div class="stat-item">
                                                         <i class="ace-icon fa fa-barcode"></i>
-                                                        <span>Code: <?php echo htmlspecialchars($item['category_code']); ?></span>
+                                                        <span>Code: <?php echo htmlspecialchars($item['category_code']??''); ?></span>
                                                     </div>
 
                                                     <div class="stat-item">
@@ -95,17 +95,17 @@ if (!isset($categories)) {
 
                                                     <div class="stat-item">
                                                         <i class="ace-icon fa fa-align-left"></i>
-                                                        <span>Description: <?php echo htmlspecialchars($item['description']); ?></span>
+                                                        <span>Description: <?php echo htmlspecialchars($item['description']??''); ?></span>
                                                     </div>
 
                                                     <div class="stat-item">
                                                         <i class="ace-icon fa fa-calendar"></i>
-                                                        <span>Created: <?php echo htmlspecialchars($item['created_at']); ?></span>
+                                                        <span>Created: <?php echo htmlspecialchars($item['created_at']??''); ?></span>
                                                     </div>
 
                                                     <div class="stat-item">
                                                         <i class="ace-icon fa fa-refresh"></i>
-                                                        <span>Updated: <?php echo htmlspecialchars($item['updated_at']); ?></span>
+                                                        <span>Updated: <?php echo htmlspecialchars($item['updated_at']??''); ?></span>
                                                     </div>
 
                                                 </div>

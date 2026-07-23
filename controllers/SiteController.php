@@ -1398,8 +1398,8 @@ class SiteController extends Controller
         $pendingInfo = [];
 
         foreach ($pendingInvoices as $invoice) {
-            $extendedDate = strtotime($invoice['extended_due_date']);
-
+            // $extendedDate = strtotime($invoice['extended_due_date']);
+            $extendedDate = date('Y-m-d', strtotime($invoice['due_date'] . ' +5 days'));
             if (strtotime($today) > $extendedDate) {
                 $isOverdue = true;
                 break;

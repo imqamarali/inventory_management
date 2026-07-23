@@ -51,7 +51,7 @@ class PaymentController extends Controller
                  FROM system_payment_proofs spp
                  JOIN system_invoices si ON si.id = spp.invoice_id
                  WHERE spp.verification_status IN ('verified', 'rejected') AND spp.is_deleted = 0
-                 ORDER BY spp.created_at DESC LIMIT 50"
+                 ORDER BY spp.created_at DESC LIMIT 1000"
             )->queryAll();
 
             return $this->render('payment_invoices', [
@@ -253,7 +253,7 @@ class PaymentController extends Controller
              WHERE si.is_deleted = 0
              GROUP BY si.id
              ORDER BY si.created_at DESC
-             LIMIT 10"
+             LIMIT 1000"
         )->queryAll();
 
         // Pending payments
@@ -309,7 +309,7 @@ class PaymentController extends Controller
     {
         $db = Yii::$app->db;
         $page = (int)Yii::$app->request->post('page', 1);
-        $perPage = (int)Yii::$app->request->post('per_page', 20);
+        $perPage = (int)Yii::$app->request->post('per_page', 1000);
         $offset = ($page - 1) * $perPage;
 
         $query = "SELECT si.*, sc.contract_name
