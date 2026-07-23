@@ -160,7 +160,7 @@ class InventoryController extends Controller
 
     public function actionDashboard()
     {
-        
+
         $this->requireModulePermission('inventory/dashboard');
 
         Yii::$app->Component->Activitylog('Viewed inventory dashboard', 'view', null, 'Inventory', ['module' => 'dashboard']);
@@ -168,6 +168,32 @@ class InventoryController extends Controller
         $user_id = $user_array['id'] ?? null;
         $student_data = null;
         $stats = $this->getDashboardStats();
+        $unpaidInvoices = [];
+
+        // Check for unpaid invoices for non-Super Admin users
+        $isSuperAdmin = false;
+        if ($user_array && isset($user_array['role_id'])) {
+            $roleName = Yii::$app->db->createCommand(
+                "SELECT name FROM roles WHERE id = :role_id LIMIT 1"
+            )->bindValue(':role_id', $user_array['role_id'])->queryScalar();
+
+            $isSuperAdmin = ($roleName === 'Super Admin');
+        }
+
+        if (!$isSuperAdmin && $user_id) {
+            try {
+                $unpaidInvoices = Yii::$app->db->createCommand(
+                    "SELECT si.id, si.invoice_number, si.amount, si.due_date, si.invoice_date
+                     FROM system_invoices si
+                     WHERE si.user_id = :user_id
+                     AND si.payment_status = 'unpaid'
+                     AND si.is_deleted = 0
+                     ORDER BY si.due_date ASC"
+                )->bindValue(':user_id', $user_id)->queryAll();
+            } catch (\Exception $e) {
+                \Yii::error("Error fetching unpaid invoices: " . $e->getMessage());
+            }
+        }
 
         if ($user_id) {
             try {
@@ -185,7 +211,7 @@ class InventoryController extends Controller
             } catch (\Exception $e) {
             }
         }
-        return $this->render('dashboard', ['student_data' => $student_data, 'stats' => $stats]);
+        return $this->render('dashboard', ['student_data' => $student_data, 'stats' => $stats, 'unpaidInvoices' => $unpaidInvoices]);
     }
 
     private function getDashboardStats()

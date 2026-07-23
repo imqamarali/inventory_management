@@ -146,6 +146,91 @@ $this->title = 'Dashboard';
 </style>
 
 <div class="page-content">
+    <?php if (!empty($unpaidInvoices)): ?>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script>
+            // Show unpaid invoice notification modal
+            document.addEventListener('DOMContentLoaded', function() {
+                const unpaidInvoices = <?= json_encode($unpaidInvoices) ?>;
+
+                if (unpaidInvoices && unpaidInvoices.length > 0) {
+                    let invoiceList = '<div style="text-align: left; margin: 10px 0;">';
+
+                    unpaidInvoices.forEach((invoice, index) => {
+                        const dueDate = new Date(invoice.due_date);
+                        const today = new Date();
+                        const isOverdue = dueDate < today;
+                        const dueDateStr = dueDate.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                        });
+
+                        invoiceList += `
+                            <div style="
+                                padding: 12px;
+                                margin: 8px 0;
+                                border: 1px solid #e0e0e0;
+                                border-radius: 4px;
+                                background: ${isOverdue ? '#ffe6e6' : '#fff9e6'};
+                                border-left: 4px solid ${isOverdue ? '#ff5252' : '#ffc107'};
+                            ">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <strong style="font-size: 13px;">Invoice #${invoice.invoice_number}</strong>
+                                    <span style="
+                                        padding: 3px 8px;
+                                        background: ${isOverdue ? '#ff5252' : '#ffc107'};
+                                        color: white;
+                                        border-radius: 3px;
+                                        font-size: 11px;
+                                        font-weight: bold;
+                                    ">${isOverdue ? 'OVERDUE' : 'DUE SOON'}</span>
+                                </div>
+                                <div style="font-size: 12px; color: #666; margin-bottom: 4px;">
+                                    Amount: <strong>PKR ${parseFloat(invoice.amount).toLocaleString()}</strong>
+                                </div>
+                                <div style="font-size: 11px; color: #999;">
+                                    Due Date: <strong>${dueDateStr}</strong>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    invoiceList += '</div>';
+
+                    Swal.fire({
+                        title: '⚠️ Unpaid Invoices',
+                        html: `
+                            <div style="text-align: left;">
+                                <p style="color: #666; margin-bottom: 15px;">
+                                    You have <strong>${unpaidInvoices.length}</strong> unpaid invoice${unpaidInvoices.length > 1 ? 's' : ''} pending payment.
+                                </p>
+                                ${invoiceList}
+                            </div>
+                        `,
+                        icon: 'warning',
+                        confirmButtonText: 'Pay Now',
+                        confirmButtonColor: '#4CAF50',
+                        cancelButtonText: 'Close',
+                        showCancelButton: true,
+                        width: '600px',
+                        didOpen: (modal) => {
+                            // Add custom styling to the modal
+                            const confirmBtn = modal.querySelector('.swal2-confirm');
+                            if (confirmBtn) {
+                                confirmBtn.style.marginRight = '10px';
+                            }
+                        }
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = 'index.php?r=payment/payment-history';
+                        }
+                    });
+                }
+            });
+        </script>
+    <?php endif; ?>
+
     <div class="welcome-banner">
         <?php
         $photo_path = $student_data['photo_path'] ?? null;
