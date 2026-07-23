@@ -313,7 +313,9 @@ if(!isset($user))
             Swal.close();
             if (data.success) {
                 Swal.fire('Success', data.message, 'success').then(() => {
-                    location.reload();
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
                 });
             } else {
                 Swal.fire('Error', data.message, 'error');
@@ -522,11 +524,15 @@ if(!isset($user))
             Swal.close();
             if (data.success) {
                 Swal.fire('Success', data.message, 'success').then(() => {
-                    // location.reload();
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
                 });
             } else {
                 Swal.fire('Error', data.message, 'error');
-                // location.reload();
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
             }
         })
         .catch(e => {
