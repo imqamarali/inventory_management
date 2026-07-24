@@ -142,7 +142,7 @@ class CustomersController extends Controller
                     so.order_number,
                     COALESCE(c.company_name, CONCAT(c.first_name,' ',c.last_name)) customer_name,
                     so.order_date,
-                    so.status,
+                    so.order_status,
                     so.grand_total
                 FROM inventory_sales_orders so
                 LEFT JOIN inventory_customers c
