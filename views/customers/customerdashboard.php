@@ -533,21 +533,25 @@
 
                 let badge = 'label-default';
 
-                if (row.status === 'Completed') {
+                if (row.order_status === 'Delivered') {
                     badge = 'label-success';
-                } else if (row.status === 'Pending') {
+                } else if (row.order_status === 'Draft') {
                     badge = 'label-warning';
-                } else if (row.status === 'Approved') {
+                } else if (row.order_status === 'Confirmed') {
                     badge = 'label-info';
-                } else if (row.status === 'Cancelled') {
+                } else if (row.order_status === 'Cancelled') {
                     badge = 'label-danger';
+                } else if (row.order_status === 'Dispatched') {
+                    badge = 'label-primary';
+                } else if (row.order_status === 'Packed') {
+                    badge = 'label-secondary';
                 }
 
                 html += `
                     <tr>
                     <td>${row.order_number}</td>
                     <td>${row.customer_name}</td>
-                    <td><span class="label ${badge}">${row.status}</span></td>
+                    <td><span class="label ${badge}">${row.order_status}</span></td>
                     <td>PKR ${Number(row.grand_total).toLocaleString()}</td>
                     <td>${row.order_date}</td>
                     </tr>

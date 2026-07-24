@@ -79,8 +79,8 @@ class CustomersController extends Controller
                 'walkin_customers' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_customers WHERE is_deleted=0 AND customer_type='Walk-in'")->queryScalar(),
 
                 'total_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0")->queryScalar(),
-                'completed_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0 AND status='Completed'")->queryScalar(),
-                'pending_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0 AND status='Pending'")->queryScalar(),
+                'completed_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0 AND order_status='Delivered'")->queryScalar(),
+                'pending_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0 AND order_status='Draft'")->queryScalar(),
 
                 'total_paid' => (float)$db->createCommand("SELECT IFNULL(SUM(amount),0) FROM inventory_payments WHERE is_deleted=0 AND reference_type='Customer'")->queryScalar(),
                 'total_payments_count' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_payments WHERE is_deleted=0 AND reference_type='Customer'")->queryScalar(),
