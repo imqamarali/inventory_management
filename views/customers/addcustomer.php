@@ -56,6 +56,7 @@
                         <select class="form-control" name="customer_type">
                             <option value="Individual">Individual</option>
                             <option value="Company">Company</option>
+                            <option value="Walk-in">Walk-in</option>
                         </select>
                     </div>
                     <div class="col-md-6">

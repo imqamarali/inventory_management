@@ -2338,7 +2338,8 @@ class InventoryController extends Controller
                 customer_code VARCHAR(50) UNIQUE, 
                 customer_type ENUM(
                     'Individual',
-                    'Company'
+                    'Company',
+                    'Walk-in'
                 ) DEFAULT 'Individual', 
                 company_name VARCHAR(200), 
                 first_name VARCHAR(100), 
@@ -3384,7 +3385,8 @@ class InventoryController extends Controller
                 customer_code VARCHAR(50) UNIQUE, 
                 customer_type ENUM(
                     'Individual',
-                    'Company'
+                    'Company',
+                    'Walk-in'
                 ) DEFAULT 'Individual', 
                 company_name VARCHAR(200), 
                 first_name VARCHAR(100), 

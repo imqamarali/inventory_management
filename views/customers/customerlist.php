@@ -41,6 +41,7 @@ if (!isset($customers)) $customers = [];
                     <option value="">All Types</option>
                     <option value="Individual">Individual</option>
                     <option value="Company">Company</option>
+                    <option value="Walk-in">Walk-in</option>
                 </select>
 
                 <select name="is_active" id="is_active" class="new-input" style="width:12%;">
@@ -285,6 +286,7 @@ if (!isset($customers)) $customers = [];
                         <select class="form-control" name="customer_type">
                             <option value="Individual" ${item?.customer_type === 'Individual' ? 'selected' : ''}>Individual</option>
                             <option value="Company" ${item?.customer_type === 'Company' ? 'selected' : ''}>Company</option>
+                            <option value="Walk-in" ${item?.customer_type === 'Walk-in' ? 'selected' : ''}>Walk-in</option>
                         </select>
                     </div>
 

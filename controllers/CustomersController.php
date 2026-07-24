@@ -48,7 +48,6 @@ class CustomersController extends Controller
             ['name' => 'Dashboard', 'controller' => 'customers/customerdashboard', 'icon' => 'fa fa-dashboard'],
             ['name' => 'Customer List', 'controller' => 'customers/customerlist', 'icon' => 'fa fa-users'],
             ['name' => 'Add Customer', 'controller' => 'customers/addcustomer', 'icon' => 'fa fa-user-plus'],
-            ['name' => 'Retail Customers', 'controller' => 'customers/retailcustomers', 'icon' => 'fa fa-shopping-cart'],
             ['name' => 'Workshop Customers', 'controller' => 'customers/workshopcustomers', 'icon' => 'fa fa-wrench'],
             ['name' => 'Fleet Customers', 'controller' => 'customers/fleetcustomers', 'icon' => 'fa fa-bus'],
             ['name' => 'Dealer Customers', 'controller' => 'customers/dealercustomers', 'icon' => 'fa fa-building'],
@@ -72,16 +71,95 @@ class CustomersController extends Controller
                 return $this->jsonResponse(false, 'Invalid request.');
             }
             $db = Yii::$app->db;
+
             $stats = [
                 'total_customers' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_customers WHERE is_deleted=0")->queryScalar(),
                 'active_customers' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_customers WHERE is_deleted=0 AND is_active=1")->queryScalar(),
-                'retail_customers' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_customers WHERE is_deleted=0 AND customer_type='Retail'")->queryScalar(),
-                'company_customers' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_customers WHERE is_deleted=0 AND customer_type='Company'")->queryScalar(),
-                'total_receivable' => (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_customers WHERE is_deleted=0 AND current_balance>0")->queryScalar(),
+                'system_customers' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_customers WHERE is_deleted=0 AND customer_type IN ('Individual', 'Company')")->queryScalar(),
+                'walkin_customers' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_customers WHERE is_deleted=0 AND customer_type='Walk-in'")->queryScalar(),
+
+                'total_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0")->queryScalar(),
+                'completed_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0 AND status='Completed'")->queryScalar(),
+                'pending_orders' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_sales_orders WHERE is_deleted=0 AND status='Pending'")->queryScalar(),
+
+                'total_paid' => (float)$db->createCommand("SELECT IFNULL(SUM(amount),0) FROM inventory_payments WHERE is_deleted=0 AND reference_type='Customer'")->queryScalar(),
+                'total_payments_count' => (int)$db->createCommand("SELECT COUNT(*) FROM inventory_payments WHERE is_deleted=0 AND reference_type='Customer'")->queryScalar(),
+
+                'total_balance' => (float)$db->createCommand("SELECT IFNULL(SUM(current_balance),0) FROM inventory_customers WHERE is_deleted=0 AND current_balance>0")->queryScalar(),
                 'total_credit_limit' => (float)$db->createCommand("SELECT IFNULL(SUM(credit_limit),0) FROM inventory_customers WHERE is_deleted=0")->queryScalar(),
+                'total_sales_amount' => (float)$db->createCommand("SELECT IFNULL(SUM(grand_total),0) FROM inventory_sales_orders WHERE is_deleted=0")->queryScalar(),
             ];
-            $recentCustomers = $db->createCommand("SELECT id, customer_code, company_name, first_name, last_name, customer_type, email, created_at FROM inventory_customers WHERE is_deleted=0 ORDER BY created_at DESC LIMIT 10")->queryAll();
-            return array_merge($this->jsonResponse(true, 'Dashboard loaded.'), ['stats' => $stats, 'recentCustomers' => $recentCustomers]);
+
+            $customerChart = $db->createCommand("
+                SELECT
+                    COALESCE(company_name, CONCAT(first_name,' ',last_name)) name,
+                    current_balance
+                FROM inventory_customers
+                WHERE is_deleted=0 AND current_balance > 0
+                ORDER BY current_balance DESC
+                LIMIT 10
+            ")->queryAll();
+
+            $paymentMethodChart = $db->createCommand("
+                SELECT
+                    payment_method,
+                    COUNT(*) total
+                FROM inventory_payments
+                WHERE is_deleted=0
+                AND reference_type='Customer'
+                GROUP BY payment_method
+                ORDER BY total DESC
+            ")->queryAll();
+
+            $monthlySales = $db->createCommand("
+                SELECT
+                    DATE_FORMAT(order_date,'%b %Y') month,
+                    IFNULL(SUM(grand_total),0) total
+                FROM inventory_sales_orders
+                WHERE is_deleted=0
+                GROUP BY YEAR(order_date),MONTH(order_date)
+                ORDER BY YEAR(order_date),MONTH(order_date)
+            ")->queryAll();
+
+            $latestPayments = $db->createCommand("
+                SELECT
+                    p.payment_no,
+                    COALESCE(c.company_name, CONCAT(c.first_name,' ',c.last_name)) customer_name,
+                    p.payment_method,
+                    p.amount,
+                    p.payment_date
+                FROM inventory_payments p
+                LEFT JOIN inventory_customers c
+                    ON c.id=p.reference_id
+                WHERE p.is_deleted=0
+                AND p.reference_type='Customer'
+                ORDER BY p.payment_date DESC
+                LIMIT 10
+            ")->queryAll();
+
+            $recentSales = $db->createCommand("
+                SELECT
+                    so.order_number,
+                    COALESCE(c.company_name, CONCAT(c.first_name,' ',c.last_name)) customer_name,
+                    so.order_date,
+                    so.status,
+                    so.grand_total
+                FROM inventory_sales_orders so
+                LEFT JOIN inventory_customers c
+                    ON c.id=so.customer_id
+                WHERE so.is_deleted=0
+                ORDER BY so.order_date DESC
+                LIMIT 10
+            ")->queryAll();
+
+            return array_merge($this->jsonResponse(true, 'Dashboard loaded.'), [
+                'stats' => $stats,
+                'customerChart' => $customerChart,
+                'paymentMethodChart' => $paymentMethodChart,
+                'monthlySales' => $monthlySales,
+                'latestPayments' => $latestPayments,
+                'recentSales' => $recentSales
+            ]);
         } catch (\Exception $e) {
             return $this->jsonResponse(false, $e->getMessage());
         }
