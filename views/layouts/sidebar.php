@@ -63,6 +63,12 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
 
         #sidebar .nav-list li.active > a {
             background-color: #f0f0f0 !important;
+            text-decoration: underline !important;
+            text-underline-offset: 4px !important;
+            text-decoration-thickness: 3px !important;
+            text-decoration-color: #0f4c29 !important;
+            font-weight: 600 !important;
+            color: #0f4c29 !important;
         }
 
         #sidebar .nav-list li ul {
@@ -78,6 +84,15 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
 
         #sidebar .nav-list li ul li a:hover {
             background-color: #f8f8f8 !important;
+        }
+
+        #sidebar .nav-list li ul li.active > a {
+            text-decoration: underline !important;
+            text-underline-offset: 4px !important;
+            text-decoration-thickness: 2px !important;
+            text-decoration-color: #0f4c29 !important;
+            font-weight: 600 !important;
+            color: #0f4c29 !important;
         }
 
         .mobile-modules-bar {
