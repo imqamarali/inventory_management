@@ -1,58 +1,61 @@
 <!-- Bootstrap and Font Awesome -->
-<link rel="stylesheet" href="assets/css/bootstrap.min.css" />
-<link rel="stylesheet" href="assets/font-awesome/4.5.0/css/font-awesome.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/font-awesome/4.5.0/css/font-awesome.min.css" />
 
-<link rel="stylesheet" href="assets/css/jquery-ui.min.css" />
-<link rel="stylesheet" href="assets/css/bootstrap-datepicker3.min.css" />
-<link rel="stylesheet" href="assets/css/ui.jqgrid.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/jquery-ui.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-datepicker3.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/ui.jqgrid.min.css" />
 
 
 <!-- jQuery -->
-<script src="assets/js/jquery-2.1.4.min.js"></script> <!-- Load jQuery first -->
-<script src="assets/js/bootstrap.min.js"></script> <!-- Bootstrap 3 JS -->
-<script src="assets/js/jquery-ui.min.js"></script>
-<script src="assets/js/jquery.raty.min.js"></script> <!-- Load Raty after jQuery -->
- 
-<script src="assets/js/jquery-ui.custom.min.js"></script>
-<script src="assets/js/jquery.ui.touch-punch.min.js"></script>
-<script src="assets/js/jquery.gritter.min.js"></script>
-<script src="assets/js/bootbox.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery-2.1.4.min.js"></script> <!-- Load jQuery first -->
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/bootstrap.min.js"></script> <!-- Bootstrap 3 JS -->
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery-ui.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.raty.min.js"></script> <!-- Load Raty after jQuery -->
+
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery-ui.custom.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.ui.touch-punch.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.gritter.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/bootbox.js"></script>
+
+<!-- Moment.js for date/time -->
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/moment.min.js"></script>
 
 <!-- SweetAlert2 -->
-<link rel="stylesheet" href="assets/css/sweetalert2.min.css">
-<script src="assets/js/sweetalert2.all.min.js"></script>
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/sweetalert2.min.css">
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/sweetalert2.all.min.js"></script>
 
-<script src="assets/js/jquery.easypiechart.min.js"></script>
-<script src="assets/js/bootstrap-datepicker.min.js"></script>
-<script src="assets/js/jquery.hotkeys.index.min.js"></script>
-<script src="assets/js/bootstrap-wysiwyg.min.js"></script>
-<script src="assets/js/select2.min.js"></script>
-<script src="assets/js/spinbox.min.js"></script>
-<script src="assets/js/bootstrap-editable.min.js"></script>
-<script src="assets/js/ace-editable.min.js"></script>
-<script src="assets/js/jquery.maskedinput.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.easypiechart.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/bootstrap-datepicker.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.hotkeys.index.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/bootstrap-wysiwyg.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/select2.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/spinbox.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/bootstrap-editable.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/ace-editable.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.maskedinput.min.js"></script>
 
 <!-- ace scripts -->
-<script src="assets/js/ace-elements.min.js"></script>
-<script src="assets/js/ace.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/ace-elements.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/ace.min.js"></script>
 
 
 <!-- Google Fonts -->
-<link rel="stylesheet" href="assets/css/fonts.googleapis.com.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/fonts.googleapis.com.css" />
 
 <!-- ACE Stylesheets -->
-<link rel="stylesheet" href="assets/css/ace.min.css" class="ace-main-stylesheet" id="main-ace-style" />
-<link rel="stylesheet" href="assets/css/ace-part2.min.css" class="ace-main-stylesheet" />
-<link rel="stylesheet" href="assets/css/ace-skins.min.css" />
-<link rel="stylesheet" href="assets/css/ace-rtl.min.css" />
-<link rel="stylesheet" href="assets/css/ace-ie.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/ace.min.css" class="ace-main-stylesheet" id="main-ace-style" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/ace-part2.min.css" class="ace-main-stylesheet" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/ace-skins.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/ace-rtl.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/ace-ie.min.css" />
 
 <!-- jQuery UI and Plugins -->
-<link rel="stylesheet" href="assets/css/jquery-ui.custom.min.css" />
-<link rel="stylesheet" href="assets/css/jquery-ui.min.css" />
-<link rel="stylesheet" href="assets/css/ui.jqgrid.min.css" />
-<link rel="stylesheet" href="assets/css/fullcalendar.min.css" />
-<link rel="stylesheet" href="assets/css/dropzone.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/jquery-ui.custom.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/jquery-ui.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/ui.jqgrid.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/fullcalendar.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/dropzone.min.css" />
 
 <!-- Global Print Styles -->
 <style media="print">
@@ -168,33 +171,31 @@
         display: none !important;
     }
 </style>
-<link rel="stylesheet" href="assets/css/bootstrap-duallistbox.min.css" />
-<link rel="stylesheet" href="assets/css/bootstrap-multiselect.min.css" />
-<link rel="stylesheet" href="assets/css/select2.min.css" />
-<link rel="stylesheet" href="assets/css/chosen.min.css" />
-<link rel="stylesheet" href="assets/css/bootstrap-datepicker3.min.css" />
-<link rel="stylesheet" href="assets/css/bootstrap-timepicker.min.css" />
-<link rel="stylesheet" href="assets/css/daterangepicker.min.css" />
-<link rel="stylesheet" href="assets/css/bootstrap-datetimepicker.min.css" />
-<link rel="stylesheet" href="assets/css/bootstrap-colorpicker.min.css" />
-<link rel="stylesheet" href="assets/css/colorbox.min.css" />
-<link rel="stylesheet" href="assets/css/jquery.gritter.min.css" />
-<link rel="stylesheet" href="assets/css/bootstrap-editable.min.css" />
-<link rel="stylesheet" href="assets/css/prettify.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-duallistbox.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-multiselect.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/select2.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/chosen.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-datepicker3.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-timepicker.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/daterangepicker.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-datetimepicker.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-colorpicker.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/colorbox.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/jquery.gritter.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/bootstrap-editable.min.css" />
+<link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/prettify.min.css" />
 
 <!-- JavaScript -->
-<script src="assets/js/ace-extra.min.js"></script>
-<script src="assets/js/html5shiv.min.js"></script>
-<script src="assets/js/respond.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/ace-extra.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/html5shiv.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/respond.min.js"></script>
 
 <!-- Typeahead -->
 
 
 <!-- DataTables -->
-<script src="assets/js/jquery.dataTables.min.js"></script>
-<script src="assets/js/jquery.dataTables.bootstrap.min.js"></script>
-<link rel="stylesheet" href="assets/css/bootstrap.min.css" />
-<link rel="stylesheet" href="assets/font-awesome/4.5.0/css/font-awesome.min.css" />
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.dataTables.min.js"></script>
+<script src="<?= Yii::$app->request->baseUrl ?>/web/js/jquery.dataTables.bootstrap.min.js"></script>
 
 <!-- page specific plugin styles -->
 <!-- text fonts -->
