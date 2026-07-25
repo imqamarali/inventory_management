@@ -280,19 +280,39 @@ $this->title = 'System Backup Management';
     }
 
     function createBackup() {
-        if (!confirm('Create a new database backup? This may take a few minutes.')) {
-            return;
-        }
+        Swal.fire({
+            title: 'Create Database Backup',
+            html: '<i class="fa fa-database" style="font-size: 48px; color: #3498db; margin-bottom: 20px;"></i><p style="margin: 20px 0; color: #555;">This will create a new database backup.<br>This may take a few minutes.</p>',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#27ae60',
+            cancelButtonColor: '#95a5a6',
+            confirmButtonText: '<i class="fa fa-plus"></i> Create Backup',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                startBackupProgress();
+            }
+        });
+    }
 
+    function startBackupProgress() {
         Swal.fire({
             title: 'Creating Backup',
-            html: '<i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #3498db;"></i><p style="margin-top: 20px;">Please wait, creating backup...</p>',
+            html: '<div style="text-align: left;"><div id="progressMessage" style="margin: 20px 0; color: #2c3e50;"><i class="fa fa-spinner fa-spin"></i> Initializing backup...</div><div style="width: 100%; height: 6px; background: #ecf0f1; border-radius: 3px; overflow: hidden;"><div id="progressBar" style="width: 0%; height: 100%; background: #27ae60; transition: width 0.3s ease;"></div></div></div>',
             allowOutsideClick: false,
             allowEscapeKey: false,
             didOpen: () => {
                 Swal.showLoading();
             }
         });
+
+        // Simulate progress updates
+        updateProgressMessage('Connecting to database...', 10);
+
+        setTimeout(() => updateProgressMessage('Exporting database...', 40), 500);
+        setTimeout(() => updateProgressMessage('Compressing backup file...', 70), 2000);
+        setTimeout(() => updateProgressMessage('Finalizing backup...', 90), 4000);
 
         $.ajax({
             url: baseUrl + 'index.php?r=system/backup',
@@ -302,33 +322,62 @@ $this->title = 'System Backup Management';
                 action: 'create'
             },
             success: function(response) {
-                Swal.close();
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Backup Created',
-                        text: 'Database backup created successfully!',
-                        confirmButtonColor: '#27ae60'
-                    }).then(() => {
-                        loadDashboard();
-                    });
-                } else {
+                updateProgressMessage('Backup completed!', 100);
+
+                setTimeout(() => {
+                    Swal.close();
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Backup Created Successfully',
+                            html: '<p style="margin: 10px 0;">File: <strong>' + (response.file || 'backup.sql') + '</strong></p><p style="color: #666;">Size: <strong>' + (response.size ? formatBytes(response.size) : 'N/A') + '</strong></p>',
+                            confirmButtonColor: '#27ae60'
+                        }).then(() => {
+                            loadDashboard();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Backup Failed',
+                            text: response.message || 'Failed to create backup',
+                            confirmButtonColor: '#e74c3c'
+                        });
+                    }
+                }, 500);
+            },
+            error: function() {
+                updateProgressMessage('Error creating backup!', 100);
+
+                setTimeout(() => {
+                    Swal.close();
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: response.message || 'Failed to create backup'
+                        text: 'An error occurred while creating the backup',
+                        confirmButtonColor: '#e74c3c'
                     });
-                }
-            },
-            error: function() {
-                Swal.close();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error creating backup'
-                });
+                }, 500);
             }
         });
+    }
+
+    function updateProgressMessage(message, percentage) {
+        const msgEl = document.getElementById('progressMessage');
+        const barEl = document.getElementById('progressBar');
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="fa fa-spinner fa-spin"></i> ' + message;
+        }
+        if (barEl) {
+            barEl.style.width = percentage + '%';
+        }
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
     }
 
     function showRestorePassword(filename) {
@@ -343,20 +392,47 @@ $this->title = 'System Backup Management';
             Swal.fire({
                 icon: 'warning',
                 title: 'Password Required',
-                text: 'Please enter super admin password'
+                text: 'Please enter your super admin password to proceed',
+                confirmButtonColor: '#f39c12'
             });
             return;
         }
 
+        // Show final confirmation with file details
         Swal.fire({
-            title: 'Restoring Backup',
-            html: '<i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #3498db;"></i><p style="margin-top: 20px;">Please wait, restoring database...</p>',
+            title: 'Confirm Restore Operation',
+            html: '<div style="text-align: left; color: #555;"><p><strong>File:</strong> ' + currentRestoreFile + '</p><p style="margin-top: 10px; color: #e74c3c;"><i class="fa fa-exclamation-triangle"></i> <strong>This will overwrite your current database!</strong></p><p style="margin-top: 10px; font-size: 13px;">A backup of your current data will be created automatically.</p></div>',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e74c3c',
+            cancelButtonColor: '#95a5a6',
+            confirmButtonText: '<i class="fa fa-refresh"></i> Restore Now',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                startRestoreProgress();
+            }
+        });
+    }
+
+    function startRestoreProgress() {
+        Swal.fire({
+            title: 'Restoring Database',
+            html: '<div style="text-align: left;"><div id="restoreMessage" style="margin: 20px 0; color: #2c3e50;"><i class="fa fa-spinner fa-spin"></i> Creating pre-restore backup...</div><div style="width: 100%; height: 6px; background: #ecf0f1; border-radius: 3px; overflow: hidden;"><div id="restoreBar" style="width: 0%; height: 100%; background: #e74c3c; transition: width 0.3s ease;"></div></div></div>',
             allowOutsideClick: false,
             allowEscapeKey: false,
             didOpen: () => {
                 Swal.showLoading();
             }
         });
+
+        // Simulate progress updates
+        updateRestoreMessage('Creating pre-restore backup...', 20);
+        setTimeout(() => updateRestoreMessage('Dropping current tables...', 40), 1000);
+        setTimeout(() => updateRestoreMessage('Restoring database tables...', 70), 2500);
+        setTimeout(() => updateRestoreMessage('Verifying data integrity...', 90), 4000);
+
+        const password = $('#restorePassword').val();
 
         $.ajax({
             url: baseUrl + 'index.php?r=system/backup',
@@ -368,36 +444,57 @@ $this->title = 'System Backup Management';
                 password: password
             },
             success: function(response) {
-                Swal.close();
-                $('#restorePasswordModal').modal('hide');
-                $('#restorePassword').val('');
+                updateRestoreMessage('Restore completed!', 100);
 
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Restore Complete',
-                        text: 'Database restored successfully!',
-                        confirmButtonColor: '#27ae60'
-                    }).then(() => {
-                        loadDashboard();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Restore Failed',
-                        text: response.message || 'Failed to restore backup'
-                    });
-                }
+                setTimeout(() => {
+                    Swal.close();
+                    $('#restorePasswordModal').modal('hide');
+                    $('#restorePassword').val('');
+
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Restore Successful',
+                            html: '<p style="margin: 15px 0;">Your database has been restored successfully!</p><p style="font-size: 13px; color: #666;">Pre-restore backup: <strong>' + (response.pre_backup || 'N/A') + '</strong></p>',
+                            confirmButtonColor: '#27ae60'
+                        }).then(() => {
+                            loadDashboard();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Restore Failed',
+                            text: response.message || 'Failed to restore backup',
+                            confirmButtonColor: '#e74c3c'
+                        });
+                    }
+                }, 500);
             },
             error: function() {
-                Swal.close();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error restoring backup'
-                });
+                updateRestoreMessage('Restore failed!', 100);
+
+                setTimeout(() => {
+                    Swal.close();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'An error occurred while restoring the backup',
+                        confirmButtonColor: '#e74c3c'
+                    });
+                }, 500);
             }
         });
+    }
+
+    function updateRestoreMessage(message, percentage) {
+        const msgEl = document.getElementById('restoreMessage');
+        const barEl = document.getElementById('restoreBar');
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="fa fa-spinner fa-spin"></i> ' + message;
+        }
+        if (barEl) {
+            barEl.style.width = percentage + '%';
+        }
     }
 
     function downloadBackup(filename) {
@@ -405,19 +502,36 @@ $this->title = 'System Backup Management';
     }
 
     function deleteBackup(filename) {
-        if (!confirm('Delete this backup?\n' + filename + '\n\nThis action cannot be undone!')) {
-            return;
-        }
+        Swal.fire({
+            title: 'Delete Backup File',
+            html: '<p style="margin: 15px 0; color: #555;"><strong>File:</strong> ' + filename + '</p><p style="color: #e74c3c; margin-top: 15px;"><i class="fa fa-exclamation-triangle"></i> <strong>This action cannot be undone!</strong></p>',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e74c3c',
+            cancelButtonColor: '#95a5a6',
+            confirmButtonText: '<i class="fa fa-trash"></i> Delete Backup',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                startDeleteProgress(filename);
+            }
+        });
+    }
 
+    function startDeleteProgress(filename) {
         Swal.fire({
             title: 'Deleting Backup',
-            html: '<i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #e74c3c;"></i><p style="margin-top: 20px;">Deleting backup file...</p>',
+            html: '<div style="text-align: left;"><div id="deleteMessage" style="margin: 20px 0; color: #2c3e50;"><i class="fa fa-spinner fa-spin"></i> Removing backup file...</div><div style="width: 100%; height: 6px; background: #ecf0f1; border-radius: 3px; overflow: hidden;"><div id="deleteBar" style="width: 0%; height: 100%; background: #e74c3c; transition: width 0.3s ease;"></div></div></div>',
             allowOutsideClick: false,
             allowEscapeKey: false,
             didOpen: () => {
                 Swal.showLoading();
             }
         });
+
+        updateDeleteMessage('Verifying backup file...', 20);
+        setTimeout(() => updateDeleteMessage('Removing from storage...', 60), 500);
+        setTimeout(() => updateDeleteMessage('Updating records...', 90), 1500);
 
         $.ajax({
             url: baseUrl + 'index.php?r=system/backup',
@@ -428,33 +542,54 @@ $this->title = 'System Backup Management';
                 backup_file: filename
             },
             success: function(response) {
-                Swal.close();
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Deleted',
-                        text: 'Backup deleted successfully',
-                        confirmButtonColor: '#27ae60'
-                    }).then(() => {
-                        loadDashboard();
-                    });
-                } else {
+                updateDeleteMessage('Backup deleted!', 100);
+
+                setTimeout(() => {
+                    Swal.close();
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Backup Deleted',
+                            text: 'Backup file deleted successfully',
+                            confirmButtonColor: '#27ae60'
+                        }).then(() => {
+                            loadDashboard();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Delete Failed',
+                            text: response.message || 'Failed to delete backup',
+                            confirmButtonColor: '#e74c3c'
+                        });
+                    }
+                }, 500);
+            },
+            error: function() {
+                updateDeleteMessage('Error deleting backup!', 100);
+
+                setTimeout(() => {
+                    Swal.close();
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: response.message || 'Failed to delete backup'
+                        text: 'An error occurred while deleting the backup',
+                        confirmButtonColor: '#e74c3c'
                     });
-                }
-            },
-            error: function() {
-                Swal.close();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error deleting backup'
-                });
+                }, 500);
             }
         });
+    }
+
+    function updateDeleteMessage(message, percentage) {
+        const msgEl = document.getElementById('deleteMessage');
+        const barEl = document.getElementById('deleteBar');
+        if (msgEl) {
+            msgEl.innerHTML = '<i class="fa fa-spinner fa-spin"></i> ' + message;
+        }
+        if (barEl) {
+            barEl.style.width = percentage + '%';
+        }
     }
 
 </script>
