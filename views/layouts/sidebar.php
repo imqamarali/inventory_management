@@ -36,10 +36,48 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
             overflow-x: hidden !important;
             z-index: 100 !important;
             width: 190px !important;
+            background-color: #ffffff !important;
+            background: #ffffff !important;
         }
 
         #sidebar .nav-list {
             display: block !important;
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+        }
+
+        #sidebar .nav-list li {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+        }
+
+        #sidebar .nav-list li a {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            color: #333 !important;
+        }
+
+        #sidebar .nav-list li a:hover {
+            background-color: #f5f5f5 !important;
+        }
+
+        #sidebar .nav-list li.active > a {
+            background-color: #f0f0f0 !important;
+        }
+
+        #sidebar .nav-list li ul {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+        }
+
+        #sidebar .nav-list li ul li a {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+            color: #555 !important;
+        }
+
+        #sidebar .nav-list li ul li a:hover {
+            background-color: #f8f8f8 !important;
         }
 
         .mobile-modules-bar {
