@@ -377,9 +377,10 @@ $this->title = 'System Backup Management';
 
 <script>
     var currentRestoreFile = null;
+    var baseUrl = window.location.pathname.split('/web/')[0] + '/web/';
 
     function loadBackupStats() {
-        fetch('index.php?r=system/backup&action=stats', {
+        fetch(baseUrl + 'index.php?r=system/backup&action=stats', {
             method: 'GET'
         })
         .then(res => res.json())
@@ -400,7 +401,7 @@ $this->title = 'System Backup Management';
     }
 
     function loadBackups() {
-        fetch('index.php?r=system/backup&action=list', {
+        fetch(baseUrl + 'index.php?r=system/backup&action=list', {
             method: 'GET'
         })
         .then(res => res.json())
@@ -450,7 +451,7 @@ $this->title = 'System Backup Management';
         const formData = new FormData();
         formData.append('action', 'create');
 
-        fetch('index.php?r=system/backup', {
+        fetch(baseUrl + 'index.php?r=system/backup', {
             method: 'POST',
             body: formData
         })
@@ -494,7 +495,7 @@ $this->title = 'System Backup Management';
         formData.append('backup_file', currentRestoreFile);
         formData.append('password', password);
 
-        fetch('index.php?r=system/backup', {
+        fetch(baseUrl + 'index.php?r=system/backup', {
             method: 'POST',
             body: formData
         })
@@ -521,7 +522,7 @@ $this->title = 'System Backup Management';
     }
 
     function downloadBackup(filename) {
-        window.location.href = 'index.php?r=system/backup&action=download&file=' + encodeURIComponent(filename);
+        window.location.href = baseUrl + 'index.php?r=system/backup&action=download&file=' + encodeURIComponent(filename);
     }
 
     function deleteBackup(filename) {
@@ -533,7 +534,7 @@ $this->title = 'System Backup Management';
         formData.append('action', 'delete');
         formData.append('backup_file', filename);
 
-        fetch('index.php?r=system/backup', {
+        fetch(baseUrl + 'index.php?r=system/backup', {
             method: 'POST',
             body: formData
         })

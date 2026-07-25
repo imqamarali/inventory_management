@@ -80,39 +80,42 @@ class SystemController extends Controller
     {
         $this->requireModulePermission('system/backup');
 
-        $action = Yii::$app->request->post('action', Yii::$app->request->get('action', 'list'));
-        $response = ['success' => false, 'message' => '', 'data' => []];
+        $action = Yii::$app->request->post('action', Yii::$app->request->get('action', null));
 
-        try {
-            if ($action === 'create') {
-                $response = $this->createBackup();
-            } elseif ($action === 'list') {
-                $response = $this->listBackups();
-            } elseif ($action === 'stats') {
-                $response = $this->getBackupStats();
-            } elseif ($action === 'restore') {
-                $backupFile = Yii::$app->request->post('backup_file');
-                $password = Yii::$app->request->post('password');
-                $response = $this->restoreBackup($backupFile, $password);
-            } elseif ($action === 'download') {
-                $backupFile = Yii::$app->request->get('file');
-                return $this->downloadBackup($backupFile);
-            } elseif ($action === 'delete') {
-                $backupFile = Yii::$app->request->post('backup_file');
-                $response = $this->deleteBackup($backupFile);
+        // If action is specified, return JSON
+        if ($action !== null) {
+            $response = ['success' => false, 'message' => '', 'data' => []];
+
+            try {
+                if ($action === 'create') {
+                    $response = $this->createBackup();
+                } elseif ($action === 'list') {
+                    $response = $this->listBackups();
+                } elseif ($action === 'stats') {
+                    $response = $this->getBackupStats();
+                } elseif ($action === 'restore') {
+                    $backupFile = Yii::$app->request->post('backup_file');
+                    $password = Yii::$app->request->post('password');
+                    $response = $this->restoreBackup($backupFile, $password);
+                } elseif ($action === 'download') {
+                    $backupFile = Yii::$app->request->get('file');
+                    return $this->downloadBackup($backupFile);
+                } elseif ($action === 'delete') {
+                    $backupFile = Yii::$app->request->post('backup_file');
+                    $response = $this->deleteBackup($backupFile);
+                }
+            } catch (\Exception $e) {
+                $response['message'] = $e->getMessage();
             }
-        } catch (\Exception $e) {
-            $response['message'] = $e->getMessage();
-        }
 
-        if (Yii::$app->request->isAjax || Yii::$app->request->isPost) {
             Yii::$app->response->format = Response::FORMAT_JSON;
             return $response;
         }
 
+        // No action specified, render the view
         $stats = $this->getBackupStats();
         return $this->render('backup', [
-            'backups' => $response['data'] ?? [],
+            'backups' => $stats['data']['backups'] ?? [],
             'stats' => $stats['data'] ?? []
         ]);
     }
