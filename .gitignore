@@ -13,6 +13,12 @@ composer.lock
 *.swp
 *.swo
 
+# Claude Code (Local Configuration)
+.claude/
+
+# Database Backups
+/backups/
+
 # Environment
 .env
 .env.local
