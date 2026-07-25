@@ -386,6 +386,32 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
 </div>
 
 <script>
+    // Mark active menu item based on current URL
+    (function() {
+        function markActiveMenuItem() {
+            // Get current page URL
+            const currentUrl = window.location.href;
+            const allMenuLinks = document.querySelectorAll('#sidebar .nav-list a');
+
+            allMenuLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                // Check if the link's href matches current page
+                if (href && currentUrl.includes(href)) {
+                    // Add active class to the parent li
+                    const parentLi = link.closest('li');
+                    if (parentLi) {
+                        parentLi.classList.add('active');
+                    }
+                }
+            });
+        }
+
+        // Call on page load
+        document.addEventListener('DOMContentLoaded', markActiveMenuItem);
+        // Also call immediately in case DOM is already ready
+        markActiveMenuItem();
+    })();
+
     // Adjust layout for mobile modules bar
     (function() {
         function adjustLayoutForMobileModules() {
