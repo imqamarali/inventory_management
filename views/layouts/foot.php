@@ -1,4 +1,44 @@
-<!-- Scripts are already loaded in head.php -->
+<!-- jQuery -->
+<script src="assets/js/jquery-2.1.4.min.js"></script> <!-- Core jQuery -->
+
+<!-- Bootstrap -->
+<script src="assets/js/bootstrap.min.js"></script>
+
+<!-- jQuery UI -->
+<script src="assets/js/jquery-ui.custom.min.js"></script>
+<script src="assets/js/jquery.ui.touch-punch.min.js"></script>
+
+<!-- Moment.js -->
+<script src="assets/js/moment.min.js"></script>
+
+<!-- Date & Time Pickers -->
+<script src="assets/js/bootstrap-datepicker.min.js"></script>
+<script src="assets/js/bootstrap-timepicker.min.js"></script>
+<script src="assets/js/daterangepicker.min.js"></script>
+<script src="assets/js/bootstrap-datetimepicker.min.js"></script>
+<script src="assets/js/bootstrap-colorpicker.min.js"></script>
+
+<!-- Chosen and Select2 -->
+<script src="assets/js/chosen.jquery.min.js"></script>
+<script src="assets/js/select2.min.js"></script>
+
+<!-- Plugins for file uploads, tags, and text areas -->
+<script src="assets/js/dropzone.min.js"></script>
+<script src="assets/js/autosize.min.js"></script>
+<script src="assets/js/jquery.inputlimiter.min.js"></script>
+<script src="assets/js/jquery.maskedinput.min.js"></script>
+<script src="assets/js/bootstrap-tag.min.js"></script>
+
+<!-- Dual Listbox & Multiselect -->
+<script src="assets/js/jquery.bootstrap-duallistbox.min.js"></script>
+<script src="assets/js/bootstrap-multiselect.min.js"></script>
+
+<!-- Typeahead for autocomplete -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/corejs-typeahead/1.3.1/typeahead.bundle.min.js"></script>
+
+<!-- ACE Admin Template -->
+<script src="assets/js/ace-elements.min.js"></script>
+<script src="assets/js/ace.min.js"></script>
 
 <!-- Inline scripts -->
 <script type="text/javascript">
@@ -44,14 +84,25 @@
 </script>
 
 
-<!-- DataTables Buttons extension JS (for export functionality) -->
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+
+<!-- DataTables Buttons CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.7.1/css/buttons.dataTables.min.css">
+
+<!-- JS Libraries -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+
+<!-- DataTables Buttons extension JS -->
 <script src="https://cdn.datatables.net/buttons/1.7.1/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
 
 <!-- Libraries for Exporting Excel and PDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/vfs-fonts/2.0.0/vfs_fonts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script> <!-- For Excel -->
+<script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
+<!-- For Excel, CSV, and PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/pdfmake.min.js"></script> <!-- For PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vfs-fonts/2.0.0/vfs_fonts.min.js"></script> <!-- For PDF -->
 
 <!-- DataTables Initialization Script -->
 <script type="text/javascript">
@@ -99,7 +150,8 @@
 </script>
 
 
-<script src="<?= Yii::$app->request->baseUrl ?>/web/js/ss.custom.js"></script>
+<script src="assets/js/nprogress.js"></script>
+<script src="assets/js/ss.custom.js"></script>
 
 <!-- <script src="https://demo.smart-school.in/backend/dist/js/nprogress.js"></script>
 <script type="text/javascript" src="https://demo.smart-school.in/backend/dist/datatables/js/ss.custom.js"></script> -->

@@ -81,8 +81,8 @@ $body_class = $is_student ? 'no-skin student-role' : 'no-skin';
     </div>
     <?php $this->endBody() ?>
 
-    <link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/web/css/sweetalert2.min.css">
-    <script src="<?= Yii::$app->request->baseUrl ?>/web/js/sweetalert2.all.min.js"></script>
+    <link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/css/sweetalert2.min.css">
+    <script src="<?= Yii::$app->request->baseUrl ?>/js/sweetalert2.all.min.js"></script>
     
     <script>
         // Define the toolbar HTML
@@ -279,6 +279,8 @@ $body_class = $is_student ? 'no-skin student-role' : 'no-skin';
             }
         });
     </script>
+    <script src="assets/js/jquery.js"></script>
+    <script src="assets/js/chosen.jquery.min.js"></script>
 </body>
 
 </html>
