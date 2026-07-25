@@ -126,6 +126,7 @@ class SettingsController extends Controller
             ['name' => 'Account Settings', 'controller' => 'settings/accountsettings', 'icon' => 'fa fa-sitemap'],
             ['name' => 'Email Configuration', 'controller' => 'settings/email', 'icon' => 'fa fa-envelope'],
             ['name' => 'SMS Configuration', 'controller' => 'settings/sms', 'icon' => 'fa fa-mobile'],
+            ['name' => 'System Backup', 'controller' => 'settings/backup', 'icon' => 'fa fa-database'],
             ['name' => 'Users', 'controller' => 'settings/users', 'icon' => 'fa fa-user'],
             ['name' => 'Roles & Permissions', 'controller' => 'settings/roles', 'icon' => 'fa fa-shield'],
             // ['name' => 'Tax Settings', 'controller' => 'settings/taxsettings', 'icon' => 'fa fa-percent'],
@@ -2054,6 +2055,78 @@ class SettingsController extends Controller
 
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
+
+    /* --------- System Backup Configuration --------- */
+    public function actionBackup()
+    {
+        if (Yii::$app->request->isGet) {
+            $config = [
+                'auto_backup_enabled' => $this->getSetting('backup_auto_enabled', 0),
+                'backup_frequency' => $this->getSetting('backup_frequency', 'daily'),
+                'auto_delete_enabled' => $this->getSetting('backup_auto_delete_enabled', 0),
+                'backup_retention_days' => $this->getSetting('backup_retention_days', 30),
+            ];
+            return $this->renderPartial('systembackup', ['config' => $config]);
+        }
+
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
+            $post = Yii::$app->request->post();
+            $action = $post['action'] ?? null;
+
+            if ($action === 'save_backup_config') {
+                $this->saveSetting('backup_auto_enabled', isset($post['auto_backup_enabled']) ? 1 : 0);
+                $this->saveSetting('backup_frequency', $post['backup_frequency'] ?? 'daily');
+                $this->saveSetting('backup_auto_delete_enabled', isset($post['auto_delete_enabled']) ? 1 : 0);
+
+                $retentionDays = (int)($post['backup_retention_days'] ?? 30);
+                if ($retentionDays < 1) $retentionDays = 1;
+                if ($retentionDays > 365) $retentionDays = 365;
+                $this->saveSetting('backup_retention_days', $retentionDays);
+
+                return $this->jsonResponse(true, 'Backup configuration saved successfully.');
+            }
+
+            if ($action === 'get_status') {
+                $backupDir = Yii::getAlias('@app/backups');
+                $lastBackup = 'Never';
+                $nextBackup = 'Not scheduled';
+                $statusBadge = '<span class="badge" style="background-color: #999;">Disabled</span>';
+
+                if (is_dir($backupDir)) {
+                    $files = scandir($backupDir, SCANDIR_SORT_DESCENDING);
+                    foreach ($files as $file) {
+                        if (strpos($file, 'backup_') === 0 && strpos($file, '.sql') !== false) {
+                            $lastBackup = date('M d, Y H:i', filemtime($backupDir . '/' . $file));
+                            break;
+                        }
+                    }
+                }
+
+                $autoEnabled = (bool)$this->getSetting('backup_auto_enabled', 0);
+                if ($autoEnabled) {
+                    $frequency = $this->getSetting('backup_frequency', 'daily');
+                    $frequencyText = ucfirst($frequency);
+                    $statusBadge = '<span class="badge" style="background-color: #4CAF50; color: white;">Enabled (' . $frequencyText . ')</span>';
+
+                    $nextDays = ['daily' => 1, 'weekly' => 7, 'monthly' => 30][$frequency] ?? 1;
+                    $nextBackup = date('M d, Y', strtotime("+{$nextDays} days"));
+                }
+
+                return $this->jsonResponse(true, 'Status retrieved', [
+                    'data' => [
+                        'last_backup' => $lastBackup,
+                        'next_backup' => $nextBackup,
+                        'status_badge' => $statusBadge
+                    ]
+                ]);
+            }
+
+            return $this->jsonResponse(false, 'Invalid action.');
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, 'Error: ' . $e->getMessage());
         }
     }
 }
