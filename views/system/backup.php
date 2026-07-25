@@ -1,13 +1,11 @@
 <?php
-use yii\helpers\Html;
-use yii\helpers\Url;
 
 $this->title = 'System Backup Management';
+
 ?>
 
 <div class="page-content">
 
-    <!-- Dashboard Header -->
     <div class="dashboard-header">
         <div>
             <h3>
@@ -22,15 +20,15 @@ $this->title = 'System Backup Management';
                 <i class="fa fa-plus"></i>
                 Create Backup
             </button>
-            <button id="refreshBtn" class="btn btn-default">
+            <button id="refreshDashboard" class="btn btn-default">
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
         </div>
     </div>
 
-    <!-- Statistics Grid (6 Cards) -->
     <div class="stats-grid">
+
         <div class="stat-card blue">
             <div class="stat-header">
                 <span class="stat-title">Total Backups</span>
@@ -96,40 +94,58 @@ $this->title = 'System Backup Management';
             <div class="stat-value" id="largest_backup_size">0 B</div>
             <div class="stat-subtitle">Max Backup Size</div>
         </div>
+
     </div>
 
-    <!-- Backup List Table -->
-    <div class="row" style="margin-top: 15px;">
+    <div class="row" style="margin-top:15px;">
+
         <div class="col-md-12">
+
             <div class="dashboard-box">
+
                 <h4>
                     <i class="fa fa-list"></i>
-                    Backup Files
+                    Latest Backups
                 </h4>
 
                 <div class="table-responsive">
+
                     <table class="table table-bordered table-striped table-hover">
+
                         <thead>
+
                             <tr>
-                                <th width="5%">#</th>
-                                <th width="30%">Backup File</th>
-                                <th width="15%">Size</th>
-                                <th width="25%">Created Date</th>
-                                <th width="25%">Actions</th>
+
+                                <th>#</th>
+                                <th>Backup File</th>
+                                <th>File Size</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+
                             </tr>
+
                         </thead>
-                        <tbody id="backups-list">
+
+                        <tbody id="latestBackups">
+
                             <tr>
-                                <td colspan="5" class="text-center" style="padding: 40px;">
-                                    <i class="fa fa-spinner fa-spin" style="font-size: 24px; margin-right: 10px;"></i>
-                                    <span>Loading backups...</span>
+
+                                <td colspan="5" class="text-center">
+                                    Loading backups...
                                 </td>
+
                             </tr>
+
                         </tbody>
+
                     </table>
+
                 </div>
+
             </div>
+
         </div>
+
     </div>
 
 </div>
@@ -168,310 +184,150 @@ $this->title = 'System Backup Management';
     </div>
 </div>
 
-<style>
-    .page-content {
-        padding: 20px;
-    }
-
-    .dashboard-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        padding: 20px;
-        background: white;
-        border-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .dashboard-header h3 {
-        margin: 0;
-        font-size: 24px;
-        color: #333;
-    }
-
-    .dashboard-header h3 small {
-        display: block;
-        font-size: 12px;
-        color: #999;
-        margin-top: 5px;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-
-    .stat-card {
-        background: white;
-        border-radius: 4px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        border-left: 4px solid;
-    }
-
-    .stat-card.blue { border-left-color: #2196F3; }
-    .stat-card.green { border-left-color: #4CAF50; }
-    .stat-card.orange { border-left-color: #FF9800; }
-    .stat-card.purple { border-left-color: #9C27B0; }
-    .stat-card.teal { border-left-color: #009688; }
-    .stat-card.red { border-left-color: #F44336; }
-
-    .stat-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-
-    .stat-title {
-        font-size: 12px;
-        color: #666;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-
-    .stat-icon {
-        font-size: 24px;
-        opacity: 0.3;
-    }
-
-    .stat-value {
-        font-size: 28px;
-        font-weight: bold;
-        color: #333;
-        margin-bottom: 8px;
-    }
-
-    .stat-value.loading {
-        font-size: 14px;
-        opacity: 0.5;
-    }
-
-    .stat-subtitle {
-        font-size: 12px;
-        color: #999;
-    }
-
-    .dashboard-box {
-        background: white;
-        border-radius: 4px;
-        padding: 20px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .dashboard-box h4 {
-        margin: 0 0 15px 0;
-        font-size: 16px;
-        color: #2c3e50;
-        font-weight: 600;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 15px;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-    }
-
-    .table {
-        margin-bottom: 0;
-    }
-
-    .table thead th {
-        background: #f9f9f9;
-        border-color: #ddd;
-        font-weight: 600;
-        color: #2c3e50;
-    }
-
-    .table tbody tr:hover {
-        background: #f9f9f9;
-    }
-
-    .btn {
-        padding: 8px 15px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-success {
-        background: #27ae60;
-        color: white;
-        border-color: #27ae60;
-    }
-
-    .btn-success:hover {
-        background: #229954;
-        border-color: #229954;
-    }
-
-    .btn-default {
-        background: #ecf0f1;
-        color: #2c3e50;
-        border-color: #bdc3c7;
-    }
-
-    .btn-default:hover {
-        background: #d5dbdb;
-        border-color: #a6acaf;
-    }
-
-    .btn-info {
-        background: #3498db;
-        color: white;
-        border-color: #3498db;
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-
-    .btn-info:hover {
-        background: #2980b9;
-        border-color: #2980b9;
-    }
-
-    .btn-primary {
-        background: #2196F3;
-        color: white;
-        border-color: #2196F3;
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-
-    .btn-primary:hover {
-        background: #1976D2;
-        border-color: #1976D2;
-    }
-
-    .btn-danger {
-        background: #e74c3c;
-        color: white;
-        border-color: #e74c3c;
-        padding: 6px 12px;
-        font-size: 12px;
-    }
-
-    .btn-danger:hover {
-        background: #c0392b;
-        border-color: #c0392b;
-    }
-
-    .action-buttons {
-        display: flex;
-        gap: 5px;
-    }
-
-    .alert-warning {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        color: #856404;
-        padding: 12px;
-        border-radius: 4px;
-    }
-</style>
-
 <script>
+
     var currentRestoreFile = null;
     var baseUrl = window.location.pathname.split('/web/')[0] + '/web/';
 
-    function loadBackupStats() {
-        fetch(baseUrl + 'index.php?r=system/backup&action=stats', {
-            method: 'GET'
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success && data.data) {
-                document.getElementById('total_backups').textContent = data.data.total_backups;
-                document.getElementById('total_backup_size').textContent = data.data.total_backup_size_formatted;
-                document.getElementById('project_size').textContent = data.data.project_size;
-                document.getElementById('db_response_time').textContent = data.data.db_response_time + ' ms';
-                document.getElementById('largest_backup_size').textContent = data.data.largest_backup;
+    $(function() {
+        loadDashboard();
 
-                if (data.data.backups && data.data.backups.length > 0) {
-                    document.getElementById('last_backup_time').textContent = data.data.backups[0].date_formatted;
-                }
-            }
-        })
-        .catch(err => console.error('Error loading stats:', err));
-    }
+        $("#createBackupBtn").click(function() {
+            createBackup();
+        });
 
-    function loadBackups() {
-        fetch(baseUrl + 'index.php?r=system/backup&action=list', {
-            method: 'GET'
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                let html = '';
-                if (data.data.length === 0) {
-                    html = '<tr><td colspan="5" class="text-center" style="padding: 40px;"><i class="fa fa-inbox" style="font-size: 24px; margin-right: 10px; opacity: 0.5;"></i><span style="color: #999;">No backups found</span></td></tr>';
+        $("#refreshDashboard").click(function() {
+            loadDashboard();
+        });
+
+        $("#confirmRestoreBtn").click(function() {
+            restoreBackup();
+        });
+    });
+
+    function loadDashboard() {
+        showDashboardLoading();
+
+        $.ajax({
+            url: baseUrl + 'index.php?r=system/backup&action=stats',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                hideDashboardLoading();
+
+                if (response.success && response.data) {
+                    loadStatistics(response.data);
+                    loadLatestBackups(response.data.backups || []);
                 } else {
-                    data.data.forEach((backup, index) => {
-                        html += `
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td><code style="background: #f5f5f5; padding: 4px 8px; border-radius: 3px;">${backup.filename}</code></td>
-                                <td>${backup.size_formatted}</td>
-                                <td>${backup.date_formatted}</td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-info" onclick="showRestorePassword('${backup.filename}')" title="Restore from this backup">
-                                            <i class="fa fa-refresh"></i> Restore
-                                        </button>
-                                        <button class="btn btn-primary" onclick="downloadBackup('${backup.filename}')" title="Download backup file">
-                                            <i class="fa fa-download"></i> Download
-                                        </button>
-                                        <button class="btn btn-danger" onclick="deleteBackup('${backup.filename}')" title="Delete this backup">
-                                            <i class="fa fa-trash"></i> Delete
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
+                    alert('Failed to load backup data');
                 }
-                document.getElementById('backups-list').innerHTML = html;
+            },
+            error: function() {
+                hideDashboardLoading();
+                alert('Error loading backup statistics');
             }
-        })
-        .catch(err => {
-            console.error('Error loading backups:', err);
-            document.getElementById('backups-list').innerHTML = '<tr><td colspan="5" class="text-center" style="padding: 40px; color: red;"><i class="fa fa-exclamation-triangle" style="font-size: 24px; margin-right: 10px;"></i><span>Failed to load backups</span></td></tr>';
         });
     }
 
+    function showDashboardLoading() {
+        $(".stat-value").each(function() {
+            $(this)
+                .addClass("loading")
+                .html("&nbsp;&nbsp;&nbsp;&nbsp;");
+        });
+    }
+
+    function hideDashboardLoading() {
+        $(".stat-value").removeClass("loading");
+    }
+
+    function loadStatistics(stats) {
+        $("#total_backups").text(stats.total_backups || 0);
+        $("#total_backup_size").text(stats.total_backup_size_formatted || '0 B');
+        $("#project_size").text(stats.project_size || '0 B');
+        $("#db_response_time").text((stats.db_response_time || 0) + ' ms');
+        $("#largest_backup_size").text(stats.largest_backup || '0 B');
+
+        if (stats.backups && stats.backups.length > 0) {
+            $("#last_backup_time").text(stats.backups[0].date_formatted);
+        }
+    }
+
+    function loadLatestBackups(backups) {
+        let html = "";
+
+        if (backups.length == 0) {
+            html += "<tr>";
+            html += "<td colspan='5' class='text-center'>No Backups Found.</td>";
+            html += "</tr>";
+        } else {
+            $.each(backups, function(i, row) {
+                html += "<tr>";
+                html += "<td>" + (i + 1) + "</td>";
+                html += "<td><code>" + row.filename + "</code></td>";
+                html += "<td>" + row.size_formatted + "</td>";
+                html += "<td>" + row.date_formatted + "</td>";
+                html += "<td style='text-align: center;'>";
+                html += "<button class='btn btn-sm btn-info' onclick=\"showRestorePassword('" + row.filename + "')\" title='Restore from this backup' style='margin: 2px;'><i class='fa fa-refresh'></i> Restore</button>";
+                html += "<button class='btn btn-sm btn-primary' onclick=\"downloadBackup('" + row.filename + "')\" title='Download backup file' style='margin: 2px;'><i class='fa fa-download'></i> Download</button>";
+                html += "<button class='btn btn-sm btn-danger' onclick=\"deleteBackup('" + row.filename + "')\" title='Delete this backup' style='margin: 2px;'><i class='fa fa-trash'></i> Delete</button>";
+                html += "</td>";
+                html += "</tr>";
+            });
+        }
+
+        $("#latestBackups").html(html);
+    }
+
     function createBackup() {
-        document.getElementById('createBackupBtn').disabled = true;
-        document.getElementById('createBackupBtn').innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating...';
+        if (!confirm('Create a new database backup? This may take a few minutes.')) {
+            return;
+        }
 
-        const formData = new FormData();
-        formData.append('action', 'create');
-
-        fetch(baseUrl + 'index.php?r=system/backup', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Backup created successfully!', 'success');
-                loadBackupStats();
-                loadBackups();
-            } else {
-                showToast(data.message || 'Failed to create backup', 'error');
+        Swal.fire({
+            title: 'Creating Backup',
+            html: '<i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #3498db;"></i><p style="margin-top: 20px;">Please wait, creating backup...</p>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
             }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            showToast('Error creating backup', 'error');
-        })
-        .finally(() => {
-            document.getElementById('createBackupBtn').disabled = false;
-            document.getElementById('createBackupBtn').innerHTML = '<i class="fa fa-plus"></i> Create Backup';
+        });
+
+        $.ajax({
+            url: baseUrl + 'index.php?r=system/backup',
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'create'
+            },
+            success: function(response) {
+                Swal.close();
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Backup Created',
+                        text: 'Database backup created successfully!',
+                        confirmButtonColor: '#27ae60'
+                    }).then(() => {
+                        loadDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Failed to create backup'
+                    });
+                }
+            },
+            error: function() {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error creating backup'
+                });
+            }
         });
     }
 
@@ -481,43 +337,66 @@ $this->title = 'System Backup Management';
     }
 
     function restoreBackup() {
-        const password = document.getElementById('restorePassword').value;
+        const password = $('#restorePassword').val();
 
         if (!password) {
-            showToast('Please enter super admin password', 'error');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Password Required',
+                text: 'Please enter super admin password'
+            });
             return;
         }
 
-        document.getElementById('confirmRestoreBtn').disabled = true;
-
-        const formData = new FormData();
-        formData.append('action', 'restore');
-        formData.append('backup_file', currentRestoreFile);
-        formData.append('password', password);
-
-        fetch(baseUrl + 'index.php?r=system/backup', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            $('#restorePasswordModal').modal('hide');
-            document.getElementById('restorePassword').value = '';
-
-            if (data.success) {
-                showToast('Database restored successfully!', 'success');
-                loadBackupStats();
-                loadBackups();
-            } else {
-                showToast(data.message || 'Failed to restore backup', 'error');
+        Swal.fire({
+            title: 'Restoring Backup',
+            html: '<i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #3498db;"></i><p style="margin-top: 20px;">Please wait, restoring database...</p>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
             }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            showToast('Error restoring backup', 'error');
-        })
-        .finally(() => {
-            document.getElementById('confirmRestoreBtn').disabled = false;
+        });
+
+        $.ajax({
+            url: baseUrl + 'index.php?r=system/backup',
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'restore',
+                backup_file: currentRestoreFile,
+                password: password
+            },
+            success: function(response) {
+                Swal.close();
+                $('#restorePasswordModal').modal('hide');
+                $('#restorePassword').val('');
+
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Restore Complete',
+                        text: 'Database restored successfully!',
+                        confirmButtonColor: '#27ae60'
+                    }).then(() => {
+                        loadDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Restore Failed',
+                        text: response.message || 'Failed to restore backup'
+                    });
+                }
+            },
+            error: function() {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error restoring backup'
+                });
+            }
         });
     }
 
@@ -526,59 +405,56 @@ $this->title = 'System Backup Management';
     }
 
     function deleteBackup(filename) {
-        if (!confirm('Are you sure you want to delete this backup?\n' + filename + '\n\nThis action cannot be undone!')) {
+        if (!confirm('Delete this backup?\n' + filename + '\n\nThis action cannot be undone!')) {
             return;
         }
 
-        const formData = new FormData();
-        formData.append('action', 'delete');
-        formData.append('backup_file', filename);
-
-        fetch(baseUrl + 'index.php?r=system/backup', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Backup deleted successfully!', 'success');
-                loadBackupStats();
-                loadBackups();
-            } else {
-                showToast(data.message || 'Failed to delete backup', 'error');
+        Swal.fire({
+            title: 'Deleting Backup',
+            html: '<i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #e74c3c;"></i><p style="margin-top: 20px;">Deleting backup file...</p>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
             }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            showToast('Error deleting backup', 'error');
+        });
+
+        $.ajax({
+            url: baseUrl + 'index.php?r=system/backup',
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'delete',
+                backup_file: filename
+            },
+            success: function(response) {
+                Swal.close();
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Deleted',
+                        text: 'Backup deleted successfully',
+                        confirmButtonColor: '#27ae60'
+                    }).then(() => {
+                        loadDashboard();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: response.message || 'Failed to delete backup'
+                    });
+                }
+            },
+            error: function() {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error deleting backup'
+                });
+            }
         });
     }
 
-    function showToast(message, type) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: type,
-                title: type === 'success' ? 'Success' : 'Error',
-                text: message,
-                timer: 3000,
-                timerProgressBar: true
-            });
-        } else {
-            alert(message);
-        }
-    }
-
-    // Event Listeners
-    document.getElementById('createBackupBtn').addEventListener('click', createBackup);
-    document.getElementById('confirmRestoreBtn').addEventListener('click', restoreBackup);
-    document.getElementById('refreshBtn').addEventListener('click', () => {
-        loadBackupStats();
-        loadBackups();
-    });
-
-    // Load on page load
-    document.addEventListener('DOMContentLoaded', () => {
-        loadBackupStats();
-        loadBackups();
-    });
 </script>
