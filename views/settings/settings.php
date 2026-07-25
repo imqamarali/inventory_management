@@ -50,7 +50,7 @@ $accentColor = '#3498db';
                                     </div>
 
                                     <!-- Right Content -->
-                                    <div class="col-sm-10">
+                                    <div class="col-sm-9">
                                         <div id="settingsContent" style="min-height: 500px;">
                                             <div class="text-center" style="padding: 60px 20px;">
                                                 <i class="ace-icon fa fa-spinner fa-spin" style="font-size: 48px; color: <?= $navbarColor ?>;"></i>

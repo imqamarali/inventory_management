@@ -5,13 +5,7 @@ if (!isset($config)) $config = [];
 if (!isset($backupStats)) $backupStats = [];
 ?>
 
-<div class="widget-box">
-    <div class="widget-header" style="background-color: #34495e; color: white; padding: 12px 15px;">
-        <h4 class="widget-title" style="color: white; margin: 0;">
-            <i class="fa fa-database"></i> System Backup & Restoration
-        </h4>
-    </div>
-
+<div class="widget-box"> 
     <div class="widget-body" style="padding: 20px;">
 
         <!-- Status Message -->
