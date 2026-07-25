@@ -29,9 +29,12 @@ class SystemController extends Controller
                 $response = $this->createBackup();
             } elseif ($action === 'list') {
                 $response = $this->listBackups();
+            } elseif ($action === 'stats') {
+                $response = $this->getBackupStats();
             } elseif ($action === 'restore') {
                 $backupFile = Yii::$app->request->post('backup_file');
-                $response = $this->restoreBackup($backupFile);
+                $password = Yii::$app->request->post('password');
+                $response = $this->restoreBackup($backupFile, $password);
             } elseif ($action === 'download') {
                 $backupFile = Yii::$app->request->get('file');
                 return $this->downloadBackup($backupFile);
@@ -47,7 +50,11 @@ class SystemController extends Controller
             return json_encode($response);
         }
 
-        return $this->render('backup', ['backups' => $response['data'] ?? []]);
+        $stats = $this->getBackupStats();
+        return $this->render('backup', [
+            'backups' => $response['data'] ?? [],
+            'stats' => $stats['data'] ?? []
+        ]);
     }
 
     /**
@@ -156,12 +163,87 @@ class SystemController extends Controller
     }
 
     /**
+     * Get Backup Statistics
+     */
+    private function getBackupStats()
+    {
+        $backupDir = Yii::getAlias('@app/backups');
+        $backups = $this->listBackups()['data'] ?? [];
+
+        $totalBackups = count($backups);
+        $totalSize = 0;
+        $largestBackup = 0;
+
+        foreach ($backups as $backup) {
+            $totalSize += $backup['size'];
+            $largestBackup = max($largestBackup, $backup['size']);
+        }
+
+        // Get project directory size (databases + backups)
+        $projectSize = $this->getDirectorySize(Yii::getAlias('@app'));
+
+        // Run a quick performance test
+        $db = Yii::$app->db;
+        $start = microtime(true);
+        $db->createCommand('SELECT 1')->queryScalar();
+        $dbResponseTime = (microtime(true) - $start) * 1000;
+
+        return [
+            'success' => true,
+            'data' => [
+                'total_backups' => $totalBackups,
+                'total_backup_size' => $totalSize,
+                'total_backup_size_formatted' => $this->formatBytes($totalSize),
+                'largest_backup' => $this->formatBytes($largestBackup),
+                'project_size' => $this->formatBytes($projectSize),
+                'db_response_time' => round($dbResponseTime, 2),
+                'backups' => $backups
+            ]
+        ];
+    }
+
+    /**
+     * Get directory size recursively
+     */
+    private function getDirectorySize($dir)
+    {
+        $size = 0;
+        if (is_dir($dir)) {
+            if ($dh = opendir($dir)) {
+                while (($file = readdir($dh)) !== false) {
+                    if ($file != '.' && $file != '..') {
+                        $path = $dir . '/' . $file;
+                        if (is_file($path)) {
+                            $size += filesize($path);
+                        } elseif (is_dir($path) && $file !== 'vendor' && $file !== '.git' && $file !== 'runtime') {
+                            $size += $this->getDirectorySize($path);
+                        }
+                    }
+                }
+                closedir($dh);
+            }
+        }
+        return $size;
+    }
+
+    /**
      * Restore from backup
      */
-    private function restoreBackup($backupFile)
+    private function restoreBackup($backupFile, $password = null)
     {
         if (!$backupFile) {
             return ['success' => false, 'message' => 'No backup file specified'];
+        }
+
+        // Verify super admin password if provided
+        if ($password) {
+            $superAdmin = Yii::$app->db->createCommand(
+                'SELECT password FROM inventory_users WHERE role_id = 1 LIMIT 1'
+            )->queryOne();
+
+            if (!$superAdmin || !Yii::$app->security->validatePassword($password, $superAdmin['password'])) {
+                return ['success' => false, 'message' => 'Invalid super admin password'];
+            }
         }
 
         $backupDir = Yii::getAlias('@app/backups');
