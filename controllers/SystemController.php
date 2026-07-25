@@ -1073,7 +1073,7 @@ class SystemController extends Controller
             // Test 2: Add Purchase Items
             $startTime = microtime(true);
             $db->createCommand()->insert('inventory_purchase_order_items', [
-                'po_id' => $poId,
+                'purchase_order_id' => $poId,
                 'product_id' => 1,
                 'quantity' => 10,
                 'unit_price' => 500.00,
@@ -1089,11 +1089,13 @@ class SystemController extends Controller
             // Test 3: Goods Receiving
             $startTime = microtime(true);
             $db->createCommand()->insert('inventory_goods_receiving', [
-                'po_id' => $poId,
+                'grn_number' => 'GRN-' . time(),
+                'purchase_order_id' => $poId,
                 'warehouse_id' => 1,
-                'received_date' => date('Y-m-d'),
+                'supplier_id' => 1,
+                'receiving_date' => date('Y-m-d'),
                 'status' => 'Completed',
-                'notes' => 'Test Goods Received',
+                'remarks' => 'Test Goods Received',
                 'created_at' => date('Y-m-d H:i:s')
             ])->execute();
             $receiveTime = (microtime(true) - $startTime) * 1000;
@@ -1106,11 +1108,12 @@ class SystemController extends Controller
             // Test 4: Create Purchase Invoice
             $startTime = microtime(true);
             $db->createCommand()->insert('inventory_purchase_invoices', [
-                'po_id' => $poId,
-                'invoice_number' => 'INV-' . time(),
+                'purchase_order_id' => $poId,
+                'supplier_id' => 1,
+                'invoice_no' => 'INV-' . time(),
                 'invoice_date' => date('Y-m-d'),
                 'grand_total' => 5000.00,
-                'status' => 'Issued',
+                'status' => 'Pending',
                 'created_at' => date('Y-m-d H:i:s')
             ])->execute();
             $invoiceGenTime = (microtime(true) - $startTime) * 1000;
@@ -1177,7 +1180,7 @@ class SystemController extends Controller
             // Test 2: Add Sales Items
             $startTime = microtime(true);
             $db->createCommand()->insert('inventory_sales_order_items', [
-                'so_id' => $soId,
+                'sales_order_id' => $soId,
                 'product_id' => 1,
                 'quantity' => 5,
                 'unit_price' => 2000.00,
@@ -1193,8 +1196,10 @@ class SystemController extends Controller
             // Test 3: Create Sales Invoice
             $startTime = microtime(true);
             $db->createCommand()->insert('inventory_sales_invoices', [
-                'so_id' => $soId,
-                'invoice_number' => 'INV-' . time(),
+                'sales_order_id' => $soId,
+                'customer_id' => 1,
+                'warehouse_id' => 1,
+                'invoice_no' => 'INV-' . time(),
                 'invoice_date' => date('Y-m-d'),
                 'grand_total' => 10000.00,
                 'status' => 'Issued',
@@ -1297,7 +1302,7 @@ class SystemController extends Controller
             // Test 2: Outstanding Invoices Report
             $startTime = microtime(true);
             $outstanding = $db->createCommand(
-                "SELECT COUNT(*) as count, SUM(grand_total) as total FROM inventory_sales_invoices WHERE status = 'Pending'"
+                "SELECT COUNT(*) as count, SUM(grand_total) as total FROM inventory_sales_invoices WHERE status IN ('Draft', 'Issued', 'Partially Paid')"
             )->queryOne();
             $outstandingTime = (microtime(true) - $startTime) * 1000;
             $tests[] = [
@@ -1321,7 +1326,7 @@ class SystemController extends Controller
             // Test 4: Accounts Receivable
             $startTime = microtime(true);
             $receivable = $db->createCommand(
-                "SELECT SUM(grand_total) as total FROM inventory_sales_invoices WHERE status IN ('Pending', 'Partial')"
+                "SELECT SUM(remaining_balance) as total FROM inventory_sales_invoices WHERE status IN ('Issued', 'Partially Paid')"
             )->queryOne();
             $receivableTime = (microtime(true) - $startTime) * 1000;
             $tests[] = [
@@ -1381,7 +1386,7 @@ class SystemController extends Controller
             $startTime = microtime(true);
             $joinResult = $db->createCommand(
                 "SELECT COUNT(*) FROM inventory_sales_orders so
-                 JOIN inventory_sales_order_items soi ON so.id = soi.so_id
+                 JOIN inventory_sales_order_items soi ON so.id = soi.sales_order_id
                  JOIN inventory_products p ON soi.product_id = p.id
                  JOIN inventory_customers c ON so.customer_id = c.id"
             )->queryScalar();
@@ -1409,10 +1414,11 @@ class SystemController extends Controller
 
             // Test 4: Transaction Performance
             $startTime = microtime(true);
-            $db->transaction(function() use ($db) {
+            $soId = 1;
+            $db->transaction(function() use ($db, $soId) {
                 for ($i = 0; $i < 50; $i++) {
                     $db->createCommand()->insert('inventory_sales_order_items', [
-                        'so_id' => 1,
+                        'sales_order_id' => $soId,
                         'product_id' => ($i % 10) + 1,
                         'quantity' => rand(1, 10),
                         'unit_price' => rand(100, 1000),
