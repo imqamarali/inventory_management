@@ -2059,24 +2059,111 @@ class SettingsController extends Controller
     }
 
     /* --------- System Backup Configuration --------- */
-    public function actionBackup()
+    private function getBackupStatistics()
     {
-        if (Yii::$app->request->isGet) {
-            $config = [
-                'auto_backup_enabled' => $this->getSetting('backup_auto_enabled', 0),
-                'backup_frequency' => $this->getSetting('backup_frequency', 'daily'),
-                'auto_delete_enabled' => $this->getSetting('backup_auto_delete_enabled', 0),
-                'backup_retention_days' => $this->getSetting('backup_retention_days', 30),
-            ];
-            return $this->renderPartial('systembackup', ['config' => $config]);
+        $backupDir = Yii::getAlias('@app/backups');
+        $totalBackups = 0;
+        $totalSize = 0;
+        $lastBackupTime = '-';
+        $largestFile = 0;
+        $largestFileName = '';
+
+        if (is_dir($backupDir)) {
+            $files = scandir($backupDir, SCANDIR_SORT_DESCENDING);
+            foreach ($files as $file) {
+                if (strpos($file, 'backup_') === 0 && strpos($file, '.sql') !== false) {
+                    $filePath = $backupDir . '/' . $file;
+                    $fileSize = filesize($filePath);
+                    $totalBackups++;
+                    $totalSize += $fileSize;
+
+                    if ($totalBackups === 1) {
+                        $lastBackupTime = date('M d, Y H:i:s', filemtime($filePath));
+                    }
+
+                    if ($fileSize > $largestFile) {
+                        $largestFile = $fileSize;
+                        $largestFileName = $file;
+                    }
+                }
+            }
         }
 
-        Yii::$app->response->format = Response::FORMAT_JSON;
-        try {
-            $post = Yii::$app->request->post();
-            $action = $post['action'] ?? null;
+        $totalSizeFormatted = $this->formatBytes($totalSize);
+        $largestFileFormatted = $this->formatBytes($largestFile);
 
-            if ($action === 'save_backup_config') {
+        // Get project size (approximate)
+        $projectRoot = Yii::getAlias('@app');
+        $projectSize = $this->dirSize($projectRoot);
+        $projectSizeFormatted = $this->formatBytes($projectSize);
+
+        // Database response time
+        $startTime = microtime(true);
+        try {
+            Yii::$app->db->createCommand("SELECT 1")->queryScalar();
+        } catch (\Exception $e) {}
+        $dbResponseTime = round((microtime(true) - $startTime) * 1000, 2) . ' ms';
+
+        return [
+            'total_backups' => $totalBackups,
+            'total_size' => $totalSizeFormatted,
+            'project_size' => $projectSizeFormatted,
+            'db_response_time' => $dbResponseTime,
+            'last_backup_time' => $lastBackupTime,
+            'largest_backup_size' => $largestFileFormatted,
+        ];
+    }
+
+    private function formatBytes($bytes, $precision = 2)
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= (1 << (10 * $pow));
+
+        return round($bytes, $precision) . ' ' . $units[$pow];
+    }
+
+    private function dirSize($dir)
+    {
+        $size = 0;
+        if (is_dir($dir)) {
+            if ($dh = opendir($dir)) {
+                while (($file = readdir($dh)) !== false) {
+                    if ($file != "." && $file != "..") {
+                        $path = $dir . DIRECTORY_SEPARATOR . $file;
+                        if (is_dir($path)) {
+                            $size += $this->dirSize($path);
+                        } else {
+                            $size += filesize($path);
+                        }
+                    }
+                }
+                closedir($dh);
+            }
+        }
+        return $size;
+    }
+
+    public function actionBackup()
+    {
+        $request = Yii::$app->request;
+        $action = $request->get('action') ?? $request->post('action') ?? null;
+        $flag = $request->post('flag') ?? null;
+
+        // Handle stats action
+        if ($action === 'stats') {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            $stats = $this->getBackupStatistics();
+            return $this->jsonResponse(true, 'Statistics retrieved', ['data' => $stats]);
+        }
+
+        // Handle POST save with flag
+        if ($flag === 'save') {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            try {
+                $post = $request->post();
                 $this->saveSetting('backup_auto_enabled', isset($post['auto_backup_enabled']) ? 1 : 0);
                 $this->saveSetting('backup_frequency', $post['backup_frequency'] ?? 'daily');
                 $this->saveSetting('backup_auto_delete_enabled', isset($post['auto_delete_enabled']) ? 1 : 0);
@@ -2087,46 +2174,24 @@ class SettingsController extends Controller
                 $this->saveSetting('backup_retention_days', $retentionDays);
 
                 return $this->jsonResponse(true, 'Backup configuration saved successfully.');
+            } catch (\Exception $e) {
+                return $this->jsonResponse(false, 'Error: ' . $e->getMessage());
             }
-
-            if ($action === 'get_status') {
-                $backupDir = Yii::getAlias('@app/backups');
-                $lastBackup = 'Never';
-                $nextBackup = 'Not scheduled';
-                $statusBadge = '<span class="badge" style="background-color: #999;">Disabled</span>';
-
-                if (is_dir($backupDir)) {
-                    $files = scandir($backupDir, SCANDIR_SORT_DESCENDING);
-                    foreach ($files as $file) {
-                        if (strpos($file, 'backup_') === 0 && strpos($file, '.sql') !== false) {
-                            $lastBackup = date('M d, Y H:i', filemtime($backupDir . '/' . $file));
-                            break;
-                        }
-                    }
-                }
-
-                $autoEnabled = (bool)$this->getSetting('backup_auto_enabled', 0);
-                if ($autoEnabled) {
-                    $frequency = $this->getSetting('backup_frequency', 'daily');
-                    $frequencyText = ucfirst($frequency);
-                    $statusBadge = '<span class="badge" style="background-color: #4CAF50; color: white;">Enabled (' . $frequencyText . ')</span>';
-
-                    $nextDays = ['daily' => 1, 'weekly' => 7, 'monthly' => 30][$frequency] ?? 1;
-                    $nextBackup = date('M d, Y', strtotime("+{$nextDays} days"));
-                }
-
-                return $this->jsonResponse(true, 'Status retrieved', [
-                    'data' => [
-                        'last_backup' => $lastBackup,
-                        'next_backup' => $nextBackup,
-                        'status_badge' => $statusBadge
-                    ]
-                ]);
-            }
-
-            return $this->jsonResponse(false, 'Invalid action.');
-        } catch (\Exception $e) {
-            return $this->jsonResponse(false, 'Error: ' . $e->getMessage());
         }
+
+        // Render GET view
+        if ($request->isGet) {
+            $config = [
+                'auto_backup_enabled' => $this->getSetting('backup_auto_enabled', 0),
+                'backup_frequency' => $this->getSetting('backup_frequency', 'daily'),
+                'auto_delete_enabled' => $this->getSetting('backup_auto_delete_enabled', 0),
+                'backup_retention_days' => $this->getSetting('backup_retention_days', 30),
+            ];
+            $backupStats = $this->getBackupStatistics();
+            return $this->renderPartial('systembackup', ['config' => $config, 'backupStats' => $backupStats]);
+        }
+
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        return $this->jsonResponse(false, 'Invalid request.');
     }
 }
