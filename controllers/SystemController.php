@@ -11,8 +11,65 @@ class SystemController extends Controller
 {
     public $enableCsrfValidation = false;
 
+    public function beforeAction($action)
+    {
+        if (Yii::$app->session->get('user_array') == NULL) {
+            $this->redirect(['site/index']);
+            return false;
+        }
+        return parent::beforeAction($action);
+    }
+
+    private function currentUserId()
+    {
+        $user_array = Yii::$app->session->get('user_array');
+        return $user_array['id'] ?? null;
+    }
+
+    private function checkModulePermission($moduleLink = 'system/backup')
+    {
+        $user_array = Yii::$app->session->get('user_array');
+        $role_id = $user_array['role_id'] ?? null;
+
+        if (!$role_id) {
+            return false;
+        }
+
+        $moduleId = Yii::$app->db->createCommand(
+            "SELECT id FROM modules WHERE link = :link LIMIT 1"
+        )->bindValue(':link', $moduleLink)->queryScalar();
+
+        if (!$moduleId) {
+            return false;
+        }
+
+        $permissions = Yii::$app->db->createCommand(
+            "SELECT can_view FROM permissions
+             WHERE module_id = :module_id
+             AND role_id = :role_id
+             LIMIT 1"
+        )
+            ->bindValue(':module_id', $moduleId)
+            ->bindValue(':role_id', $role_id)
+            ->queryOne();
+
+        return $permissions && (bool)$permissions['can_view'];
+    }
+
+    private function requireModulePermission($moduleLink = 'system/backup')
+    {
+        $status = $this->checkModulePermission($moduleLink);
+        if (!$status) {
+            Yii::$app->session->setFlash('warning', 'You do not have permission to access this module.');
+            Yii::$app->response->statusCode = 403;
+            $this->redirect(['inventory/dashboard']);
+            Yii::$app->end();
+        }
+    }
+
     public function actionIndex()
     {
+        $this->requireModulePermission('system/index');
         return $this->render('index');
     }
 
@@ -21,6 +78,8 @@ class SystemController extends Controller
      */
     public function actionBackup()
     {
+        $this->requireModulePermission('system/backup');
+
         $action = Yii::$app->request->post('action', Yii::$app->request->get('action', 'list'));
         $response = ['success' => false, 'message' => '', 'data' => []];
 
@@ -47,7 +106,8 @@ class SystemController extends Controller
         }
 
         if (Yii::$app->request->isAjax || Yii::$app->request->isPost) {
-            return json_encode($response);
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            return $response;
         }
 
         $stats = $this->getBackupStats();
@@ -368,6 +428,8 @@ class SystemController extends Controller
      */
     public function actionSystemperformance()
     {
+        $this->requireModulePermission('system/systemperformance');
+
         $testType = Yii::$app->request->post('test_type', Yii::$app->request->get('test_type', 'all'));
         $action = Yii::$app->request->post('action', 'list');
 
@@ -381,7 +443,8 @@ class SystemController extends Controller
             }
 
             if (Yii::$app->request->isAjax || Yii::$app->request->isPost) {
-                return json_encode($results);
+                Yii::$app->response->format = Response::FORMAT_JSON;
+                return $results;
             }
         }
 
