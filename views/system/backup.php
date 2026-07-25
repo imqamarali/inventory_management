@@ -16,11 +16,11 @@ $this->title = 'System Backup Management';
         </div>
 
         <div style="display: flex; gap: 10px;">
-            <button id="createBackupBtn" class="btn btn-success">
+            <button id="createBackupBtn">
                 <i class="fa fa-plus"></i>
                 Create Backup
             </button>
-            <button id="refreshDashboard" class="btn btn-default">
+            <button id="refreshDashboard">
                 <i class="fa fa-refresh"></i>
                 Refresh
             </button>
@@ -187,6 +187,7 @@ $this->title = 'System Backup Management';
 <script>
 
     var currentRestoreFile = null;
+    var restorePassword = null;
     var baseUrl = window.location.pathname.split('/web/')[0] + '/web/';
 
     $(function() {
@@ -198,10 +199,6 @@ $this->title = 'System Backup Management';
 
         $("#refreshDashboard").click(function() {
             loadDashboard();
-        });
-
-        $("#confirmRestoreBtn").click(function() {
-            restoreBackup();
         });
     });
 
@@ -268,9 +265,9 @@ $this->title = 'System Backup Management';
                 html += "<td>" + row.size_formatted + "</td>";
                 html += "<td>" + row.date_formatted + "</td>";
                 html += "<td style='text-align: center;'>";
-                html += "<button class='btn btn-sm btn-info' onclick=\"showRestorePassword('" + row.filename + "')\" title='Restore from this backup' style='margin: 2px;'><i class='fa fa-refresh'></i> Restore</button>";
-                html += "<button class='btn btn-sm btn-primary' onclick=\"downloadBackup('" + row.filename + "')\" title='Download backup file' style='margin: 2px;'><i class='fa fa-download'></i> Download</button>";
-                html += "<button class='btn btn-sm btn-danger' onclick=\"deleteBackup('" + row.filename + "')\" title='Delete this backup' style='margin: 2px;'><i class='fa fa-trash'></i> Delete</button>";
+                html += "<button  onclick=\"showRestorePassword('" + row.filename + "')\" title='Restore from this backup' style='margin: 2px;'><i class='fa fa-refresh'></i> Restore</button>";
+                html += "<button  onclick=\"downloadBackup('" + row.filename + "')\" title='Download backup file' style='margin: 2px;'><i class='fa fa-download'></i> Download</button>";
+                html += "<button  onclick=\"deleteBackup('" + row.filename + "')\" title='Delete this backup' style='margin: 2px;'><i class='fa fa-trash'></i> Delete</button>";
                 html += "</td>";
                 html += "</tr>";
             });
@@ -382,27 +379,170 @@ $this->title = 'System Backup Management';
 
     function showRestorePassword(filename) {
         currentRestoreFile = filename;
-        $('#restorePasswordModal').modal('show');
+
+        // First, load comparison data
+        loadRestoreComparison(filename);
     }
 
-    function restoreBackup() {
-        const password = $('#restorePassword').val();
-
-        if (!password) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Password Required',
-                text: 'Please enter your super admin password to proceed',
-                confirmButtonColor: '#f39c12'
-            });
-            return;
-        }
-
-        // Show final confirmation with file details
+    function loadRestoreComparison(filename) {
         Swal.fire({
-            title: 'Confirm Restore Operation',
-            html: '<div style="text-align: left; color: #555;"><p><strong>File:</strong> ' + currentRestoreFile + '</p><p style="margin-top: 10px; color: #e74c3c;"><i class="fa fa-exclamation-triangle"></i> <strong>This will overwrite your current database!</strong></p><p style="margin-top: 10px; font-size: 13px;">A backup of your current data will be created automatically.</p></div>',
-            icon: 'warning',
+            title: 'Analyzing Backup...',
+            html: '<div style="text-align: center;"><i class="fa fa-spinner fa-spin" style="font-size: 40px; color: #3498db;"></i><p style="margin-top: 15px; color: #666;">Comparing backup with current database...</p></div>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        $.ajax({
+            url: baseUrl + 'index.php?r=system/backup',
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'compare',
+                backup_file: filename
+            },
+            success: function(response) {
+                Swal.close();
+
+                if (response.success && response.data) {
+                    showRestoreComparisonModal(response.data, filename);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Comparison Failed',
+                        text: response.message || 'Failed to compare backup',
+                        confirmButtonColor: '#e74c3c'
+                    });
+                }
+            },
+            error: function() {
+                Swal.close();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'An error occurred while analyzing the backup',
+                    confirmButtonColor: '#e74c3c'
+                });
+            }
+        });
+    }
+
+    function showRestoreComparisonModal(comparison, filename) {
+        const summary = comparison.summary;
+        const tables = comparison.table_details.slice(0, 10); // Show first 10 affected tables
+
+        let statsHtml = '<div style="text-align: left; margin-bottom: 20px;">';
+        statsHtml += '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">';
+
+        // Left column stats
+        statsHtml += '<div style="padding: 12px; background: #ecf0f1; border-radius: 5px;">';
+        statsHtml += '<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Total Tables</strong></p>';
+        statsHtml += '<p style="margin: 5px 0; font-size: 18px; font-weight: bold; color: #2c3e50;">' + summary.total_tables_in_backup + ' backup / ' + summary.total_tables_in_current + ' current</p>';
+        statsHtml += '</div>';
+
+        statsHtml += '<div style="padding: 12px; background: #ecf0f1; border-radius: 5px;">';
+        statsHtml += '<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Total Records</strong></p>';
+        statsHtml += '<p style="margin: 5px 0; font-size: 18px; font-weight: bold; color: #2c3e50;">' + summary.total_records_backup + ' backup / ' + summary.total_records_current + ' current</p>';
+        statsHtml += '</div>';
+
+        // Right column impact
+        statsHtml += '<div style="padding: 12px; background: ' + (summary.tables_to_drop > 0 ? '#ffe6e6' : '#e8f8f5') + '; border-radius: 5px;">';
+        statsHtml += '<p style="margin: 5px 0; font-size: 12px; color: #666;"><i class="fa fa-trash"></i> <strong>Tables to Drop</strong></p>';
+        statsHtml += '<p style="margin: 5px 0; font-size: 18px; font-weight: bold; color: #e74c3c;">' + summary.tables_to_drop + '</p>';
+        statsHtml += '</div>';
+
+        statsHtml += '<div style="padding: 12px; background: ' + (summary.tables_to_create > 0 ? '#e6f3ff' : '#e8f8f5') + '; border-radius: 5px;">';
+        statsHtml += '<p style="margin: 5px 0; font-size: 12px; color: #666;"><i class="fa fa-plus"></i> <strong>Tables to Create</strong></p>';
+        statsHtml += '<p style="margin: 5px 0; font-size: 18px; font-weight: bold; color: #3498db;">' + summary.tables_to_create + '</p>';
+        statsHtml += '</div>';
+
+        statsHtml += '<div style="padding: 12px; background: ' + (summary.tables_to_update > 0 ? '#fff9e6' : '#e8f8f5') + '; border-radius: 5px;">';
+        statsHtml += '<p style="margin: 5px 0; font-size: 12px; color: #666;"><i class="fa fa-pencil"></i> <strong>Tables to Update</strong></p>';
+        statsHtml += '<p style="margin: 5px 0; font-size: 18px; font-weight: bold; color: #f39c12;">' + summary.tables_to_update + '</p>';
+        statsHtml += '</div>';
+
+        statsHtml += '<div style="padding: 12px; background: #ecf0f1; border-radius: 5px;">';
+        statsHtml += '<p style="margin: 5px 0; font-size: 12px; color: #666;"><strong>Record Difference</strong></p>';
+        statsHtml += '<p style="margin: 5px 0; font-size: 18px; font-weight: bold; color: #2c3e50;">' + summary.total_records_difference + '</p>';
+        statsHtml += '</div>';
+
+        statsHtml += '</div>';
+        statsHtml += '</div>';
+
+        // Build affected tables stats cards
+        let affectedTablesHtml = '<div style="border-top: 2px solid #ecf0f1; padding-top: 15px; margin-top: 15px;">';
+        affectedTablesHtml += '<p style="font-size: 13px; color: #2c3e50; font-weight: bold; margin-bottom: 15px;"><i class="fa fa-database"></i> Affected Tables Details</p>';
+        affectedTablesHtml += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;">';
+
+        tables.forEach(function(tbl) {
+            let statusColor = '';
+            let statusIcon = '';
+            let statusLabel = '';
+
+            if (tbl.status === 'drop') {
+                statusColor = '#ffe6e6';
+                statusIcon = '<i class="fa fa-trash" style="color: #e74c3c; font-size: 20px;"></i>';
+                statusLabel = 'Drop';
+            } else if (tbl.status === 'create') {
+                statusColor = '#e6f3ff';
+                statusIcon = '<i class="fa fa-plus-circle" style="color: #3498db; font-size: 20px;"></i>';
+                statusLabel = 'Create';
+            } else if (tbl.status === 'update') {
+                statusColor = '#fff9e6';
+                statusIcon = '<i class="fa fa-pencil" style="color: #f39c12; font-size: 20px;"></i>';
+                statusLabel = 'Update';
+            } else {
+                statusColor = '#e8f8f5';
+                statusIcon = '<i class="fa fa-check-circle" style="color: #27ae60; font-size: 20px;"></i>';
+                statusLabel = 'OK';
+            }
+
+            const changeValue = tbl.record_difference > 0 ?
+                (tbl.backup_records > tbl.current_records ? '+' + tbl.record_difference : '-' + tbl.record_difference) :
+                '0';
+
+            affectedTablesHtml += '<div style="padding: 12px; background: ' + statusColor + '; border-radius: 6px; text-align: center; border: 1px solid rgba(0,0,0,0.05);">';
+            affectedTablesHtml += '<div style="margin-bottom: 8px;">' + statusIcon + '</div>';
+            affectedTablesHtml += '<p style="font-size: 11px; color: #666; margin: 0 0 5px 0; font-weight: 600;">' + tbl.table + '</p>';
+            affectedTablesHtml += '<p style="font-size: 12px; color: #2c3e50; margin: 0 0 3px 0; font-weight: bold;">' + tbl.backup_records + ' records</p>';
+            affectedTablesHtml += '<p style="font-size: 10px; color: #999; margin: 0;">' + statusLabel + ' (' + changeValue + ')</p>';
+            affectedTablesHtml += '</div>';
+        });
+
+        affectedTablesHtml += '</div>';
+        affectedTablesHtml += '</div>';
+
+        const allHtml = statsHtml + affectedTablesHtml;
+
+        Swal.fire({
+            title: 'Database Comparison',
+            html: allHtml,
+            width: 900,
+            confirmButtonColor: '#3498db',
+            confirmButtonText: '<i class="fa fa-arrow-right"></i> Continue to Password',
+            showCancelButton: true,
+            cancelButtonColor: '#95a5a6',
+            didOpen: () => {
+                // Make the modal scrollable
+                const swalContent = document.querySelector('.swal2-html-container');
+                if (swalContent) {
+                    swalContent.style.maxHeight = '500px';
+                    swalContent.style.overflowY = 'auto';
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showRestorePasswordModal();
+            }
+        });
+    }
+
+    function showRestorePasswordModal() {
+        Swal.fire({
+            title: '<i class="fa fa-lock"></i> Confirm Restore Operation',
+            html: '<div style="text-align: left;"><div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; border-radius: 4px; margin-bottom: 15px;"><i class="fa fa-exclamation-triangle"></i> <strong>Warning:</strong> This will overwrite your database.<br>A backup of current data will be created automatically.</div><div class="form-group" style="margin-bottom: 15px;"><label style="font-weight: bold; margin-bottom: 8px; display: block;">Super Admin Password <span style="color: red;">*</span></label><input type="password" id="restorePasswordInput" class="form-control" placeholder="Enter super admin password" style="padding: 10px; border: 1px solid #ddd; border-radius: 4px; width: 100%;"></div><p style="font-size: 12px; color: #666;">Please enter your super admin password to confirm.</p></div>',
             showCancelButton: true,
             confirmButtonColor: '#e74c3c',
             cancelButtonColor: '#95a5a6',
@@ -410,10 +550,31 @@ $this->title = 'System Backup Management';
             cancelButtonText: 'Cancel'
         }).then((result) => {
             if (result.isConfirmed) {
+                const inputPassword = document.getElementById('restorePasswordInput')?.value || '';
+
+                if (!inputPassword) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Password Required',
+                        text: 'Please enter your super admin password to proceed',
+                        confirmButtonColor: '#f39c12'
+                    }).then(() => {
+                        showRestorePasswordModal();
+                    });
+                    return;
+                }
+
+                restorePassword = inputPassword;
                 startRestoreProgress();
             }
         });
+
+        // Focus password field
+        setTimeout(() => {
+            document.getElementById('restorePasswordInput')?.focus();
+        }, 200);
     }
+
 
     function startRestoreProgress() {
         Swal.fire({
@@ -432,8 +593,6 @@ $this->title = 'System Backup Management';
         setTimeout(() => updateRestoreMessage('Restoring database tables...', 70), 2500);
         setTimeout(() => updateRestoreMessage('Verifying data integrity...', 90), 4000);
 
-        const password = $('#restorePassword').val();
-
         $.ajax({
             url: baseUrl + 'index.php?r=system/backup',
             type: 'POST',
@@ -441,21 +600,20 @@ $this->title = 'System Backup Management';
             data: {
                 action: 'restore',
                 backup_file: currentRestoreFile,
-                password: password
+                password: restorePassword
             },
             success: function(response) {
                 updateRestoreMessage('Restore completed!', 100);
 
                 setTimeout(() => {
                     Swal.close();
-                    $('#restorePasswordModal').modal('hide');
-                    $('#restorePassword').val('');
+                    restorePassword = null;
 
                     if (response.success) {
                         Swal.fire({
                             icon: 'success',
                             title: 'Restore Successful',
-                            html: '<p style="margin: 15px 0;">Your database has been restored successfully!</p><p style="font-size: 13px; color: #666;">Pre-restore backup: <strong>' + (response.pre_backup || 'N/A') + '</strong></p>',
+                            html: '<div style="text-align: left;"><p style="margin: 15px 0;"><i class="fa fa-check-circle" style="color: #27ae60; margin-right: 10px;"></i>Your database has been restored successfully!</p><p style="font-size: 13px; color: #666; margin-top: 15px;">Pre-restore backup: <strong>' + (response.pre_backup || 'N/A') + '</strong></p><p style="font-size: 13px; color: #666;">Restored from: <strong>' + (response.restored_from || 'N/A') + '</strong></p></div>',
                             confirmButtonColor: '#27ae60'
                         }).then(() => {
                             loadDashboard();

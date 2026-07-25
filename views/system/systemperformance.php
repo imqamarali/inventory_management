@@ -70,6 +70,12 @@ $this->title = 'System Performance & Testing';
                 <div id="test-results"></div>
             </div>
 
+            <!-- AI Suggestions Section -->
+            <div id="suggestions-container" style="display: none; margin-top: 30px;">
+                <h4>🤖 AI-Based Performance Suggestions</h4>
+                <div id="suggestions-list" style="margin-top: 15px;"></div>
+            </div>
+
             <!-- Help Section -->
             <div style="margin-top: 30px; background: #f0f4f8; padding: 15px; border-radius: 4px; border-left: 4px solid #2196f3;">
                 <h4>Test Information</h4>
@@ -81,6 +87,10 @@ $this->title = 'System Performance & Testing';
                     <li><strong>Controller Actions:</strong> Verifies all controller actions exist</li>
                     <li><strong>Data Integrity:</strong> Checks for data consistency and orphaned records</li>
                     <li><strong>Performance Metrics:</strong> Measures query and database performance</li>
+                    <li><strong>Purchase Operations:</strong> Tests PO creation, receiving, invoicing & performance</li>
+                    <li><strong>Sales Operations:</strong> Tests order creation, invoicing, payments & performance</li>
+                    <li><strong>Finance Operations:</strong> Tests revenue reports, cash flow, receivables analysis</li>
+                    <li><strong>Advanced Performance:</strong> Tests large datasets, complex joins, rate limiting & AI suggestions</li>
                 </ul>
             </div>
         </div>
@@ -163,6 +173,48 @@ $this->title = 'System Performance & Testing';
         width: 20px;
         text-align: center;
     }
+    .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #333;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        z-index: 9999;
+        animation: slideIn 0.3s ease-out;
+    }
+    .toast.success {
+        background: #4caf50;
+    }
+    .toast.error {
+        background: #f44336;
+    }
+    .toast.warning {
+        background: #ff9800;
+    }
+    @keyframes slideIn {
+        from {
+            transform: translateX(400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    #toastBox {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9998;
+    }
 </style>
 
 <script>
@@ -208,6 +260,11 @@ function displayResults(data) {
         document.getElementById('summary-failed').textContent = data.summary.failed;
         document.getElementById('summary-warnings').textContent = data.summary.warnings;
         document.getElementById('summary-percentage').textContent = data.summary.percentage + '%';
+    }
+
+    // Display AI Suggestions if available
+    if (data.tests && data.tests.advanced_performance && data.tests.advanced_performance.suggestions) {
+        displayAISuggestions(data.tests.advanced_performance.suggestions);
     }
 
     // Render test results
@@ -285,8 +342,50 @@ function attachTestResultHandlers() {
     // Results already displayed with inline handlers
 }
 
+function displayAISuggestions(suggestions) {
+    const container = document.getElementById('suggestions-container');
+    const list = document.getElementById('suggestions-list');
+
+    if (!suggestions || suggestions.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    let html = '';
+
+    suggestions.forEach((suggestion, index) => {
+        const priorityColor = suggestion.priority === 'high' ? '#ff6b6b' :
+                            suggestion.priority === 'medium' ? '#ffa500' : '#666';
+        const priorityBg = suggestion.priority === 'high' ? '#ffe6e6' :
+                         suggestion.priority === 'medium' ? '#fff3e0' : '#f5f5f5';
+
+        html += `
+            <div style="background: ${priorityBg}; border-left: 4px solid ${priorityColor}; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                        <p style="margin: 0 0 5px 0; font-weight: bold; color: ${priorityColor};">
+                            <i class="fa fa-lightbulb-o"></i> ${suggestion.category}
+                            <span style="background: ${priorityColor}; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 10px;">
+                                ${suggestion.priority.toUpperCase()}
+                            </span>
+                        </p>
+                        <p style="margin: 5px 0; color: #333;">${suggestion.suggestion}</p>
+                        <p style="margin: 5px 0; color: #666; font-size: 12px; font-style: italic;">
+                            💡 Expected Improvement: <strong>${suggestion.expected_improvement}</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    list.innerHTML = html;
+}
+
 function clearResults() {
     document.getElementById('results-container').style.display = 'none';
+    document.getElementById('suggestions-container').style.display = 'none';
     document.getElementById('test-status').innerHTML = '';
     document.getElementById('test-results').innerHTML = '';
 }
