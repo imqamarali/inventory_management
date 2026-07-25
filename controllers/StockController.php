@@ -403,10 +403,14 @@ class StockController extends Controller
             }
 
             $total = Yii::$app->db->createCommand("
-                SELECT COUNT(*)
+                SELECT COUNT(DISTINCT s.id)
                 FROM inventory_stock s
                 INNER JOIN inventory_products p
                     ON p.id=s.product_id
+                LEFT JOIN inventory_categories c
+                    ON c.id=p.category_id
+                LEFT JOIN inventory_brands b
+                    ON b.id=p.brand_id
                 $where
             ", $params)->queryScalar();
 
@@ -424,7 +428,9 @@ class StockController extends Controller
                     b.brand_name,
                     u.short_name unit_name,
                     w.warehouse_name,
-                    w.warehouse_code
+                    w.warehouse_code,
+                    COALESCE(SUM(soi.quantity), 0) as sold_quantity,
+                    COALESCE(SUM(soi.quantity * soi.unit_price), 0) as sold_amount
                 FROM inventory_stock s
                 INNER JOIN inventory_products p
                     ON p.id=s.product_id
@@ -436,7 +442,19 @@ class StockController extends Controller
                     ON u.id=p.unit_id
                 INNER JOIN inventory_warehouses w
                     ON w.id=s.warehouse_id
+                LEFT JOIN inventory_sales_order_items soi
+                    ON soi.product_id=p.id
+                    AND soi.is_deleted=0
+                    AND soi.sales_order_id IN (
+                        SELECT so.id FROM inventory_sales_orders so
+                        WHERE so.is_deleted=0 AND so.warehouse_id=s.warehouse_id
+                    )
+                    AND soi.sales_order_id IN (
+                        SELECT si.sales_order_id FROM inventory_sales_invoices si
+                        WHERE si.is_deleted=0
+                    )
                 $where
+                GROUP BY s.id, s.product_id, s.warehouse_id
                 ORDER BY p.product_name ASC
                 LIMIT $offset,$perPage
             ", $params)->queryAll();
@@ -605,11 +623,11 @@ class StockController extends Controller
                     INNER JOIN inventory_warehouses w
                         ON w.id=s.warehouse_id
                     LEFT JOIN inventory_sales_invoice_items sii
-                        ON sii.product_id=p.id
+                        ON sii.product_id=p.id AND sii.is_deleted=0
                     LEFT JOIN inventory_sales_invoices si
-                        ON si.id=sii.sales_invoice_id AND si.status IN ('Paid', 'Partially Paid', 'Issued')
+                        ON si.id=sii.sales_invoice_id AND si.status IN ('Paid', 'Partially Paid', 'Issued')  AND si.is_deleted=0
                     LEFT JOIN inventory_purchase_invoice_items pii
-                        ON pii.product_id=p.id
+                        ON pii.product_id=p.id 
                     LEFT JOIN inventory_purchase_invoices pi
                         ON pi.id=pii.purchase_invoice_id AND pi.status IN ('Paid', 'Partially Paid', 'Issued') AND pi.is_deleted = 0
                     $where

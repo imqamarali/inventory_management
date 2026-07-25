@@ -149,10 +149,6 @@ if (!isset($customers)) $customers = [];
                                             <i class="fa fa-print" style="color: #27ae60;"></i>
                                         </a>
                                     </button>
-                                    |
-                                    <button onclick="deleteInvoice(<?= $item['id'] ?>)">
-                                        <i class="fa fa-trash"></i>
-                                    </button>
                                 </td>
                             </tr>
                         <?php } ?>
@@ -305,10 +301,6 @@ function invoiceStatusBadgeServer($status)
                         <a href="index.php?r=documents/salesinvoice&id=${item.id}" target="_blank" >
                              <i class="fa fa-print" style="color: #27ae60;"></i>
                         </a>
-                    </button>
-                    |
-                    <button onclick="deleteInvoice(${item.id})">
-                        <i class="fa fa-trash"></i>
                     </button>
                 </td>
             </tr>`;
@@ -647,61 +639,6 @@ function invoiceStatusBadgeServer($status)
 
     }
 
-    function deleteInvoice(id) {
-
-        Swal.fire({
-            title: 'Are you sure?',
-            text: 'Sales Invoice will be deleted.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, Delete'
-        }).then(function(result) {
-
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            const data = new FormData();
-
-            data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-            data.append('flag', 'delete');
-            data.append('id', id);
-
-            fetch('index.php?r=sale/salesinvoices', {
-                    method: 'POST',
-                    body: data
-                })
-                .then(res => res.json())
-                .then(res => {
-
-                    if (res.success) {
-
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: res.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => {
-                            searchform();
-                        });
-
-                    } else {
-
-                        Swal.fire('Error', res.message, 'error');
-
-                    }
-
-                })
-                .catch(() => {
-                    Swal.fire('Error', 'Unable to delete record.', 'error');
-                });
-
-        });
-
-    }
 
     function loadInvoiceItems(invoiceId) {
         const data = new FormData();

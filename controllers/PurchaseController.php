@@ -286,6 +286,63 @@ class PurchaseController extends Controller
         return true;
     }
 
+    private function reverseStockForDeletedPO($db, $purchaseOrderId) {
+        // Get the PO to check its status
+        $po = $db->createCommand("
+            SELECT status, warehouse_id FROM inventory_purchase_orders WHERE id=:id
+        ",[':id' => $purchaseOrderId])->queryOne();
+
+        if (!$po || $po['status'] !== 'Completed') {
+            return false; // Only reverse stock if PO was Completed
+        }
+
+        // Get all PO items
+        $poItems = $db->createCommand("
+            SELECT poi.*, p.id as product_id
+            FROM inventory_purchase_order_items poi
+            LEFT JOIN inventory_products p ON p.id=poi.product_id
+            WHERE poi.purchase_order_id=:id AND poi.is_deleted=0
+        ",[':id' => $purchaseOrderId])->queryAll();
+
+        foreach ($poItems as $item) {
+            $quantity = (float)$item['quantity'];
+            $unitPrice = (float)$item['unit_price'];
+            $totalCost = $quantity * $unitPrice;
+
+            // Get current stock
+            $currentStock = $db->createCommand("
+                SELECT * FROM inventory_stock
+                WHERE product_id=:product_id AND warehouse_id=:warehouse_id
+            ",[':product_id' => $item['product_id'], ':warehouse_id' => $po['warehouse_id']])->queryOne();
+
+            if ($currentStock) {
+                // Reverse the quantity (subtract what was added)
+                $newQuantity = max(0, $currentStock['quantity'] - $quantity);
+                $newAvailableQuantity = max(0, $currentStock['available_quantity'] - $quantity);
+
+                // Recalculate weighted average cost after removing the items
+                // Formula: newAverageCost = (currentTotal - removedTotal) / newQuantity
+                $currentTotal = $currentStock['quantity'] * (float)$currentStock['average_cost'];
+                $removedTotal = $quantity * $unitPrice;
+                $newTotal = $currentTotal - $removedTotal;
+                $newAverageCost = $newQuantity > 0 ? ($newTotal / $newQuantity) : 0;
+
+                $db->createCommand()->update(
+                    'inventory_stock',
+                    [
+                        'quantity' => $newQuantity,
+                        'available_quantity' => $newAvailableQuantity,
+                        'average_cost' => $newAverageCost,
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ],
+                    ['product_id' => $item['product_id'], 'warehouse_id' => $po['warehouse_id']]
+                )->execute();
+            }
+        }
+
+        return true;
+    }
+
     public function behaviors()
     {
         return [
@@ -623,7 +680,9 @@ class PurchaseController extends Controller
                             s.company_name,
                             w.warehouse_name,
                             gr.grn_number,
-                            gr.invoice_no
+                            gr.invoice_no,
+                            gr.status as grn_status,
+                            COALESCE(pi.paid_amount, 0) as paid_amount
                         FROM inventory_purchase_orders po
                         LEFT JOIN inventory_suppliers s
                             ON s.id=po.supplier_id
@@ -631,6 +690,8 @@ class PurchaseController extends Controller
                             ON w.id=po.warehouse_id
                         LEFT JOIN inventory_goods_receiving gr
                             ON gr.purchase_order_id=po.id
+                        LEFT JOIN inventory_purchase_invoices pi
+                            ON pi.purchase_order_id=po.id AND pi.is_deleted=0
                         {$where}
                         ORDER BY po.id DESC
                         LIMIT {$offset},{$perPage}
@@ -859,32 +920,141 @@ class PurchaseController extends Controller
                     }
                 }
 
-                if (isset($post['flag']) && $post['flag'] == 'delete') {
+                if (isset($post['flag']) && $post['flag'] == 'get_delete_info') {
+                    $db = Yii::$app->db;
+                    $poId = (int)$post['id'];
 
-                    $deletePoId = (int)$post['id'];
+                    // Get PO number
+                    $po = $db->createCommand("SELECT po_number FROM inventory_purchase_orders WHERE id=:id AND is_deleted=0")
+                        ->bindValue(':id', $poId)->queryOne();
 
-                    Yii::$app->db->createCommand()->update(
-                        'inventory_purchase_orders',
-                        [
-                            'is_deleted' => 1,
-                            'updated_at' => date('Y-m-d H:i:s')
-                        ],
-                        ['id' => $deletePoId]
-                    )->execute();
+                    if (!$po) {
+                        return ['success' => false, 'message' => 'Purchase Order not found'];
+                    }
 
-                    // Log activity
-                    \app\controllers\ActivitylogsController::logActivity(
-                        'Deleted purchase order: PO#' . $deletePoId,
-                        'delete',
-                        $deletePoId,
-                        'Purchase',
-                        ['type' => 'purchase_order_delete']
-                    );
+                    // Get GRN numbers
+                    $grns = $db->createCommand("SELECT grn_number FROM inventory_goods_receiving WHERE purchase_order_id=:po_id AND is_deleted=0")
+                        ->bindValue(':po_id', $poId)->queryColumn();
+
+                    // Get Invoice numbers
+                    $invoices = $db->createCommand("SELECT invoice_no FROM inventory_purchase_invoices WHERE purchase_order_id=:po_id AND is_deleted=0")
+                        ->bindValue(':po_id', $poId)->queryColumn();
+
+                    // Check if there are payments (linked through invoices)
+                    $paymentCount = $db->createCommand("
+                        SELECT COUNT(*) FROM inventory_purchase_invoice_payments p
+                        INNER JOIN inventory_purchase_invoices i ON i.id = p.purchase_invoice_id
+                        WHERE i.purchase_order_id=:po_id
+                    ")->bindValue(':po_id', $poId)->queryScalar();
 
                     return [
                         'success' => true,
-                        'message' => 'Purchase Order deleted successfully.'
+                        'data' => [
+                            'po_number' => $po['po_number'] ?? '',
+                            'grn_numbers' => $grns,
+                            'invoice_numbers' => $invoices,
+                            'has_payments' => $paymentCount > 0
+                        ]
                     ];
+                }
+
+                if (isset($post['flag']) && $post['flag'] == 'delete') {
+                    $db = Yii::$app->db;
+                    $transaction = $db->beginTransaction();
+
+                    try {
+                        $deletePoId = (int)$post['id'];
+
+                        // Get PO info for logging
+                        $po = $db->createCommand("SELECT po_number, status FROM inventory_purchase_orders WHERE id=:id AND is_deleted=0")
+                            ->bindValue(':id', $deletePoId)->queryOne();
+
+                        // Reverse stock if PO was Completed
+                        if ($po && $po['status'] === 'Completed') {
+                            $this->reverseStockForDeletedPO($db, $deletePoId);
+                        }
+
+                        // Delete all related records
+                        // 1. Delete GRN items (hard delete - no is_deleted column)
+                        $grnIds = $db->createCommand("SELECT id FROM inventory_goods_receiving WHERE purchase_order_id=:po_id AND is_deleted=0")
+                            ->bindValue(':po_id', $deletePoId)->queryColumn();
+
+                        foreach ($grnIds as $grnId) {
+                            // Hard delete GRN items (they don't have is_deleted column)
+                            $db->createCommand()->delete(
+                                'inventory_goods_receiving_items',
+                                ['goods_receiving_id' => $grnId]
+                            )->execute();
+
+                            // Soft delete GRN
+                            $db->createCommand()->update(
+                                'inventory_goods_receiving',
+                                ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')],
+                                ['id' => $grnId]
+                            )->execute();
+                        }
+
+                        // 2. Delete Invoice items and payments
+                        $invoiceIds = $db->createCommand("SELECT id FROM inventory_purchase_invoices WHERE purchase_order_id=:po_id AND is_deleted=0")
+                            ->bindValue(':po_id', $deletePoId)->queryColumn();
+
+                        foreach ($invoiceIds as $invoiceId) {
+                            // Hard delete invoice items (they don't have is_deleted column)
+                            $db->createCommand()->delete(
+                                'inventory_purchase_invoice_items',
+                                ['purchase_invoice_id' => $invoiceId]
+                            )->execute();
+
+                            // Hard delete or soft delete payments for this invoice
+                            $db->createCommand()->delete(
+                                'inventory_purchase_invoice_payments',
+                                ['purchase_invoice_id' => $invoiceId]
+                            )->execute();
+
+                            // Soft delete Invoice
+                            $db->createCommand()->update(
+                                'inventory_purchase_invoices',
+                                ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')],
+                                ['id' => $invoiceId]
+                            )->execute();
+                        }
+
+                        // 4. Finally, delete the PO
+                        $db->createCommand()->update(
+                            'inventory_purchase_orders',
+                            [
+                                'is_deleted' => 1,
+                                'updated_at' => date('Y-m-d H:i:s')
+                            ],
+                            ['id' => $deletePoId]
+                        )->execute();
+
+                        $transaction->commit();
+
+                        // Log activity
+                        \app\controllers\ActivitylogsController::logActivity(
+                            'Deleted purchase order: ' . ($po['po_number'] ?? 'PO#' . $deletePoId) . ' (with all related records)',
+                            'delete',
+                            $deletePoId,
+                            'Purchase',
+                            [
+                                'type' => 'purchase_order_delete_cascade',
+                                'grn_count' => count($grnIds),
+                                'invoice_count' => count($invoiceIds)
+                            ]
+                        );
+
+                        return [
+                            'success' => true,
+                            'message' => 'Purchase Order and all related records (GRN, Invoices, Payments) deleted successfully.'
+                        ];
+                    } catch (\Exception $e) {
+                        $transaction->rollBack();
+                        return [
+                            'success' => false,
+                            'message' => 'Error deleting purchase order: ' . $e->getMessage()
+                        ];
+                    }
                 }
 
                 if (isset($post['flag']) && $post['flag'] == 'updateStatus') {

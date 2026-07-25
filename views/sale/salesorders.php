@@ -144,9 +144,6 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td><?= statusBadgeServer($item['order_status']) ?></td>
                                 <td>
                                     <span id="invoice-status-<?= $item['id'] ?>"><?= invoiceStatusBadgeServer($item['invoice_status'] ?? 'N/A') ?></span>
-                                    <button onclick="syncInvoiceData(<?= $item['id'] ?>, this)" title="Sync from Invoice" style="margin-left: 5px; padding: 2px 6px;">
-                                        <i class="fa fa-refresh"></i>
-                                    </button>
                                 </td>
                                 <td class="text-right"><span id="subtotal-<?= $item['id'] ?>"><?= number_format($item['subtotal'] ?? 0, 2) ?></span></td>
                                 <td class="text-right"><span id="discount-<?= $item['id'] ?>"><?= number_format($item['discount'] ?? 0, 2) ?></span></td>
@@ -159,10 +156,13 @@ if (!isset($warehouses)) $warehouses = [];
                                         <i class="fa fa-exchange"></i>
                                     </button>
                                     |
-                                    <button onclick='showOrderModal(<?= json_encode($item) ?>)' title="Edit">
-                                        <i class="fa fa-pencil"></i>
-                                    </button>
-                                    |
+                                    <?php $isInvoicePaid = ($item['invoice_status'] ?? '') === 'Paid'; ?>
+                                    <?php if (!$isInvoicePaid): ?>
+                                        <button onclick='showOrderModal(<?= json_encode($item) ?>)' title="Edit">
+                                            <i class="fa fa-pencil"></i>
+                                        </button>
+                                        |
+                                    <?php endif; ?>
                                     <button onclick="printSalesOrder(<?= $item['id'] ?>)" title="Print PDF">
                                         <i class="fa fa-print"></i>
                                     </button>
@@ -361,7 +361,9 @@ function invoiceStatusBadgeServer($status)
                 const grandTotal = parseFloat(item.grand_total).toFixed(2);
                 const paidAmount = parseFloat(item.paid_amount || 0).toFixed(2);
                 const remaining = parseFloat(item.remaining_balance || 0).toFixed(2);
-                
+                const invoiceStatus = item.invoice_status ?? 'N/A';
+                const isInvoicePaid = invoiceStatus === 'Paid';
+
                 html += `
             <tr>
                 <td>${index+1}</td>
@@ -371,10 +373,7 @@ function invoiceStatusBadgeServer($status)
                 <td>${item.order_date??''}</td>
                 <td>${statusBadge(item.order_status)}</td>
                 <td>
-                    <span id="invoice-status-${item.id}">${invoiceStatusBadge(item.payment_status ?? 'N/A')}</span>
-                    <button onclick="syncInvoiceData(${item.id}, this)" title="Sync from Invoice" style="margin-left: 5px; padding: 2px 6px;">
-                        <i class="fa fa-refresh"></i>
-                    </button>
+                    <span id="invoice-status-${item.id}">${invoiceStatusBadge(invoiceStatus)}</span>
                 </td>
                 <td class="text-right"><span id="subtotal-${item.id}">${formatCurrency(subtotal)}</span></td>
                 <td class="text-right"><span id="discount-${item.id}">${formatCurrency(discount)}</span></td>
@@ -387,10 +386,12 @@ function invoiceStatusBadgeServer($status)
                         <i class="fa fa-exchange"></i>
                     </button>
                     |
+                    ${!isInvoicePaid ? `
                     <button onclick='showOrderModal(${JSON.stringify(item)})' title="Edit">
                         <i class="fa fa-pencil"></i>
                     </button>
                     |
+                    ` : ''}
                     <button onclick="printSalesOrder(${item.id})" title="Print PDF">
                         <i class="fa fa-print"></i>
                     </button>
@@ -427,30 +428,81 @@ function invoiceStatusBadgeServer($status)
     }
 
     function deleteOrder(id) {
+        // First fetch the related records info
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'get_delete_info');
+        data.append('id', id);
+
+        fetch('index.php?r=sale/salesorders', {
+                method: 'POST',
+                body: data
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    const info = res.data || {};
+                    showDeleteConfirmation(id, info);
+                } else {
+                    Swal.fire('Error', res.message || 'Unable to fetch order details', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'Unable to fetch order details', 'error');
+            });
+    }
+
+    function showDeleteConfirmation(id, orderInfo) {
+        let confirmText = `
+            <div style="text-align: left; line-height: 1.8;">
+                <strong style="color: #d33; font-size: 16px;">⚠️ This action will delete:</strong><br><br>
+        `;
+
+        if (orderInfo.so_number) {
+            confirmText += `<strong>📦 Sales Order:</strong> ${orderInfo.so_number}<br>`;
+        }
+
+        if (orderInfo.invoice_numbers && orderInfo.invoice_numbers.length > 0) {
+            confirmText += `<strong>💰 Sales Invoices:</strong><br>`;
+            orderInfo.invoice_numbers.forEach(inv => {
+                confirmText += `&nbsp;&nbsp;• ${inv}<br>`;
+            });
+        }
+
+        if (orderInfo.has_payments) {
+            confirmText += `<strong>💳 Payment Records:</strong> Yes (Will be deleted)<br>`;
+        }
+
+        if (orderInfo.will_reverse_stock) {
+            confirmText += `<strong>📊 Stock will be reversed:</strong> Yes (Inventory will be updated)<br>`;
+        }
+
+        confirmText += `<br><strong style="color: #d33;">This action CANNOT be undone!</strong>`;
+        confirmText += `</div>`;
 
         Swal.fire({
             title: 'Are you sure?',
-            text: 'Sales Order will be deleted.',
+            html: confirmText,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, Delete'
+            confirmButtonText: 'Yes, Delete Everything'
         }).then(function(result) {
-
             if (!result.isConfirmed) {
                 return;
             }
 
-            const data = new FormData();
-
-            data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-            data.append('flag', 'delete');
-            data.append('id', id);
+            // Proceed with deletion
+            const deleteData = new FormData();
+            deleteData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+            deleteData.append('flag', 'delete');
+            deleteData.append('id', id);
 
             fetch('index.php?r=sale/salesorders', {
                     method: 'POST',
-                    body: data
+                    body: deleteData
                 })
                 .then(res => res.json())
                 .then(res => {
@@ -581,6 +633,83 @@ function invoiceStatusBadgeServer($status)
     function showOrderModal(orderData = null) {
         const isEdit = orderData !== null && orderData.id;
         const id = isEdit ? orderData.id : '';
+
+        // Show loading for edit mode
+        if (isEdit) {
+            // Show loading dialog
+            Swal.fire({
+                title: 'Loading Order Details...',
+                text: 'Please wait while we load all order information',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            // Load order items AND products for warehouse
+            Promise.all([
+                loadSaleOrderItems(id),
+                loadProductsForWarehouse(orderData.warehouse_id)
+            ]).then(() => {
+                console.log('All data loaded:', {
+                    items: window.saleOrderItemsCache,
+                    products: window.saleOrderViewData.products.length
+                });
+                Swal.close();
+                setTimeout(() => {
+                    openOrderModal(orderData);
+                }, 100);
+            }).catch(err => {
+                console.error('Error loading data:', err);
+                Swal.close();
+                Swal.fire('Error', 'Failed to load order details', 'error');
+            });
+            return;
+        }
+
+        // For new orders, open directly
+        openOrderModal(orderData);
+    }
+
+    function loadSaleOrderItems(orderId) {
+        return new Promise((resolve, reject) => {
+            console.log('🔄 Loading items for order ID:', orderId);
+            const formData = new FormData();
+            formData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+            formData.append('flag', 'getItems');
+            formData.append('id', orderId);
+
+            fetch('index.php?r=sale/salesorders', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => {
+                console.log('📡 Fetch response status:', res.status);
+                return res.json();
+            })
+            .then(res => {
+                console.log('✅ Items API Response:', res);
+                if (res.success) {
+                    window.saleOrderItemsCache = res.items || [];
+                    console.log('📦 Items cached:', window.saleOrderItemsCache.length, 'items loaded');
+                    resolve();
+                } else {
+                    console.warn('⚠️ API returned success=false:', res.message);
+                    window.saleOrderItemsCache = [];
+                    resolve();
+                }
+            })
+            .catch(err => {
+                console.error('❌ Error loading items:', err);
+                window.saleOrderItemsCache = [];
+                reject(err);
+            });
+        });
+    }
+
+    function openOrderModal(orderData = null) {
+        const isEdit = orderData !== null && orderData.id;
+        const id = isEdit ? orderData.id : '';
         const customerId = isEdit ? orderData.customer_id : '';
         const warehouseId = isEdit ? orderData.warehouse_id : '';
         const orderDate = isEdit ? orderData.order_date : '<?= date('Y-m-d') ?>';
@@ -597,6 +726,7 @@ function invoiceStatusBadgeServer($status)
 
         // Prevent editing if order is confirmed
         if (isEdit && orderStatus === 'Confirmed' && orderData.payment_status==="Paid") {
+            Swal.close();
             Swal.fire({
                 icon: 'warning',
                 title: 'Cannot Edit',
@@ -632,6 +762,7 @@ function invoiceStatusBadgeServer($status)
             title: isEdit ? 'Edit Sale Order' : 'New Sale Order',
             width: 'auto',
             maxWidth: '95%',
+            allowOutsideClick: false,
             customClass: { popup: 'swal-wide-popup' },
             didOpen: () => {
                 const popup = document.querySelector('.swal2-popup');
@@ -753,26 +884,26 @@ function invoiceStatusBadgeServer($status)
                 </div>
                 <div class="col-md-2">
                 <label>Discount</label>
-                <input type="number" id="so_discount" class="form-control" value="${discount}" step="0.01" placeholder="0.00">
+                <input type="number" id="so_discount" readonly class="form-control" value="${discount}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label>Tax</label>
-                <input type="number" id="so_tax" class="form-control" value="${tax}" step="0.01" placeholder="0.00">
+                <input type="number" id="so_tax" readonly class="form-control" value="${tax}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label>Shipping</label>
-                <input type="number" id="so_shipping" class="form-control" value="${shipping}" step="0.01" placeholder="0.00">
+                <input type="number" id="so_shipping" readonly class="form-control" value="${shipping}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label><strong>Grand Total</strong></label>
-                <input type="number" id="so_grand_total" class="form-control" readonly value="0" style="background:#fff3cd; font-weight:bold;">
+                <input type="number" id="so_grand_total"  class="form-control" readonly value="0" style="background:#fff3cd; font-weight:bold;">
                 </div>
                 </div>
 
                 <div class="row" style="margin-top:10px;">
                 <div class="col-md-3">
                 <label>Paid Amount</label>
-                <input type="number" id="so_paid_amount" class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00" style="background:#e8f4f8;">
+                <input type="number" id="so_paid_amount" readonly class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00" style="background:#e8f4f8;">
                 </div>
                 <div class="col-md-3">
                 <label><strong>Remaining Amount</strong></label>
@@ -792,6 +923,9 @@ function invoiceStatusBadgeServer($status)
     }
 
     function setupSaleOrderModal(isEdit, orderId) {
+        // Store isEdit state in global scope for use in calculateSaleOrderRow
+        window.saleOrderIsEdit = isEdit;
+
         // Load products on warehouse change
         $('#so_warehouse').on('change', function() {
             loadProductsForWarehouse($(this).val());
@@ -905,7 +1039,25 @@ function invoiceStatusBadgeServer($status)
 
         // Load existing items if editing
         if (isEdit && orderId) {
-            loadSaleOrderItems(orderId);
+            // Use setTimeout to ensure modal is rendered first
+            setTimeout(() => {
+                console.log('Loading items from cache:', window.saleOrderItemsCache);
+                // Load items from cache (pre-fetched before modal opened)
+                if (window.saleOrderItemsCache && window.saleOrderItemsCache.length > 0) {
+                    // Clear table first
+                    $('#saleItemTable tbody').html('');
+                    // Add each item
+                    window.saleOrderItemsCache.forEach(item => {
+                        console.log('Adding item:', item);
+                        addSaleOrderRow(item);
+                    });
+                    // Calculate totals
+                    calculateSaleOrderTotals();
+                    console.log('Items loaded successfully');
+                } else {
+                    console.log('No items in cache');
+                }
+            }, 50);
             // Auto-load invoice data when editing
             loadInvoiceDataForSalesOrder(orderId);
         } else {
@@ -924,18 +1076,30 @@ function invoiceStatusBadgeServer($status)
     }
 
     function loadProductsForWarehouse(warehouseId) {
-        if (!warehouseId) return;
+        return new Promise((resolve, reject) => {
+            if (!warehouseId) {
+                window.saleOrderViewData.products = [];
+                resolve();
+                return;
+            }
 
-        fetch('index.php?r=sale/saleorder&flag=get_products&warehouse_id=' + warehouseId, { method: 'GET' })
-            .then(res => res.json())
-            .then(res => {
-                if (res.success) {
-                    window.saleOrderViewData.products = res.products || [];
-                    // Refresh product selects in table
-                    updateProductOptions();
-                }
-            })
-            .catch(e => console.error(e));
+            fetch('index.php?r=sale/saleorder&flag=get_products&warehouse_id=' + warehouseId, { method: 'GET' })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success) {
+                        window.saleOrderViewData.products = res.products || [];
+                        console.log('Products loaded:', window.saleOrderViewData.products.length);
+                    } else {
+                        window.saleOrderViewData.products = [];
+                    }
+                    resolve();
+                })
+                .catch(e => {
+                    console.error('Error loading products:', e);
+                    window.saleOrderViewData.products = [];
+                    resolve(); // Resolve anyway to not block modal opening
+                });
+        });
     }
 
     function updateProductOptions() {
@@ -954,30 +1118,65 @@ function invoiceStatusBadgeServer($status)
     }
 
     function addSaleOrderRow(item = {}) {
+        // Handle both new items and existing items with different field names
+        const quantity = item.quantity || item.qty || 1;
+        const unitPrice = item.unit_price || item.price || 0;
+        const discountAmount = item.discount_amount || item.discount || 0;
+        const taxAmount = item.tax_amount || item.tax || 0;
+        const lineTotal = item.line_total || item.total || 0;
+        const productId = item.product_id || '';
+        const productName = item.product_name || 'Select Product';
+
         let productOptions = '<option value="">-- Select Product --</option>';
+
+        // First, check if the current item's product is in the list
+        let currentProductFound = false;
+
         window.saleOrderViewData.products.forEach(p => {
             const available = parseFloat(p.available_quantity || 0).toFixed(2);
-            productOptions += `<option value="${p.id}" data-price="${p.selling_price}" data-qty="${available}">${p.product_name} (${p.sku}) - Avail: ${available}</option>`;
+            const selected = item.product_id && p.id == item.product_id ? 'selected' : '';
+            productOptions += `<option value="${p.id}" data-price="${p.selling_price}" data-qty="${available}" ${selected}>${p.product_name} (${p.sku}) - Avail: ${available}</option>`;
+
+            // Check if this is the current item's product
+            if (item.product_id && p.id == item.product_id) {
+                currentProductFound = true;
+            }
         });
 
+        // If the product from the saved item is not in the list (out of stock), add it anyway
+        if (item.product_id && !currentProductFound) {
+            const available = parseFloat(item.available_quantity || 0).toFixed(2);
+            console.log('⚠️ Product out of stock or not found, adding to dropdown:', item.product_name, 'ID:', item.product_id);
+            productOptions += `<option value="${item.product_id}" data-price="${item.unit_price || 0}" data-qty="${available}" selected>${item.product_name} (${item.sku}) - Avail: ${available} (Out of Stock)</option>`;
+        }
+
         $('#saleItemTable tbody').append(`
-            <tr>
-            <td><select class="form-control item-product chzn-select" style="width:100%;">
+            <tr data-original-qty="${parseFloat(quantity).toFixed(2)}" data-product-id="${productId}">
+            <td><select class="form-control item-product chzn-select" style="width:100%;" data-product-id="${productId}">
                 ${productOptions}
             </select></td>
-            <td><span class="available-qty">${item.available_qty || 0}</span></td>
-            <td><input type="number" class="form-control item-qty" value="${item.quantity||1}" min="1" step="0.01" max="999999"></td>
-            <td><input type="number" class="form-control item-rate" value="${item.unit_price||0}" step="0.01"></td>
-            <td><input type="number" class="form-control item-discount" value="${item.discount||0}" step="0.01"></td>
-            <td><input type="number" class="form-control item-tax" value="${item.tax||0}" step="0.01"></td>
-            <td><input type="number" class="form-control item-total" readonly value="${item.total||0}" step="0.01"></td>
+            <td><span class="available-qty">0</span></td>
+            <td><input type="number" class="form-control item-qty" value="${parseFloat(quantity).toFixed(2)}" min="1" step="0.01" max="999999"></td>
+            <td><input type="number" class="form-control item-rate" value="${parseFloat(unitPrice).toFixed(2)}" step="0.01"></td>
+            <td><input type="number" class="form-control item-discount" value="${parseFloat(discountAmount).toFixed(2)}" step="0.01"></td>
+            <td><input type="number" class="form-control item-tax" value="${parseFloat(taxAmount).toFixed(2)}" step="0.01"></td>
+            <td><input type="number" class="form-control item-total" readonly value="${parseFloat(lineTotal).toFixed(2)}" step="0.01"></td>
             <td><button type="button" class="remove-item"><i class="fa fa-trash"></i></button></td>
             </tr>`);
 
-        // Get the newly added select and set its value if editing
-        const newSelect = $('#saleItemTable tbody tr:last').find('.item-product');
-        if (item.product_id) {
-            newSelect.val(item.product_id);
+        // Get the newly added select and initialize Chosen
+        const newRow = $('#saleItemTable tbody tr:last');
+        const newSelect = newRow.find('.item-product');
+
+        // Initialize chosen for this select
+        newSelect.chosen({
+            width: '100%',
+            search_contains: true
+        });
+
+        // Set the value if we have a product_id
+        if (productId) {
+            newSelect.val(productId).trigger('chosen:updated');
         }
 
         // Initialize Chosen on the new select
@@ -1004,11 +1203,21 @@ function invoiceStatusBadgeServer($status)
         let availableQty = parseFloat(tr.find('.available-qty').text()) || 0;
         let productName = tr.find('.item-product option:selected').text();
 
-        // Validate qty not exceeding available
-        if (qty > availableQty) {
-            tr.find('.item-qty').val(availableQty).css('border', '2px solid #ff6b6b');
-            qty = availableQty;
-            showWarning(`Invalid Qty for ${productName}: Cannot exceed available quantity of ${availableQty}. Qty has been reset to ${availableQty}.`);
+        // When editing, allow qty up to (available + original qty)
+        let maxAllowed = availableQty;
+        if (window.saleOrderIsEdit) {
+            let originalQty = parseFloat(tr.attr('data-original-qty')) || 0;
+            maxAllowed = availableQty + originalQty;
+        }
+
+        // Validate qty not exceeding available (or max allowed when editing)
+        if (qty > maxAllowed) {
+            tr.find('.item-qty').val(maxAllowed).css('border', '2px solid #ff6b6b');
+            qty = maxAllowed;
+            const message = window.saleOrderIsEdit
+                ? `Invalid Qty for ${productName}: Cannot exceed available + reserved quantity of ${maxAllowed}. Qty has been reset to ${maxAllowed}.`
+                : `Invalid Qty for ${productName}: Cannot exceed available quantity of ${availableQty}. Qty has been reset to ${availableQty}.`;
+            showWarning(message);
         } else {
             tr.find('.item-qty').css('border', '');
         }
@@ -1089,19 +1298,6 @@ function invoiceStatusBadgeServer($status)
         }
     }
 
-    function loadSaleOrderItems(orderId) {
-        fetch('index.php?r=sale/saleorder&flag=get_items&id=' + orderId, { method: 'GET' })
-            .then(res => res.json())
-            .then(res => {
-                if (res.success && res.items) {
-                    $('#saleItemTable tbody').html('');
-                    res.items.forEach(item => addSaleOrderRow(item));
-                    calculateSaleOrderTotals();
-                }
-            })
-            .catch(e => console.error(e));
-    }
-
     function loadInvoiceDataForSalesOrder(orderId) {
         // Fetch invoice data for this sales order
         const data = new FormData();
@@ -1167,6 +1363,7 @@ function invoiceStatusBadgeServer($status)
             let qty = parseFloat($(this).find('.item-qty').val()) || 0;
             let rate = parseFloat($(this).find('.item-rate').val()) || 0;
             let availableQty = parseFloat($(this).find('.available-qty').text()) || 0;
+            let originalQty = parseFloat($(this).attr('data-original-qty')) || 0;
 
             // Validate product is selected
             if (!productId) {
@@ -1181,8 +1378,17 @@ function invoiceStatusBadgeServer($status)
             }
 
             // Validate quantity doesn't exceed available
-            if (qty > availableQty && !isEdit) {
-                invalidItems.push(`Row ${index + 1}: Quantity (${qty}) exceeds available (${availableQty})`);
+            // When editing, allow qty up to (available + original qty in this order)
+            let maxAllowed = availableQty;
+            if (isEdit) {
+                maxAllowed = availableQty + originalQty;
+            }
+
+            if (qty > maxAllowed) {
+                const message = isEdit
+                    ? `Row ${index + 1}: Quantity (${qty}) exceeds available + reserved quantity (${maxAllowed})`
+                    : `Row ${index + 1}: Quantity (${qty}) exceeds available (${availableQty})`;
+                invalidItems.push(message);
                 return;
             }
 

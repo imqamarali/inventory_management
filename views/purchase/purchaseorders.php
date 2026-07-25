@@ -120,6 +120,8 @@ if (!isset($warehouses)) $warehouses = [];
                             <th>Discount</th>
                             <th>Tax</th>
                             <th>Grand Total</th>
+                            <th>Paid Amount</th>
+                            <th>Remaining Amount</th>
                             <th>GRN Number</th>
                             <th>Invoice No</th>
                             <th>Status</th>
@@ -132,6 +134,8 @@ if (!isset($warehouses)) $warehouses = [];
                             $discount = (float)($item['discount'] ?? 0);
                             $tax = (float)($item['tax'] ?? 0);
                             $grandTotal = (float)($item['grand_total'] ?? 0);
+                            $paidAmount = (float)($item['paid_amount'] ?? 0);
+                            $remainingAmount = $grandTotal - $paidAmount;
                         ?>
                             <tr>
                                 <td><?= $key + 1 ?></td>
@@ -142,15 +146,28 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td><?= number_format($discount, 2) ?></td>
                                 <td><?= number_format($tax, 2) ?></td>
                                 <td><strong><?= number_format($grandTotal, 2) ?></strong></td>
+                                <td><?= number_format($paidAmount, 2) ?></td>
+                                <td><?= number_format($remainingAmount, 2) ?></td>
                                 <td><?= Html::encode($item['grn_number'] ?? '-') ?></td>
                                 <td><?= Html::encode($item['invoice_no'] ?? '-') ?></td>
                                 <td><?= statusBadgeServer($item['status']) ?></td>
                                 <td>
-                                    <button onclick="loadOrder(<?= $item['id'] ?>)">
-                                        <i class="fa fa-pencil"></i>
+                                    <?php $isGrnCompleted = ($item['grn_status'] ?? '') === 'Completed'; ?>
+                                    <?php if (!$isGrnCompleted): ?>
+                                        <button onclick="loadOrder(<?= $item['id'] ?>)" title="Edit">
+                                            <i class="fa fa-pencil"></i>
+                                        </button>
+                                        |
+                                    <?php endif; ?>
+                                    <button onclick="showStatusOptions(<?= $item['id'] ?>, '<?= $item['status'] ?>')" title="Update Status">
+                                        <i class="fa fa-exchange"></i>
                                     </button>
                                     |
-                                    <button onclick="deleteOrder(<?= $item['id'] ?>)">
+                                    <button onclick="printPurchaseOrder(<?= $item['id'] ?>)" title="Print PDF">
+                                        <i class="fa fa-print"></i>
+                                    </button>
+                                    |
+                                    <button onclick="deleteOrder(<?= $item['id'] ?>)" title="Delete">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 </td>
@@ -270,7 +287,7 @@ function statusBadgeServer($status)
 
             html = `
         <tr>
-            <td colspan="12" class="text-center">
+            <td colspan="14" class="text-center">
                 No Purchase Orders Found
             </td>
         </tr>`;
@@ -282,6 +299,8 @@ function statusBadgeServer($status)
                 const discount = parseFloat(item.discount || 0);
                 const tax = parseFloat(item.tax || 0);
                 const grandTotal = parseFloat(item.grand_total || 0);
+                const paidAmount = parseFloat(item.paid_amount || 0);
+                const remainingAmount = grandTotal - paidAmount;
 
                 html += `
             <tr>
@@ -293,14 +312,18 @@ function statusBadgeServer($status)
                 <td>${discount.toFixed(2)}</td>
                 <td>${tax.toFixed(2)}</td>
                 <td><strong>${grandTotal.toFixed(2)}</strong></td>
+                <td>${paidAmount.toFixed(2)}</td>
+                <td>${remainingAmount.toFixed(2)}</td>
                 <td>${item.grn_number??'-'}</td>
                 <td>${item.invoice_no??'-'}</td>
                 <td>${statusBadge(item.status)}</td>
                 <td>
+                    ${item.grn_status === 'Completed' ? '' : `
                     <button onclick="loadOrder(${item.id})" title="Edit">
                         <i class="fa fa-pencil"></i>
                     </button>
                     |
+                    `}
                     <button onclick="showStatusOptions(${item.id}, '${item.status}')" title="Update Status">
                         <i class="fa fa-exchange"></i>
                     </button>
@@ -422,30 +445,84 @@ function statusBadgeServer($status)
     }
 
     function deleteOrder(id) {
+        // First fetch the related records info
+        const data = new FormData();
+        data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+        data.append('flag', 'get_delete_info');
+        data.append('id', id);
+
+        fetch('index.php?r=purchase/purchaseorders', {
+                method: 'POST',
+                body: data
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    const info = res.data || {};
+                    showDeleteConfirmation(id, info);
+                } else {
+                    Swal.fire('Error', res.message || 'Unable to fetch order details', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire('Error', 'Unable to fetch order details', 'error');
+            });
+    }
+
+    function showDeleteConfirmation(id, orderInfo) {
+        let confirmText = `
+            <div style="text-align: left; line-height: 1.8;">
+                <strong style="color: #d33; font-size: 16px;">⚠️ This action will delete:</strong><br><br>
+        `;
+
+        if (orderInfo.po_number) {
+            confirmText += `<strong>📦 Purchase Order:</strong> ${orderInfo.po_number}<br>`;
+        }
+
+        if (orderInfo.grn_numbers && orderInfo.grn_numbers.length > 0) {
+            confirmText += `<strong>📋 Goods Receiving Notes:</strong><br>`;
+            orderInfo.grn_numbers.forEach(grn => {
+                confirmText += `&nbsp;&nbsp;• ${grn}<br>`;
+            });
+        }
+
+        if (orderInfo.invoice_numbers && orderInfo.invoice_numbers.length > 0) {
+            confirmText += `<strong>💰 Purchase Invoices:</strong><br>`;
+            orderInfo.invoice_numbers.forEach(inv => {
+                confirmText += `&nbsp;&nbsp;• ${inv}<br>`;
+            });
+        }
+
+        if (orderInfo.has_payments) {
+            confirmText += `<strong>💳 Payment Records:</strong> Yes (Will be deleted)<br>`;
+        }
+
+        confirmText += `<br><strong style="color: #d33;">This action CANNOT be undone!</strong>`;
+        confirmText += `</div>`;
 
         Swal.fire({
             title: 'Are you sure?',
-            text: 'Purchase Order will be deleted.',
+            html: confirmText,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, Delete'
+            confirmButtonText: 'Yes, Delete Everything'
         }).then(function(result) {
-
             if (!result.isConfirmed) {
                 return;
             }
 
-            const data = new FormData();
-
-            data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-            data.append('flag', 'delete');
-            data.append('id', id);
+            // Proceed with deletion
+            const deleteData = new FormData();
+            deleteData.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
+            deleteData.append('flag', 'delete');
+            deleteData.append('id', id);
 
             fetch('index.php?r=purchase/purchaseorders', {
                     method: 'POST',
-                    body: data
+                    body: deleteData
                 })
                 .then(res => res.json())
                 .then(res => {
@@ -594,6 +671,8 @@ function statusBadgeServer($status)
             title: isEdit ? 'Update Purchase Order' : 'Add Purchase Order',
 
             width: '1100px',
+
+            allowOutsideClick: false,
 
             customClass: {
                 popup: 'swal-wide-popup'
@@ -749,51 +828,7 @@ function statusBadgeServer($status)
 
         <div class="row">
 
-        <div class="col-md-3">
-
-        <label>Subtotal</label>
-
-        <input type="number" id="swal_subtotal" class="form-control" readonly value="${d.subtotal||0}">
-
-        </div>
-
-        <div class="col-md-3">
-
-        <label>Discount</label>
-
-        <input type="number" id="swal_discount" class="form-control" value="${d.discount||0}">
-
-        </div>
-
-        <div class="col-md-3">
-
-        <label>Tax</label>
-
-        <input type="number" id="swal_tax" class="form-control" value="${d.tax||0}">
-
-        </div>
-
-        <div class="col-md-3">
-
-        <label>Freight</label>
-
-        <input type="number" id="swal_freight" class="form-control" value="${d.freight||0}">
-
-        </div>
-
-        </div>
-
-        <div class="row">
-
-        <div class="col-md-4">
-
-        <label>Grand Total</label>
-
-        <input type="number" id="swal_grand_total" class="form-control" readonly value="${d.grand_total||0}">
-
-        </div>
-
-        <div class="col-md-6">
+        <div class="col-md-10">
 
         <label>Remarks</label>
 
@@ -848,6 +883,56 @@ function statusBadgeServer($status)
         <tbody></tbody>
 
         </table>
+
+        <hr>
+
+        <div class="row">
+
+        <div class="col-md-3">
+
+        <label>Subtotal</label>
+
+        <input type="number" id="swal_subtotal" class="form-control" readonly value="${d.subtotal||0}">
+
+        </div>
+
+        <div class="col-md-3">
+
+        <label>Discount</label>
+
+        <input type="number" id="swal_discount" class="form-control" value="${d.discount||0}">
+
+        </div>
+
+        <div class="col-md-3">
+
+        <label>Tax</label>
+
+        <input type="number" id="swal_tax" class="form-control" value="${d.tax||0}">
+
+        </div>
+
+        <div class="col-md-3">
+
+        <label>Freight</label>
+
+        <input type="number" id="swal_freight" class="form-control" value="${d.freight||0}">
+
+        </div>
+
+        </div>
+
+        <div class="row">
+
+        <div class="col-md-3">
+
+        <label><strong>Grand Total</strong></label>
+
+        <input type="number" id="swal_grand_total" class="form-control" readonly value="${d.grand_total||0}">
+
+        </div>
+
+        </div>
 
         </form>
 

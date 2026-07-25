@@ -911,8 +911,8 @@ class InventoryController extends Controller
             ['name' => 'Categories', 'controller' => 'products/categories', 'icon' => 'fa fa-tags'],
             ['name' => 'Brands', 'controller' => 'products/brands', 'icon' => 'fa fa-certificate'],
             ['name' => 'Units', 'controller' => 'products/units', 'icon' => 'fa fa-balance-scale'],
-            ['name' => 'Vehicle Makes', 'controller' => 'products/vehiclemakes', 'icon' => 'fa fa-car'],
-            ['name' => 'Vehicle Models', 'controller' => 'products/vehiclemodels', 'icon' => 'fa fa-car'],
+            ['name' => 'Makes', 'controller' => 'products/vehiclemakes', 'icon' => 'fa fa-car'],
+            ['name' => 'Models', 'controller' => 'products/vehiclemodels', 'icon' => 'fa fa-car'],
             ['name' => 'Product List', 'controller' => 'products/productlist', 'icon' => 'fa fa-cubes'],
         ];
 

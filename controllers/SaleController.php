@@ -1465,12 +1465,17 @@ class SaleController extends Controller
                             c.company_name,
                             c.first_name,
                             c.last_name,
-                            w.warehouse_name
+                            w.warehouse_name,
+                            si.status as invoice_status,
+                            COALESCE(si.paid_amount, 0) as paid_amount,
+                            COALESCE(si.grand_total - si.paid_amount, so.grand_total) as remaining_balance
                         FROM inventory_sales_orders so
                         LEFT JOIN inventory_customers c
                             ON c.id=so.customer_id
                         LEFT JOIN inventory_warehouses w
                             ON w.id=so.warehouse_id
+                        LEFT JOIN inventory_sales_invoices si
+                            ON si.sales_order_id=so.id AND si.is_deleted=0
                         {$where}
                         ORDER BY so.id DESC
                         LIMIT {$offset},{$perPage}
@@ -1502,6 +1507,34 @@ class SaleController extends Controller
                         'perPage' => $perPage,
                         'total' => $total,
                         'totalPages' => ceil($total / $perPage)
+                    ];
+                }
+
+                if (isset($post['flag']) && $post['flag'] == 'getItems') {
+
+                    $orderId = (int)($post['id'] ?? 0);
+                    if ($orderId <= 0) {
+                        return ['success' => false, 'message' => 'Invalid Order ID', 'items' => []];
+                    }
+
+                    $items = Yii::$app->db->createCommand("
+                        SELECT
+                            soi.*,
+                            p.product_name,
+                            p.sku,
+                            COALESCE(s.quantity, 0) as available_quantity
+                        FROM inventory_sales_order_items soi
+                        LEFT JOIN inventory_products p
+                            ON p.id=soi.product_id
+                        LEFT JOIN inventory_stock s
+                            ON s.product_id=soi.product_id
+                        WHERE soi.sales_order_id=:id AND soi.is_deleted=0
+                        ORDER BY soi.id
+                    ", [':id' => $orderId])->queryAll();
+
+                    return [
+                        'success' => true,
+                        'items' => $items
                     ];
                 }
 
@@ -1619,32 +1652,109 @@ class SaleController extends Controller
                     ];
                 }
 
-                if (isset($post['flag']) && $post['flag'] == 'delete') {
+                if (isset($post['flag']) && $post['flag'] == 'get_delete_info') {
+                    $db = Yii::$app->db;
+                    $soId = (int)$post['id'];
 
-                    $deleteId = (int)$post['id'];
+                    // Get SO number
+                    $so = $db->createCommand("SELECT order_number FROM inventory_sales_orders WHERE id=:id AND is_deleted=0")
+                        ->bindValue(':id', $soId)->queryOne();
 
-                    Yii::$app->db->createCommand()->update(
-                        'inventory_sales_orders',
-                        [
-                            'is_deleted' => 1,
-                            'updated_at' => date('Y-m-d H:i:s')
-                        ],
-                        ['id' => $deleteId]
-                    )->execute();
+                    if (!$so) {
+                        return ['success' => false, 'message' => 'Sales Order not found'];
+                    }
 
-                    // Log deletion
-                    \app\controllers\ActivitylogsController::logActivity(
-                        'Deleted sales order: SO#' . $deleteId,
-                        'delete',
-                        $deleteId,
-                        'Sales',
-                        ['type' => 'sales_order_delete']
-                    );
+                    // Get Invoice numbers
+                    $invoices = $db->createCommand("SELECT invoice_no FROM inventory_sales_invoices WHERE sales_order_id=:so_id AND is_deleted=0")
+                        ->bindValue(':so_id', $soId)->queryColumn();
+
+                    // Check if there are payments (paid_amount > 0)
+                    $paymentCount = $db->createCommand("
+                        SELECT COUNT(*) FROM inventory_sales_invoices
+                        WHERE sales_order_id=:so_id AND is_deleted=0 AND paid_amount > 0
+                    ")->bindValue(':so_id', $soId)->queryScalar();
 
                     return [
                         'success' => true,
-                        'message' => 'Sales Order deleted successfully.'
+                        'data' => [
+                            'so_number' => $so['order_number'] ?? '',
+                            'invoice_numbers' => $invoices,
+                            'has_payments' => $paymentCount > 0,
+                            'will_reverse_stock' => true
+                        ]
                     ];
+                }
+
+                if (isset($post['flag']) && $post['flag'] == 'delete') {
+                    $db = Yii::$app->db;
+                    $transaction = $db->beginTransaction();
+
+                    try {
+                        $deleteId = (int)$post['id'];
+                        $userId = $this->currentUserId();
+
+                        // Get SO info for logging
+                        $so = $db->createCommand("SELECT order_number FROM inventory_sales_orders WHERE id=:id AND is_deleted=0")
+                            ->bindValue(':id', $deleteId)->queryOne();
+
+                        // Soft delete all related invoices (payment info is stored in the invoice itself)
+                        $db->createCommand()->update(
+                            'inventory_sales_invoices',
+                            ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')],
+                            ['sales_order_id' => $deleteId]
+                        )->execute();
+
+                        // Get invoice IDs for logging
+                        $invoiceIds = $db->createCommand("SELECT id FROM inventory_sales_invoices WHERE sales_order_id=:so_id")
+                            ->bindValue(':so_id', $deleteId)->queryColumn();
+
+                        // Soft delete order items
+                        $db->createCommand()->update(
+                            'inventory_sales_order_items',
+                            ['is_deleted' => 1, 'updated_at' => date('Y-m-d H:i:s')],
+                            ['sales_order_id' => $deleteId]
+                        )->execute();
+
+                        // Reverse stock effect (using existing function)
+                        $this->reverseSalesOrderStockEffect($deleteId, $userId);
+
+                        // Soft delete the sales order
+                        $db->createCommand()->update(
+                            'inventory_sales_orders',
+                            [
+                                'is_deleted' => 1,
+                                'updated_at' => date('Y-m-d H:i:s'),
+                                'updated_by' => $userId
+                            ],
+                            ['id' => $deleteId]
+                        )->execute();
+
+                        $transaction->commit();
+
+                        // Log deletion
+                        \app\controllers\ActivitylogsController::logActivity(
+                            'Deleted sales order: ' . ($so['order_number'] ?? 'SO#' . $deleteId) . ' (with all related records)',
+                            'delete',
+                            $deleteId,
+                            'Sales',
+                            [
+                                'type' => 'sales_order_delete_cascade',
+                                'invoice_count' => count($invoiceIds),
+                                'stock_reversed' => true
+                            ]
+                        );
+
+                        return [
+                            'success' => true,
+                            'message' => 'Sales Order and all related records (Invoices, Payments) deleted successfully. Stock has been reversed.'
+                        ];
+                    } catch (\Exception $e) {
+                        $transaction->rollBack();
+                        return [
+                            'success' => false,
+                            'message' => 'Error deleting sales order: ' . $e->getMessage()
+                        ];
+                    }
                 }
 
                 return [
@@ -1780,14 +1890,47 @@ class SaleController extends Controller
                 }
 
                 // Validate quantities against available stock
-                foreach ($items as $item) {
-                    $stock = $db->createCommand("
-                        SELECT available_quantity FROM inventory_stock
-                        WHERE product_id=:product_id AND warehouse_id=:warehouse_id
-                    ")->bindValues([':product_id' => $item['product_id'], ':warehouse_id' => $warehouseId])->queryScalar();
+                if ($isEdit) {
+                    // When editing, get old quantities to calculate the difference
+                    $oldItems = $db->createCommand("
+                        SELECT product_id, quantity FROM inventory_sales_order_items
+                        WHERE sales_order_id=:id AND is_deleted=0
+                    ")->bindValue(':id', $id)->queryAll();
 
-                    if ($item['quantity'] > $stock) {
-                        return ['success' => false, 'message' => "Insufficient stock for product ID {$item['product_id']}. Available: {$stock}"];
+                    $oldQuantities = [];
+                    foreach ($oldItems as $oldItem) {
+                        $oldQuantities[$oldItem['product_id']] = $oldItem['quantity'];
+                    }
+
+                    // Validate only the increase in quantity
+                    foreach ($items as $item) {
+                        $oldQty = $oldQuantities[$item['product_id']] ?? 0;
+                        $qtyIncrease = $item['quantity'] - $oldQty;
+
+                        // Only validate if quantity is being increased
+                        if ($qtyIncrease > 0) {
+                            $stock = $db->createCommand("
+                                SELECT available_quantity FROM inventory_stock
+                                WHERE product_id=:product_id AND warehouse_id=:warehouse_id
+                            ")->bindValues([':product_id' => $item['product_id'], ':warehouse_id' => $warehouseId])->queryScalar();
+
+                            if ($qtyIncrease > $stock) {
+                                return ['success' => false, 'message' => "Insufficient stock for product ID {$item['product_id']}. Need: {$qtyIncrease}, Available: {$stock}"];
+                            }
+                        }
+                        // If quantity is same or decreased, no stock check needed
+                    }
+                } else {
+                    // When creating new order, validate full quantity
+                    foreach ($items as $item) {
+                        $stock = $db->createCommand("
+                            SELECT available_quantity FROM inventory_stock
+                            WHERE product_id=:product_id AND warehouse_id=:warehouse_id
+                        ")->bindValues([':product_id' => $item['product_id'], ':warehouse_id' => $warehouseId])->queryScalar();
+
+                        if ($item['quantity'] > $stock) {
+                            return ['success' => false, 'message' => "Insufficient stock for product ID {$item['product_id']}. Available: {$stock}"];
+                        }
                     }
                 }
 
@@ -1799,6 +1942,17 @@ class SaleController extends Controller
 
                     if ($order && $order['order_status'] === 'Completed') {
                         return ['success' => false, 'message' => 'Cannot update a Completed sales order. Please create a new order or contact admin.'];
+                    }
+
+                    // Get old items to restore stock
+                    $oldItems = $db->createCommand("
+                        SELECT product_id, quantity FROM inventory_sales_order_items
+                        WHERE sales_order_id=:id AND is_deleted=0
+                    ")->bindValue(':id', $id)->queryAll();
+
+                    // First, restore old quantities back to stock
+                    foreach ($oldItems as $oldItem) {
+                        $this->restoreStockQuantity($db, $oldItem['product_id'], $warehouseId, $oldItem['quantity']);
                     }
 
                     // Update existing order
@@ -1839,7 +1993,7 @@ class SaleController extends Controller
                             'is_deleted' => 0
                         ])->execute();
 
-                        // Update remaining quantity in stock
+                        // Deduct new quantity from stock
                         $this->updateRemainingQuantity($db, $item['product_id'], $warehouseId, $item['quantity']);
                     }
 
@@ -2129,6 +2283,26 @@ class SaleController extends Controller
         if ($stock) {
             // Update remaining quantity by subtracting the order quantity
             $newAvailableQty = max(0, (float)$stock['available_quantity'] - (float)$quantity);
+            $db->createCommand()->update(
+                'inventory_stock',
+                ['available_quantity' => $newAvailableQty, 'updated_at' => date('Y-m-d H:i:s')],
+                ['id' => $stock['id']]
+            )->execute();
+        }
+    }
+
+    private function restoreStockQuantity($db, $productId, $warehouseId, $quantity)
+    {
+        // Get current stock for the product in the warehouse
+        $stock = $db->createCommand("
+            SELECT id, available_quantity FROM inventory_stock
+            WHERE product_id = :product_id AND warehouse_id = :warehouse_id
+            LIMIT 1
+        ")->bindValues([':product_id' => $productId, ':warehouse_id' => $warehouseId])->queryOne();
+
+        if ($stock) {
+            // Restore quantity by adding back to available_quantity
+            $newAvailableQty = (float)$stock['available_quantity'] + (float)$quantity;
             $db->createCommand()->update(
                 'inventory_stock',
                 ['available_quantity' => $newAvailableQty, 'updated_at' => date('Y-m-d H:i:s')],

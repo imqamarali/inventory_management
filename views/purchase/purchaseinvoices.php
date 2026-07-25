@@ -161,10 +161,6 @@ $suppliersList = $suppliers ?? [];
                                     <button onclick="printPurchaseInvoice(<?= $item['id'] ?>)" title="Print PDF">
                                         <i class="fa fa-print"></i>
                                     </button>
-                                    |
-                                    <button onclick="deleteInvoice(<?= $item['id'] ?>)" title="Delete">
-                                        <i class="fa fa-trash"></i>
-                                    </button>
                                 </td>
                             </tr>
                         <?php } ?>
@@ -313,10 +309,6 @@ function invoiceStatusBadgeServer($status)
                     |
                     <button onclick="printPurchaseInvoice(${item.id})" title="Print PDF">
                         <i class="fa fa-print" style="color: #27ae60;"></i>
-                    </button>
-                    |
-                    <button onclick="deleteInvoice(${item.id})" title="Delete">
-                        <i class="fa fa-trash"></i>
                     </button>
                 </td>
             </tr>`;
@@ -614,59 +606,4 @@ function invoiceStatusBadgeServer($status)
         window.open(url, '_blank');
     }
 
-    function deleteInvoice(id) {
-
-        Swal.fire({
-            title: 'Are you sure?',
-            text: 'Purchase Invoice will be deleted.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Yes, Delete'
-        }).then(function(result) {
-
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            const data = new FormData();
-
-            data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
-            data.append('flag', 'delete');
-            data.append('id', id);
-
-            fetch('index.php?r=purchase/purchaseinvoices', {
-                    method: 'POST',
-                    body: data
-                })
-                .then(res => res.json())
-                .then(res => {
-
-                    if (res.success) {
-
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            text: res.message,
-                            timer: 1500,
-                            showConfirmButton: false
-                        }).then(() => {
-                            $('.ajax-module.active').trigger('click');
-                        });
-
-                    } else {
-
-                        Swal.fire('Error', res.message, 'error');
-
-                    }
-
-                })
-                .catch(() => {
-                    Swal.fire('Error', 'Unable to delete record.', 'error');
-                });
-
-        });
-
-    }
 </script>

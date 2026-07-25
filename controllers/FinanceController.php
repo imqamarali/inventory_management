@@ -366,8 +366,8 @@ class FinanceController extends Controller
 
             // Paid sales amount
             $stats['paid_sales_amount'] = (float)$db->createCommand("
-                SELECT IFNULL(SUM(grand_total),0) FROM inventory_sales_invoices
-                WHERE is_deleted=0 AND status='Paid'
+                SELECT IFNULL(SUM(paid_amount),0) FROM inventory_sales_invoices
+                WHERE is_deleted=0
             ")->queryScalar();
 
             // Unpaid sales amount
@@ -446,8 +446,8 @@ class FinanceController extends Controller
 
             // Paid purchase amount
             $stats['paid_purchase_amount'] = (float)$db->createCommand("
-                SELECT IFNULL(SUM(grand_total),0) FROM inventory_purchase_invoices
-                WHERE is_deleted=0 AND status='Paid'
+                SELECT IFNULL(SUM(paid_amount),0) FROM inventory_purchase_invoices
+                WHERE is_deleted=0
             ")->queryScalar();
 
             // Unpaid purchase amount (balance amount)
