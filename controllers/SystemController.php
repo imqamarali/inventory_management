@@ -68,10 +68,6 @@ class SystemController extends Controller
             return ['success' => false, 'message' => 'Database name not found'];
         }
 
-        // Windows
-        $mysqldumpPath = 'mysqldump';
-        $mysqlPath = 'mysql';
-
         // Get DB credentials
         $user = $db->username;
         $password = $db->password;
@@ -80,8 +76,32 @@ class SystemController extends Controller
         preg_match('/host=([^;]+)/', $dsn, $hostMatches);
         $host = $hostMatches[1] ?? 'localhost';
 
-        // Build command
-        $command = "mysqldump --user=$user --password=$password --host=$host $dbname > \"$backupFile\"";
+        // Find mysqldump path (try multiple locations for WAMP)
+        $mysqldumpPaths = [
+            'C:\wamp64\bin\mysql\mysql8.4.7\bin\mysqldump.exe',
+            'C:\wamp64\bin\mariadb\mariadb11.4.9\bin\mysqldump.exe',
+            'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe',
+            'C:\Program Files (x86)\MySQL\MySQL Server 8.0\bin\mysqldump.exe',
+            'mysqldump'
+        ];
+
+        $mysqldumpPath = null;
+        foreach ($mysqldumpPaths as $path) {
+            if (file_exists($path) || $path === 'mysqldump') {
+                $mysqldumpPath = $path;
+                break;
+            }
+        }
+
+        if (!$mysqldumpPath) {
+            return [
+                'success' => false,
+                'message' => 'mysqldump not found. Please ensure MySQL is installed or add it to system PATH.'
+            ];
+        }
+
+        // Build command with full path
+        $command = "\"$mysqldumpPath\" --user=$user --password=$password --host=$host $dbname > \"$backupFile\"";
 
         // Execute backup
         $output = [];
@@ -173,7 +193,31 @@ class SystemController extends Controller
         preg_match('/host=([^;]+)/', $dsn, $hostMatches);
         $host = $hostMatches[1] ?? 'localhost';
 
-        $command = "mysql --user=$user --password=$password --host=$host $dbname < \"$filePath\"";
+        // Find mysql path (try multiple locations for WAMP)
+        $mysqlPaths = [
+            'C:\wamp64\bin\mysql\mysql8.4.7\bin\mysql.exe',
+            'C:\wamp64\bin\mariadb\mariadb11.4.9\bin\mysql.exe',
+            'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe',
+            'C:\Program Files (x86)\MySQL\MySQL Server 8.0\bin\mysql.exe',
+            'mysql'
+        ];
+
+        $mysqlPath = null;
+        foreach ($mysqlPaths as $path) {
+            if (file_exists($path) || $path === 'mysql') {
+                $mysqlPath = $path;
+                break;
+            }
+        }
+
+        if (!$mysqlPath) {
+            return [
+                'success' => false,
+                'message' => 'mysql not found. Please ensure MySQL is installed or add it to system PATH.'
+            ];
+        }
+
+        $command = "\"$mysqlPath\" --user=$user --password=$password --host=$host $dbname < \"$filePath\"";
 
         $output = [];
         $returnVar = 0;
