@@ -52,7 +52,7 @@ if (!isset($warehouses)) $warehouses = [];
                 <li style="float:right;">
                     <div class="nav-search" id="nav-search">
                         <div class="exam-quick-actions-group">
-                            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="showSaleOrderModal()">
+                            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="showOrderModal()">
                                 <i class="ace-icon fa fa-plus"></i>
                                 New Sale Order
                             </a>
@@ -144,7 +144,7 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td><?= statusBadgeServer($item['order_status']) ?></td>
                                 <td>
                                     <span id="invoice-status-<?= $item['id'] ?>"><?= invoiceStatusBadgeServer($item['invoice_status'] ?? 'N/A') ?></span>
-                                    <button class="btn btn-xs btn-info" onclick="syncInvoiceData(<?= $item['id'] ?>, this)" title="Sync from Invoice" style="margin-left: 5px; padding: 2px 6px;">
+                                    <button onclick="syncInvoiceData(<?= $item['id'] ?>, this)" title="Sync from Invoice" style="margin-left: 5px; padding: 2px 6px;">
                                         <i class="fa fa-refresh"></i>
                                     </button>
                                 </td>
@@ -322,6 +322,19 @@ function invoiceStatusBadgeServer($status)
         return '<span class="label label-' + cls + '">' + status + '</span>';
     }
 
+    function invoiceStatusBadge(status) {
+        const map = {
+            'Draft': 'default',
+            'Issued': 'info',
+            'Paid': 'success',
+            'Partially Paid': 'warning',
+            'Cancelled': 'danger',
+            'N/A': 'secondary'
+        };
+        const cls = map[status] || 'default';
+        return '<span class="label label-' + cls + '">' + (status || 'N/A') + '</span>';
+    }
+
     function customerName(item) {
         return item.company_name || ((item.first_name || '') + ' ' + (item.last_name || ''));
     }
@@ -348,7 +361,7 @@ function invoiceStatusBadgeServer($status)
                 const grandTotal = parseFloat(item.grand_total).toFixed(2);
                 const paidAmount = parseFloat(item.paid_amount || 0).toFixed(2);
                 const remaining = parseFloat(item.remaining_balance || 0).toFixed(2);
-
+                
                 html += `
             <tr>
                 <td>${index+1}</td>
@@ -357,19 +370,24 @@ function invoiceStatusBadgeServer($status)
                 <td>${item.warehouse_name??''}</td>
                 <td>${item.order_date??''}</td>
                 <td>${statusBadge(item.order_status)}</td>
-                <td>${paymentBadge(item.payment_status)}</td>
-                <td class="text-right">${subtotal}</td>
-                <td class="text-right">${discount}</td>
-                <td class="text-right">${tax}</td>
-                <td class="text-right"><strong>${grandTotal}</strong></td>
-                <td class="text-right">${paidAmount}</td>
-                <td class="text-right">${remaining}</td>
+                <td>
+                    <span id="invoice-status-${item.id}">${invoiceStatusBadge(item.payment_status ?? 'N/A')}</span>
+                    <button onclick="syncInvoiceData(${item.id}, this)" title="Sync from Invoice" style="margin-left: 5px; padding: 2px 6px;">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </td>
+                <td class="text-right"><span id="subtotal-${item.id}">${formatCurrency(subtotal)}</span></td>
+                <td class="text-right"><span id="discount-${item.id}">${formatCurrency(discount)}</span></td>
+                <td class="text-right"><span id="tax-${item.id}">${formatCurrency(tax)}</span></td>
+                <td class="text-right"><strong><span id="grand-total-${item.id}">${formatCurrency(grandTotal)}</span></strong></td>
+                <td class="text-right"><span id="paid-amount-${item.id}">${formatCurrency(paidAmount)}</span></td>
+                <td class="text-right"><span id="remaining-${item.id}">${formatCurrency(remaining)}</span></td>
                 <td>
                     <button onclick="showStatusOptions(${item.id}, '${item.order_status}')" title="Update Status">
                         <i class="fa fa-exchange"></i>
                     </button>
                     |
-                    <button onclick='showSaleOrderModal(${JSON.stringify(item)})' title="Edit">
+                    <button onclick='showOrderModal(${JSON.stringify(item)})' title="Edit">
                         <i class="fa fa-pencil"></i>
                     </button>
                     |
@@ -560,7 +578,7 @@ function invoiceStatusBadgeServer($status)
         updateOrderStatusByRemaining(remaining, grand);
     }
 
-    function showSaleOrderModal(orderData = null) {
+    function showOrderModal(orderData = null) {
         const isEdit = orderData !== null && orderData.id;
         const id = isEdit ? orderData.id : '';
         const customerId = isEdit ? orderData.customer_id : '';
@@ -1163,7 +1181,7 @@ function invoiceStatusBadgeServer($status)
             }
 
             // Validate quantity doesn't exceed available
-            if (qty > availableQty) {
+            if (qty > availableQty && !isEdit) {
                 invalidItems.push(`Row ${index + 1}: Quantity (${qty}) exceeds available (${availableQty})`);
                 return;
             }
