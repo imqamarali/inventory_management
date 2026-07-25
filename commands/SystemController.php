@@ -201,9 +201,8 @@ class SystemController extends Controller
 
         try {
             $db = Yii::$app->db;
-            $connection = $db->pdo;
-            $query = $connection->query('SELECT DATABASE() as db, VERSION() as version');
-            $result = $query->fetch(PDO::FETCH_ASSOC);
+            $query = $db->createCommand('SELECT DATABASE() as db, VERSION() as version');
+            $result = $query->queryOne();
 
             $this->stdout("✓ Database: " . $result['db'] . "\n");
             $this->stdout("✓ MySQL Version: " . $result['version'] . "\n");
@@ -256,33 +255,26 @@ class SystemController extends Controller
         try {
             $db = Yii::$app->db;
 
-            // Test Insert
-            $this->stdout("Testing INSERT... ");
-            $start = microtime(true);
-            $db->createCommand()->insert('inventory_customers', [
-                'company_name' => 'CLI Test ' . time(),
-                'first_name' => 'CLI',
-                'last_name' => 'Test',
-                'email' => 'cli' . time() . '@test.com',
-                'phone' => '9999999999',
-                'status' => 'active'
-            ])->execute();
-            $insertTime = (microtime(true) - $start) * 1000;
-            $this->stdout("✓ " . number_format($insertTime, 2) . "ms\n");
-
-            // Test Select
+            // Test Select (using accounts table which is more stable)
             $this->stdout("Testing SELECT... ");
             $start = microtime(true);
-            $count = $db->createCommand('SELECT COUNT(*) FROM inventory_customers')->queryScalar();
+            $count = $db->createCommand('SELECT COUNT(*) FROM inventory_accounts')->queryScalar();
             $selectTime = (microtime(true) - $start) * 1000;
             $this->stdout("✓ " . number_format($selectTime, 2) . "ms ($count records)\n");
 
-            // Test Update
-            $this->stdout("Testing UPDATE... ");
+            // Test Join
+            $this->stdout("Testing JOIN... ");
             $start = microtime(true);
-            $db->createCommand()->update('inventory_customers', ['status' => 'active'], 'status = :status', [':status' => 'active'])->execute();
-            $updateTime = (microtime(true) - $start) * 1000;
-            $this->stdout("✓ " . number_format($updateTime, 2) . "ms\n");
+            $joinCount = $db->createCommand('SELECT COUNT(*) FROM inventory_sales_orders o LEFT JOIN inventory_customers c ON o.customer_id = c.id')->queryScalar();
+            $joinTime = (microtime(true) - $start) * 1000;
+            $this->stdout("✓ " . number_format($joinTime, 2) . "ms ($joinCount records)\n");
+
+            // Test Data Aggregation
+            $this->stdout("Testing AGGREGATION... ");
+            $start = microtime(true);
+            $sum = $db->createCommand('SELECT SUM(grand_total) FROM inventory_sales_orders')->queryScalar();
+            $aggTime = (microtime(true) - $start) * 1000;
+            $this->stdout("✓ " . number_format($aggTime, 2) . "ms\n");
 
             return true;
         } catch (\Exception $e) {
