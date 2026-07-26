@@ -310,7 +310,7 @@ class InventoryController extends Controller
             try {
                 $result = $db->createCommand(
                     "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
-                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Paid', 'Unpaid', 'Partially Paid')"
+                     WHERE DATE(created_at) = CURDATE() AND is_deleted = 0 AND status IN ('Paid', 'Pending', 'Partial')"
                 )->queryScalar();
                 $stats['today_purchases'] = (float)$result;
             } catch (\Exception $e) {
@@ -348,7 +348,7 @@ class InventoryController extends Controller
             try {
                 $result = $db->createCommand(
                     "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
-                     WHERE is_deleted = 0 AND status IN ('Paid', 'Unpaid', 'Partially Paid')"
+                     WHERE is_deleted = 0 AND status IN ('Paid', 'Pending', 'Partial')"
                 )->queryScalar();
                 $stats['total_purchases_value'] = (float)$result;
             } catch (\Exception $e) {
@@ -388,7 +388,7 @@ class InventoryController extends Controller
             try {
                 $stats['total_liabilities'] = (float)$db->createCommand(
                     "SELECT IFNULL(SUM(balance_amount), 0) FROM inventory_purchase_invoices
-                     WHERE is_deleted = 0 AND status IN ('Unpaid', 'Partially Paid')"
+                     WHERE is_deleted = 0 AND status IN ('Pending', 'Partial')"
                 )->queryScalar();
             } catch (\Exception $e) {
                 \Yii::warning("Total liabilities calculation failed: " . $e->getMessage());
@@ -449,6 +449,85 @@ class InventoryController extends Controller
             return [
                 'success' => false,
                 'message' => 'Failed to load dashboard data: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    public function actionDashboardModals()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        try {
+            // Get categories
+            $categories = Yii::$app->db->createCommand(
+                "SELECT id, category_name FROM inventory_categories WHERE is_deleted=0 ORDER BY category_name"
+            )->queryAll();
+
+            // Get brands
+            $brands = Yii::$app->db->createCommand(
+                "SELECT id, brand_name FROM inventory_brands WHERE is_deleted=0 ORDER BY brand_name"
+            )->queryAll();
+
+            // Get models from inventory_vehicle_models
+            $models = Yii::$app->db->createCommand(
+                "SELECT m.id, CONCAT(m.model_name,',',m.model_code,',',m.model_year,' | ', COALESCE(mk.make_name,'')) as model_name
+                 FROM inventory_vehicle_models m
+                 LEFT JOIN inventory_vehicle_makes mk ON m.make_id = mk.id
+                 WHERE m.is_deleted=0
+                 ORDER BY m.model_name ASC"
+            )->queryAll();
+
+            // Get units
+            $units = Yii::$app->db->createCommand(
+                "SELECT id, unit_name FROM inventory_units WHERE is_deleted=0 ORDER BY unit_name"
+            )->queryAll();
+
+            // Get products with purchase_price and selling_price (quantity comes from inventory_stock table)
+            $products = Yii::$app->db->createCommand(
+                "SELECT id, product_name, sku, purchase_price, selling_price FROM inventory_products WHERE is_deleted=0 ORDER BY product_name LIMIT 200"
+            )->queryAll();
+
+            // Get warehouses
+            $warehouses = Yii::$app->db->createCommand(
+                "SELECT id, warehouse_name FROM inventory_warehouses WHERE is_deleted=0 ORDER BY warehouse_name"
+            )->queryAll();
+
+            // Get suppliers - using company_name field
+            $suppliers = Yii::$app->db->createCommand(
+                "SELECT id, company_name as supplier_name FROM inventory_suppliers WHERE is_deleted=0 ORDER BY company_name LIMIT 200"
+            )->queryAll();
+
+            // Get customers
+            $customers = Yii::$app->db->createCommand(
+                "SELECT id, COALESCE(company_name, CONCAT(first_name,' ',last_name)) as customer_name FROM inventory_customers WHERE is_deleted=0 ORDER BY customer_name LIMIT 200"
+            )->queryAll();
+
+            \Yii::error("Dashboard modals query results - suppliers: " . count($suppliers) . ", warehouses: " . count($warehouses) . ", products: " . count($products) . ", categories: " . count($categories));
+
+            return [
+                'success' => true,
+                'categories' => $categories ?: [],
+                'brands' => $brands ?: [],
+                'models' => $models ?: [],
+                'units' => $units ?: [],
+                'products' => $products ?: [],
+                'warehouses' => $warehouses ?: [],
+                'suppliers' => $suppliers ?: [],
+                'customers' => $customers ?: []
+            ];
+        } catch (\Exception $e) {
+            \Yii::error("Dashboard modals data error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to load modal data: ' . $e->getMessage(),
+                'categories' => [],
+                'brands' => [],
+                'models' => [],
+                'units' => [],
+                'products' => [],
+                'warehouses' => [],
+                'suppliers' => [],
+                'customers' => []
             ];
         }
     }

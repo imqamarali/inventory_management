@@ -63,8 +63,8 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
 
         #sidebar .nav-list li.active > a {
             background-color: #f0f0f0 !important;
-            border-bottom: 4px solid <?= $navbar_color ?> !important;
-            font-weight: 600 !important;
+            /* border-bottom: 4px solid <?= $navbar_color ?> !important; */
+            /* font-weight: 600 !important; */
             color: <?= $navbar_color ?> !important;
             position: relative !important;
         }
@@ -85,8 +85,8 @@ $lighter_color = sprintf("#%02x%02x%02x", min(255, $r + 30), min(255, $g + 30), 
         }
 
         #sidebar .nav-list li ul li.active > a {
-            border-bottom: 3px solid <?= $navbar_color ?> !important;
-            font-weight: 600 !important;
+            /* border-bottom: 3px solid <?= $navbar_color ?> !important;
+            font-weight: 600 !important; */
             color: <?= $navbar_color ?> !important;
             position: relative !important;
         }

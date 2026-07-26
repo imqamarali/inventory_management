@@ -48,7 +48,7 @@ if (!isset($roles)) {
                                             $isActive = $item['is_active'] ?? 1;
                                             $statusClass = $isActive ? 'label-success' : 'label-danger';
                                         ?>
-                                            <div class="col-md-4 col-sm-6 user-item">
+                                            <div class="col-md-6 col-sm-6 user-item">
                                                 <div class="class-card">
                                                     <div class="class-header">
                                                         <div style="flex: 1;">

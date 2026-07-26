@@ -152,7 +152,7 @@ class PurchaseController extends Controller
         return $db->getLastInsertID();
     }
 
-    private function createPurchaseInvoice($db, $purchaseOrderId) {
+    private function createPurchaseInvoice($db, $purchaseOrderId, $paid_amount = 0, $payment_status = 'Pending') {
         $po = $db->createCommand("
             SELECT * FROM inventory_purchase_orders WHERE id=:id
         ",[':id' => $purchaseOrderId])->queryOne();
@@ -166,6 +166,20 @@ class PurchaseController extends Controller
 
         $invoice_no = $this->generateInvoiceNumber('PI');
 
+        $paid_amount = (float)$paid_amount;
+        $grand_total = (float)$po['grand_total'];
+        $balance_amount = $grand_total - $paid_amount;
+
+        // Determine invoice status based on paid amount
+        $invoiceStatus = 'Unpaid';
+        if ($paid_amount > 0) {
+            if ($paid_amount >= $grand_total) {
+                $invoiceStatus = 'Paid';
+            } else {
+                $invoiceStatus = 'Partial';
+            }
+        }
+
         $invoiceData = [
             'purchase_order_id' => $purchaseOrderId,
             'supplier_id' => $po['supplier_id'],
@@ -176,10 +190,10 @@ class PurchaseController extends Controller
             'subtotal' => $po['subtotal'],
             'discount_amount' => $po['discount'],
             'tax_amount' => $po['tax'],
-            'grand_total' => $po['grand_total'],
-            'paid_amount' => 0,
-            'balance_amount' => $po['grand_total'],
-            'status' => 'Unpaid',
+            'grand_total' => $grand_total,
+            'paid_amount' => $paid_amount,
+            'balance_amount' => max(0, $balance_amount),
+            'status' => $invoiceStatus,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
             'is_active' => 1,
@@ -215,6 +229,36 @@ class PurchaseController extends Controller
         $this->postPurchaseToGL($purchaseOrderId, $invoice_no, $po['grand_total'], $this->currentUserId());
 
         return $invoiceId;
+    }
+
+    private function createPaymentEntry($db, $invoiceId, $paid_amount, $poNumber) {
+        if ((float)$paid_amount <= 0) {
+            return null;
+        }
+
+        // Get invoice details
+        $invoice = $db->createCommand("
+            SELECT * FROM inventory_purchase_invoices WHERE id = :id
+        ")->bindValue(':id', $invoiceId)->queryOne();
+
+        if (!$invoice) {
+            return null;
+        }
+
+        // Create payment entry in inventory_purchase_invoice_payments
+        $paymentData = [
+            'purchase_invoice_id' => $invoiceId,
+            'paid_amount' => (float)$paid_amount,
+            'payment_date' => date('Y-m-d'),
+            'remarks' => 'Payment from Purchase Order: ' . $poNumber,
+            'created_at' => date('Y-m-d H:i:s'),
+            'created_by' => $this->currentUserId()
+        ];
+
+        $db->createCommand()->insert('inventory_purchase_invoice_payments', $paymentData)->execute();
+        $paymentId = $db->getLastInsertID();
+
+        return $paymentId;
     }
 
     private function updateStockForCompletedPO($db, $purchaseOrderId) {
@@ -811,6 +855,9 @@ class PurchaseController extends Controller
 
                         ];
 
+                        $paid_amount = (float)($post['paid_amount'] ?? 0);
+                        $payment_status = $post['payment_status'] ?? 'Pending';
+
                         if($id>0){
 
                             $db->createCommand()->update(
@@ -874,7 +921,13 @@ class PurchaseController extends Controller
                             // New PO - auto create related documents
                             $poStatus = $post['status'];
                             $goodsReceivingId = $this->createGoodsReceiving($db, $purchaseOrderId, $poStatus);
-                            $invoiceId = $this->createPurchaseInvoice($db, $purchaseOrderId);
+                            $invoiceId = $this->createPurchaseInvoice($db, $purchaseOrderId, $paid_amount, $payment_status);
+
+                            // Create payment entry if paid amount is provided
+                            $poNumber = $header['po_number'] ?? ('PO-' . date('YmdHis') . rand(100, 999));
+                            if ($paid_amount > 0 && $invoiceId) {
+                                $this->createPaymentEntry($db, $invoiceId, $paid_amount, $poNumber);
+                            }
                         }
 
                         // If status is Completed, update stock
@@ -888,11 +941,21 @@ class PurchaseController extends Controller
                             )->execute();
                         }
 
+                        // Fetch the PO, GRN and Invoice numbers for response
+                        $poData = $db->createCommand("
+                            SELECT po.po_number, po.id, gr.grn_number, gr.id as gr_id, pi.invoice_no
+                            FROM inventory_purchase_orders po
+                            LEFT JOIN inventory_goods_receiving gr ON gr.purchase_order_id = po.id
+                            LEFT JOIN inventory_purchase_invoices pi ON pi.purchase_order_id = po.id
+                            WHERE po.id = :po_id AND po.is_deleted = 0
+                            LIMIT 1
+                        ", [':po_id' => $purchaseOrderId])->queryOne();
+
                         $transaction->commit();
 
                         // Log activity
                         $activityType = ($id > 0) ? 'update' : 'create';
-                        $poNumber = ($id > 0) ? $post['po_number'] ?? 'PO#' . $purchaseOrderId : 'PO-' . date('YmdHis') . rand(100, 999);
+                        $poNumber = $poData['po_number'] ?? ('PO-' . date('YmdHis') . rand(100, 999));
 
                         \app\controllers\ActivitylogsController::logActivity(
                             ($id > 0 ? 'Updated' : 'Created') . ' purchase order: ' . $poNumber,
@@ -909,7 +972,13 @@ class PurchaseController extends Controller
 
                         return[
                             'success'=>true,
-                            'message'=>'Purchase Order saved successfully. Goods Receiving and Invoice auto-created!'
+                            'message'=>'Purchase Order saved successfully. Goods Receiving and Invoice auto-created!',
+                            'po_number' => $poData['po_number'] ?? '',
+                            'po_id' => $purchaseOrderId,
+                            'grn_number' => $poData['grn_number'] ?? '',
+                            'gr_id' => $poData['gr_id'] ?? '',
+                            'invoice_no' => $poData['invoice_no'] ?? '',
+                            'reference_no' => $poData['grn_number'] ?? 'GR-' . date('YmdHis')
                         ];
                     }catch(\Exception $e){
                         $transaction->rollBack();
