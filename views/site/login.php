@@ -58,7 +58,7 @@ if(!isset($model))
         border-radius: 4px;
         box-shadow: 0 2px 15px rgba(0, 0, 0, 0.15);
         overflow: hidden;
-        width: 120%;
+        width: 100%;
         border-top: 3px solid #2E7CB5;
     }
 

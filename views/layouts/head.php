@@ -207,6 +207,9 @@
 
 <link rel="stylesheet" href="assets/css/nprogress.css" />
 
+<!-- Responsive Mobile & Tablet Fixes -->
+<link rel="stylesheet" href="css/responsive-fixes.css" />
+
 <script src="assets/js/ace-extra.min.js"></script>
 <!-- <link href="https://demo.smart-school.in/backend/dist/css/nprogress.css" rel="stylesheet"> -->
 
