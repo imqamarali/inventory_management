@@ -549,10 +549,19 @@ class InventoryController extends Controller
 
             $products = Yii::$app->db->createCommand(
                 "SELECT p.id, p.product_name, p.sku, p.selling_price,
-                        COALESCE(s.quantity, 0) as available_quantity
+                        COALESCE(s.quantity, 0) as stock_quantity,
+                        COALESCE(soi.ordered_quantity, 0) as ordered_quantity,
+                        (COALESCE(s.quantity, 0) - COALESCE(soi.ordered_quantity, 0)) as available_quantity
                  FROM inventory_products p
                  LEFT JOIN inventory_stock s ON p.id = s.product_id AND s.warehouse_id = :warehouse_id
-                 WHERE p.is_deleted = 0 AND COALESCE(s.quantity, 0) > 0
+                 LEFT JOIN (
+                    SELECT product_id, SUM(remaining_quantity) as ordered_quantity
+                    FROM inventory_sales_order_items
+                    WHERE is_deleted = 0
+                    GROUP BY product_id
+                 ) soi ON p.id = soi.product_id
+                 WHERE p.is_deleted = 0
+                 AND (COALESCE(s.quantity, 0) - COALESCE(soi.ordered_quantity, 0)) > 0
                  ORDER BY p.product_name ASC",
                 [':warehouse_id' => $warehouseId]
             )->queryAll();
