@@ -1566,8 +1566,45 @@ class SaleController extends Controller
                             }
                         }
 
+                        // Handle Walk-in Customer (when customer_id is empty)
+                        $customerId = $post['customer_id'] ?? null;
+                        $customerName = '';
+
+                        if (empty($customerId)) {
+                            // Create a temporary walk-in customer record
+                            $walkInCustomerData = [
+                                'customer_type' => 'Walk-in',
+                                'first_name' => trim($post['customer_name'] ?? 'Walk-in Customer'),
+                                'last_name' => '',
+                                'email' => $post['customer_email'] ?? null,
+                                'phone' => $post['customer_phone'] ?? null,
+                                'address' => $post['customer_reference'] ?? null,
+                                'customer_code' => 'WALK-IN-' . time(),
+                                'created_by' => $this->currentUserId(),
+                                'is_deleted' => 0,
+                                'created_at' => date('Y-m-d H:i:s')
+                            ];
+
+                            $db->createCommand()->insert(
+                                'inventory_customers',
+                                $walkInCustomerData
+                            )->execute();
+
+                            $customerId = $db->getLastInsertID();
+                            $customerName = $walkInCustomerData['first_name'];
+                        } else {
+                            // Get existing customer name
+                            $customer = $db->createCommand(
+                                "SELECT first_name, last_name, company_name FROM inventory_customers WHERE id = :id"
+                            )->bindValue(':id', $customerId)->queryOne();
+
+                            if ($customer) {
+                                $customerName = $customer['company_name'] ?? ($customer['first_name'] . ' ' . $customer['last_name']);
+                            }
+                        }
+
                         $data = [
-                            'customer_id' => $post['customer_id'],
+                            'customer_id' => $customerId,
                             'warehouse_id' => $post['warehouse_id'],
                             'order_date' => $post['order_date'],
                             'delivery_date' => $post['delivery_date'] ?? null,
@@ -1646,7 +1683,7 @@ class SaleController extends Controller
                                 [
                                     'invoice_no' => $invoiceNumber,
                                     'sales_order_id' => $salesOrderId,
-                                    'customer_id' => $post['customer_id'],
+                                    'customer_id' => $customerId,
                                     'warehouse_id' => $post['warehouse_id'],
                                     'invoice_date' => $post['order_date'],
                                     'due_date' => $post['delivery_date'] ?? null,
@@ -1667,15 +1704,6 @@ class SaleController extends Controller
                         }
 
                         $transaction->commit();
-
-                        // Get customer info for response
-                        $customerInfo = $db->createCommand(
-                            "SELECT c.first_name, c.last_name, c.company_name FROM inventory_customers c WHERE c.id = :id"
-                        )->bindValue(':id', $post['customer_id'])->queryOne();
-
-                        $customerName = $customerInfo ?
-                            ($customerInfo['company_name'] ?? ($customerInfo['first_name'] . ' ' . $customerInfo['last_name']))
-                            : ($post['customer_name'] ?? 'Walk-in Customer');
 
                         return [
                             'success' => true,
