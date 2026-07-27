@@ -1917,18 +1917,16 @@ $this->title = 'Dashboard';
 
         Swal.fire({
             title: isEdit ? 'Edit Sale Order' : 'New Sale Order',
-            width: 'auto',
-            maxWidth: '95%',
+            width: '1100px',
             allowOutsideClick: false,
             allowEscapeKey: false,
-            customClass: { popup: 'swal-wide-popup' },
             didOpen: () => {
-                const popup = document.querySelector('.swal2-popup');
-                if (popup) {
-                    popup.style.width = '96vw';
-                    popup.style.maxWidth = '96vw';
-                    popup.style.maxHeight = '96vh';
-                }
+                // const popup = document.querySelector('.swal2-popup');
+                // if (popup) {
+                //     popup.style.width = '96vw';
+                //     popup.style.maxWidth = '96vw';
+                //     popup.style.maxHeight = '96vh';
+                // }
                 setupSaleOrderModal(isEdit, id);
             },
             html: `<form id="saleOrderForm">
@@ -1941,13 +1939,13 @@ $this->title = 'Dashboard';
                 ${warehouseOptions}
                 </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                 <label>Customer<span style="color:red;">*</span></label>
                 <select id="so_customer" class="form-control">
                 ${customerOptions}
                 </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-3">
                 <label>Order Date</label>
                 <input type="date" id="so_order_date" class="form-control" value="${orderDate}">
                 </div>
@@ -1961,23 +1959,15 @@ $this->title = 'Dashboard';
                 ${statusOptions}
                 </select>
                 </div>
-                </div>
-                <div class="row" style="margin-top:10px;">
                 <div class="col-md-3">
                 <label>Payment Status</label>
                 <select id="so_payment_status" class="form-control" readonly style="background:#f5f5f5;">
                 ${paymentStatusOptions}
                 </select>
                 </div>
-                <div class="col-md-6">
-                <label>Notes</label>
-                <input type="text" id="so_notes" class="form-control" placeholder="Add notes or remarks" value="${notes}">
                 </div>
-                <div class="col-md-2" style="margin-top: 25px;">
-                <button type="button" id="btnAddItem" style="width:100%;padding: 6px;">Add Item</button>
-                </div>
-                </div>
-                <div id="walkinFields" style="display:none; margin-top:15px; padding:15px; background:#f9f9f9; border:1px solid #ddd; border-radius:4px;">
+                
+                <div id="walkinFields" style="margin-top:15px; padding:15px; background:#f9f9f9; border:1px solid #ddd; border-radius:4px;">
                 <div class="row">
                 <div class="col-md-3">
                 <label>Customer Name<span style="color:red;">*</span></label>
@@ -2003,6 +1993,15 @@ $this->title = 'Dashboard';
                 <div class="col-md-3"><strong>Email:</strong> <span id="detailEmail"></span></div>
                 <div class="col-md-3"><strong>Phone:</strong> <span id="detailPhone"></span></div>
                 <div class="col-md-3"><strong>Ref:</strong> <span id="detailRef"></span></div>
+                </div>
+                </div>
+                <div class="row" style="margin-top:10px;">
+                <div class="col-md-6">
+                <label>Notes</label>
+                <input type="text" id="so_notes" class="form-control" placeholder="Add notes or remarks" value="${notes}">
+                </div>
+                <div class="col-md-2" style="margin-top: 25px;">
+                <button type="button" id="btnAddItem" style="width:100%;padding: 6px;">Add Item</button>
                 </div>
                 </div>
                 <table class="table table-bordered table-striped" style="margin-top: 15px;" id="saleItemTable">
@@ -2445,9 +2444,18 @@ $this->title = 'Dashboard';
                     title: 'Success',
                     html: detailsHtml,
                     confirmButtonText: 'Done',
-                    confirmButtonColor: '#87B87F'
-                }).then(() => {
-                    loadDashboard();
+                    confirmButtonColor: '#87B87F',
+                    showDenyButton: res.invoice_id ? true : false,
+                    denyButtonText: res.invoice_id ? '<i class="fa fa-print"></i> Print Invoice' : null,
+                    denyButtonColor: '#3498db'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        loadDashboard();
+                    } else if (result.isDenied && res.invoice_id) {
+                        // Open print page in new tab
+                        window.open('index.php?r=documents/salesinvoice&id=' + res.invoice_id, '_blank');
+                        loadDashboard();
+                    }
                 });
             } else {
                 // Restore button on error

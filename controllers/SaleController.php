@@ -1712,6 +1712,25 @@ class SaleController extends Controller
                                     'is_deleted' => 0
                                 ]
                             )->execute();
+
+                            $invoiceId = $db->getLastInsertID();
+
+                            // Create payment history if paid amount > 0
+                            if ($paidAmount > 0) {
+                                $db->createCommand()->insert(
+                                    'inventory_sale_invoice_payments',
+                                    [
+                                        'sale_invoice_id' => $invoiceId,
+                                        'paid_amount' => $paidAmount,
+                                        'payment_date' => $post['order_date'],
+                                        'remarks' => 'Payment from Sale Order: ' . $orderNumber,
+                                        'created_at' => date('Y-m-d H:i:s'),
+                                        'created_by' => $this->currentUserId()
+                                    ]
+                                )->execute();
+                            }
+                        } else {
+                            $invoiceId = null;
                         }
 
                         $transaction->commit();
@@ -1720,6 +1739,7 @@ class SaleController extends Controller
                             'success' => true,
                             'message' => 'Sales Order saved successfully.',
                             'id' => $salesOrderId,
+                            'invoice_id' => $invoiceId ?? null,
                             'order_number' => $orderNumber,
                             'invoice_number' => $invoiceNumber ?? 'N/A',
                             'order_date' => $data['order_date'],
