@@ -1190,44 +1190,87 @@ $this->title = 'Dashboard';
     function openCustomerModal(customerData = null) {
         const isEdit = customerData !== null;
         const id = isEdit ? (customerData.id || '') : '';
-        const name = isEdit ? (customerData.customer_name || '') : '';
+        const firstName = isEdit ? (customerData.first_name || '') : '';
+        const lastName = isEdit ? (customerData.last_name || '') : '';
+        const companyName = isEdit ? (customerData.company_name || '') : '';
         const email = isEdit ? (customerData.email || '') : '';
         const phone = isEdit ? (customerData.phone || '') : '';
         const address = isEdit ? (customerData.address || '') : '';
+        const remarks = isEdit ? (customerData.remarks || '') : '';
 
         Swal.fire({
             title: isEdit ? 'Update Customer' : 'Add New Customer',
             html: `<form style="text-align:left;">
                 <input type="hidden" id="swal_customer_id" value="${id}">
-                <div class="form-group">
-                    <label>Customer Name <span class="text-danger">*</span></label>
-                    <input type="text" id="swal_customer_name" class="form-control" value="${name}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>First Name <span class="text-danger">*</span></label>
+                            <input type="text" id="swal_customer_first_name" class="form-control" value="${firstName}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Last Name <span class="text-danger">*</span></label>
+                            <input type="text" id="swal_customer_last_name" class="form-control" value="${lastName}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Company Name</label>
+                            <input type="text" id="swal_customer_company_name" class="form-control" value="${companyName}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="swal_customer_email" class="form-control" value="${email}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="text" id="swal_customer_phone" class="form-control" value="${phone}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Address</label>
+                            <input type="text" id="swal_customer_address" class="form-control" value="${address}">
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Email</label>
-                    <input type="email" id="swal_customer_email" class="form-control" value="${email}">
-                </div>
-                <div class="form-group">
-                    <label>Phone</label>
-                    <input type="text" id="swal_customer_phone" class="form-control" value="${phone}">
-                </div>
-                <div class="form-group">
-                    <label>Address</label>
-                    <textarea id="swal_customer_address" class="form-control">${address}</textarea>
+                    <label>Remarks</label>
+                    <textarea id="swal_customer_remarks" class="form-control" rows="3">${remarks}</textarea>
                 </div>
             </form>`,
-            width: '600px',
+            width: '700px',
             allowOutsideClick: false,
             allowEscapeKey: false,
             showCancelButton: true,
             confirmButtonText: '<i class="ace-icon fa fa-save"></i> Save',
             preConfirm: () => {
-                const customerName = document.getElementById('swal_customer_name').value.trim();
-                if (!customerName) {
-                    Swal.showValidationMessage('Customer name is required');
+                const firstName = document.getElementById('swal_customer_first_name').value.trim();
+                const lastName = document.getElementById('swal_customer_last_name').value.trim();
+                if (!firstName || !lastName) {
+                    Swal.showValidationMessage('First Name and Last Name are required');
                     return false;
                 }
-                return { id, customer_name: customerName, email: document.getElementById('swal_customer_email').value, phone: document.getElementById('swal_customer_phone').value, address: document.getElementById('swal_customer_address').value };
+                return {
+                    id,
+                    first_name: firstName,
+                    last_name: lastName,
+                    company_name: document.getElementById('swal_customer_company_name').value.trim(),
+                    email: document.getElementById('swal_customer_email').value.trim(),
+                    phone: document.getElementById('swal_customer_phone').value.trim(),
+                    address: document.getElementById('swal_customer_address').value.trim(),
+                    remarks: document.getElementById('swal_customer_remarks').value.trim()
+                };
             }
         }).then(result => {
             if (result.isConfirmed && result.value) saveCustomerFromDashboard(result.value);
@@ -1239,13 +1282,20 @@ $this->title = 'Dashboard';
         const data = new FormData();
         data.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
         Object.keys(formData).forEach(key => data.append(key, formData[key]));
-        fetch('index.php?r=customers/customerlist', { method: 'POST', body: data })
+        fetch('index.php?r=customers/addcustomer', { method: 'POST', body: data })
         .then(response => response.json())
-        .then(data => {
-            Swal.fire(data.success ? {icon: 'success', title: 'Success!', text: data.message, timer: 1500, showConfirmButton: false}
-                      : {icon: 'error', title: 'Error', text: data.message});
+        .then(response => {
+            if (response.success) {
+                Swal.fire({icon: 'success', title: 'Success!', text: response.message, timer: 1500, showConfirmButton: false});
+                setTimeout(() => loadDashboard(), 1500);
+            } else {
+                Swal.fire({icon: 'error', title: 'Error', text: response.message});
+            }
         })
-        .catch(() => Swal.fire('Error', 'An error occurred', 'error'));
+        .catch(error => {
+            console.error('Error:', error);
+            Swal.fire('Error', 'An error occurred while saving customer', 'error');
+        });
     }
 
     // ===== PURCHASE ORDER MODAL - EXACT COPY FROM purchaseorders.php =====
