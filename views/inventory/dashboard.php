@@ -2095,8 +2095,8 @@ $this->title = 'Dashboard';
                 }
             });
 
-            // Customer name/email search for existing customers
-            $(document).off('input', '#so_customer_name, #so_customer_email').on('input', '#so_customer_name, #so_customer_email', function() {
+            // Customer name/email search for existing customers (on blur)
+            $(document).off('blur', '#so_customer_name, #so_customer_email').on('blur', '#so_customer_name, #so_customer_email', function() {
                 const name = $('#so_customer_name').val().trim();
                 const email = $('#so_customer_email').val().trim();
 
@@ -2112,6 +2112,9 @@ $this->title = 'Dashboard';
                         if (data.success && data.customer) {
                             // Customer found - auto-select and show message
                             $('#so_customer').val(data.customer.id).trigger('chosen:updated');
+
+                            // Remove old message if exists
+                            $('#customerExistsMessage').remove();
 
                             // Show existing customer message
                             let messageHtml = '<div id="customerExistsMessage" style="padding:10px; background:#e8f5e9; border:1px solid #4caf50; border-radius:4px; color:#2e7d32; margin-top:10px; display:flex; align-items:center; gap:8px;"><i class="fa fa-check-circle" style="font-size:18px;"></i><span><strong>✓ Customer already exists!</strong> Selected from database.</span></div>';
