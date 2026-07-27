@@ -2375,7 +2375,13 @@ $this->title = 'Dashboard';
     }
 
     function saveSaleOrder(formData) {
-        Swal.fire({ title: 'Saving...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+        // Show loading indicator on button
+        const confirmBtn = document.querySelector('.swal2-confirm');
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
+        }
+
         const fd = new FormData();
         fd.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
         Object.keys(formData).forEach(key => fd.append(key, formData[key]));
@@ -2445,9 +2451,23 @@ $this->title = 'Dashboard';
                     loadDashboard();
                 });
             } else {
+                // Restore button on error
+                const confirmBtn = document.querySelector('.swal2-confirm');
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = 'Save Order';
+                }
                 Swal.fire({icon: 'error', title: 'Error', text: res.message || 'Unable to save order'});
             }
         })
-        .catch(() => Swal.fire({icon: 'error', title: 'Error', text: 'Unable to communicate with server'}));
+        .catch(() => {
+            // Restore button on error
+            const confirmBtn = document.querySelector('.swal2-confirm');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = 'Save Order';
+            }
+            Swal.fire({icon: 'error', title: 'Error', text: 'Unable to communicate with server'});
+        });
     }
 </script>
