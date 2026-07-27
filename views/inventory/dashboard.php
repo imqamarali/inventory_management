@@ -2296,9 +2296,20 @@ $this->title = 'Dashboard';
     }
 
     function addSaleOrderRowToTable(productOptions, quantity, unitPrice, discountAmount, taxAmount, lineTotal, productId) {
+        // Initialize with 0, will be updated when product is selected
+        let initialAvailableQty = '0';
+
+        // If productId is provided, find its available quantity
+        if (productId) {
+            const product = window.saleOrderViewData.products.find(p => p.id == productId);
+            if (product) {
+                initialAvailableQty = parseFloat(product.available_quantity || 0).toFixed(2);
+            }
+        }
+
         $('#saleItemTable tbody').append(`<tr data-original-qty="${parseFloat(quantity).toFixed(2)}" data-product-id="${productId}">
             <td><select class="form-control item-product chzn-select" style="width:100%;" data-product-id="${productId}">${productOptions}</select></td>
-            <td><span class="available-qty">0</span></td>
+            <td><span class="available-qty">${initialAvailableQty}</span></td>
             <td><input type="number" class="form-control item-qty" value="${parseFloat(quantity).toFixed(2)}" min="1" step="0.01" max="999999"></td>
             <td><input type="number" class="form-control item-rate" value="${parseFloat(unitPrice).toFixed(2)}" step="0.01"></td>
             <td><input type="number" class="form-control item-discount" value="${parseFloat(discountAmount).toFixed(2)}" step="0.01"></td>
@@ -2314,7 +2325,7 @@ $this->title = 'Dashboard';
             newSelect.chosen({width: '100%', search_contains: true});
         }
         if (productId) {
-            newSelect.val(productId).trigger('chosen:updated');
+            newSelect.val(productId).trigger('chosen:updated').trigger('change');
         }
     }
 
