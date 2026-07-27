@@ -1546,6 +1546,10 @@ class SaleController extends Controller
                     try {
 
                         $id = (int)($post['id'] ?? 0);
+                        $items = [];
+                        if (!empty($post['items'])) {
+                            $items = json_decode($post['items'], true) ?? [];
+                        }
 
                         if ($id > 0) {
                             // Check if order is confirmed - prevent updates
@@ -1569,15 +1573,16 @@ class SaleController extends Controller
                             'delivery_date' => $post['delivery_date'] ?? null,
                             'order_status' => $post['order_status'],
                             'payment_status' => $post['payment_status'],
-                            'subtotal' => $post['subtotal'],
-                            'discount' => $post['discount'] ?? 0,
-                            'tax' => $post['tax'] ?? 0,
-                            'shipping' => $post['shipping'] ?? 0,
-                            'grand_total' => $post['grand_total'],
+                            'subtotal' => (float)($post['subtotal'] ?? 0),
+                            'discount' => (float)($post['discount'] ?? 0),
+                            'tax' => (float)($post['tax'] ?? 0),
+                            'shipping' => (float)($post['shipping'] ?? 0),
+                            'grand_total' => (float)($post['grand_total'] ?? 0),
                             'notes' => $post['notes'] ?? null,
                             'updated_at' => date('Y-m-d H:i:s')
                         ];
 
+                        $orderNumber = null;
                         if ($id > 0) {
 
                             $db->createCommand()->update(
@@ -1587,6 +1592,10 @@ class SaleController extends Controller
                             )->execute();
 
                             $salesOrderId = $id;
+                            // Get existing order number
+                            $existing = $db->createCommand("SELECT order_number FROM inventory_sales_orders WHERE id = :id")
+                                ->bindValue(':id', $id)->queryOne();
+                            $orderNumber = $existing['order_number'] ?? '';
                         } else {
 
                             $data['order_number'] = $this->generateDocNo('SO');
@@ -1600,14 +1609,83 @@ class SaleController extends Controller
                             )->execute();
 
                             $salesOrderId = $db->getLastInsertID();
+                            $orderNumber = $data['order_number'];
+                        }
+
+                        // Save order items if provided (from dashboard modal)
+                        if (!empty($items)) {
+                            foreach ($items as $item) {
+                                $productId = $item['product_id'] ?? null;
+                                if ($productId) {
+                                    $db->createCommand()->insert(
+                                        'inventory_sales_order_items',
+                                        [
+                                            'sales_order_id' => $salesOrderId,
+                                            'product_id' => $productId,
+                                            'quantity' => (float)($item['quantity'] ?? 0),
+                                            'unit_price' => (float)($item['unit_price'] ?? 0),
+                                            'discount_amount' => (float)($item['discount_amount'] ?? 0),
+                                            'tax_amount' => (float)($item['tax_amount'] ?? 0),
+                                            'line_total' => (float)($item['line_total'] ?? 0),
+                                            'created_at' => date('Y-m-d H:i:s'),
+                                            'is_deleted' => 0
+                                        ]
+                                    )->execute();
+                                }
+                            }
+
+                            // Create sales invoice automatically
+                            $invoiceNumber = 'SINV-' . date('Y') . '-' . str_pad($db->createCommand("SELECT COUNT(*) + 1 FROM inventory_sales_invoices")->queryScalar(), 5, '0', STR_PAD_LEFT);
+
+                            $db->createCommand()->insert(
+                                'inventory_sales_invoices',
+                                [
+                                    'invoice_no' => $invoiceNumber,
+                                    'sales_order_id' => $salesOrderId,
+                                    'customer_id' => $post['customer_id'],
+                                    'warehouse_id' => $post['warehouse_id'],
+                                    'invoice_date' => $post['order_date'],
+                                    'due_date' => $post['delivery_date'] ?? null,
+                                    'subtotal' => (float)($post['subtotal'] ?? 0),
+                                    'discount' => (float)($post['discount'] ?? 0),
+                                    'tax' => (float)($post['tax'] ?? 0),
+                                    'shipping' => (float)($post['shipping'] ?? 0),
+                                    'grand_total' => (float)($post['grand_total'] ?? 0),
+                                    'paid_amount' => 0,
+                                    'remaining_balance' => (float)($post['grand_total'] ?? 0),
+                                    'status' => 'Draft',
+                                    'notes' => $post['notes'] ?? null,
+                                    'created_at' => date('Y-m-d H:i:s'),
+                                    'created_by' => $this->currentUserId(),
+                                    'is_deleted' => 0
+                                ]
+                            )->execute();
                         }
 
                         $transaction->commit();
 
+                        // Get customer info for response
+                        $customerInfo = $db->createCommand(
+                            "SELECT c.first_name, c.last_name, c.company_name FROM inventory_customers c WHERE c.id = :id"
+                        )->bindValue(':id', $post['customer_id'])->queryOne();
+
+                        $customerName = $customerInfo ?
+                            ($customerInfo['company_name'] ?? ($customerInfo['first_name'] . ' ' . $customerInfo['last_name']))
+                            : ($post['customer_name'] ?? 'Walk-in Customer');
+
                         return [
                             'success' => true,
                             'message' => 'Sales Order saved successfully.',
-                            'id' => $salesOrderId
+                            'id' => $salesOrderId,
+                            'order_number' => $orderNumber,
+                            'invoice_number' => $invoiceNumber ?? 'N/A',
+                            'order_date' => $data['order_date'],
+                            'customer_name' => $customerName,
+                            'items_count' => count($items),
+                            'subtotal' => (float)($post['subtotal'] ?? 0),
+                            'tax' => (float)($post['tax'] ?? 0),
+                            'grand_total' => (float)($post['grand_total'] ?? 0),
+                            'order_status' => $data['order_status']
                         ];
                     } catch (\Exception $e) {
 

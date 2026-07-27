@@ -532,6 +532,47 @@ class InventoryController extends Controller
         }
     }
 
+    public function actionGetAvailableProducts()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        try {
+            $warehouseId = Yii::$app->request->post('warehouse_id');
+
+            if (!$warehouseId) {
+                return [
+                    'success' => false,
+                    'message' => 'Warehouse ID is required',
+                    'products' => []
+                ];
+            }
+
+            $products = Yii::$app->db->createCommand(
+                "SELECT p.id, p.product_name, p.sku, p.selling_price,
+                        COALESCE(s.quantity, 0) as available_quantity
+                 FROM inventory_products p
+                 LEFT JOIN inventory_stock s ON p.id = s.product_id AND s.warehouse_id = :warehouse_id
+                 WHERE p.is_deleted = 0 AND COALESCE(s.quantity, 0) > 0
+                 ORDER BY p.product_name ASC",
+                [':warehouse_id' => $warehouseId]
+            )->queryAll();
+
+            return [
+                'success' => true,
+                'message' => 'Products loaded successfully',
+                'products' => $products,
+                'count' => count($products)
+            ];
+        } catch (\Exception $e) {
+            \Yii::error("Get available products error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to load products: ' . $e->getMessage(),
+                'products' => []
+            ];
+        }
+    }
+
     public function actionTruncateSales()
     {
         // Check delete permission

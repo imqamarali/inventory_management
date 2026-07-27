@@ -1896,9 +1896,12 @@ $this->title = 'Dashboard';
             customerOptions += `<option value="${c.id}" ${c.id==customerId?'selected':''}>${customerName(c)}</option>`;
         });
 
+        // Set first warehouse as default
+        let defaultWarehouseId = warehouseId || (window.saleOrderViewData.warehouses && window.saleOrderViewData.warehouses.length > 0 ? window.saleOrderViewData.warehouses[0].id : '');
+
         let warehouseOptions = '';
         window.saleOrderViewData.warehouses.forEach(w => {
-            warehouseOptions += `<option value="${w.id}" ${w.id==warehouseId?'selected':''}>${w.warehouse_name}</option>`;
+            warehouseOptions += `<option value="${w.id}" ${w.id==defaultWarehouseId?'selected':''}>${w.warehouse_name}</option>`;
         });
 
         const statusList = ['Draft', 'Confirmed', 'Packed', 'Dispatched', 'Delivered', 'Cancelled'];
@@ -1931,10 +1934,11 @@ $this->title = 'Dashboard';
             },
             html: `<form id="saleOrderForm">
                 <input type="hidden" id="so_id" value="${id}">
+                <input type="hidden" id="so_warehouse" value="${defaultWarehouseId}">
                 <div class="row">
-                <div class="col-md-3">
+                <div class="col-md-3" style="display:none;">
                 <label>Warehouse<span style="color:red;">*</span></label>
-                <select id="so_warehouse" class="form-control">
+                <select id="so_warehouse_display" class="form-control" disabled>
                 ${warehouseOptions}
                 </select>
                 </div>
@@ -2064,20 +2068,13 @@ $this->title = 'Dashboard';
         window.saleOrderIsEdit = isEdit;
 
         setTimeout(() => {
-            // Initialize dropdowns with chosen
+            // Initialize dropdowns with chosen (warehouse is now hidden, so skip it)
             try {
-                $('#so_warehouse').off().chosen('destroy').chosen({ width: '100%', search_contains: true });
                 $('#so_customer').off().chosen('destroy').chosen({ width: '100%', search_contains: true });
             } catch(e) {
                 // If destroy fails, just initialize
-                $('#so_warehouse').chosen({ width: '100%', search_contains: true });
                 $('#so_customer').chosen({ width: '100%', search_contains: true });
             }
-
-            // Warehouse change event
-            $('#so_warehouse').off('change').on('change', function() {
-                loadProductsForWarehouse($(this).val());
-            });
 
             // Customer change event
             $('#so_customer').off('change').on('change', function() {
@@ -2157,10 +2154,8 @@ $this->title = 'Dashboard';
                 calculateSaleOrderTotals();
             });
 
-            // Load products for selected warehouse
-            if ($('#so_warehouse').val()) {
-                loadProductsForWarehouse($('#so_warehouse').val());
-            }
+            // Load products for selected warehouse (hidden, but still load them)
+            loadProductsForWarehouse($('#so_warehouse').val());
 
         }, 150);
     }
@@ -2170,7 +2165,26 @@ $this->title = 'Dashboard';
             window.saleOrderViewData.products = [];
             return;
         }
-        window.saleOrderViewData.products = dashboardModalData.products || [];
+        // Fetch products with available quantity > 0 from database
+        fetch('index.php?r=inventory/get-available-products', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: '_csrf=<?= Yii::$app->request->getCsrfToken() ?>&warehouse_id=' + warehouseId
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.products)) {
+                window.saleOrderViewData.products = data.products;
+                console.log('Loaded ' + data.products.length + ' available products');
+            } else {
+                console.warn('Failed to load products:', data.message);
+                window.saleOrderViewData.products = dashboardModalData.products || [];
+            }
+        })
+        .catch(error => {
+            console.error('Error loading products:', error);
+            window.saleOrderViewData.products = dashboardModalData.products || [];
+        });
     }
 
     function addSaleOrderRow(item = {}) {
@@ -2180,20 +2194,46 @@ $this->title = 'Dashboard';
         const taxAmount = item.tax_amount || item.tax || 0;
         const lineTotal = item.line_total || item.total || 0;
         const productId = item.product_id || '';
-        let productOptions = '<option value="">-- Select Product --</option>';
-        let currentProductFound = false;
-        window.saleOrderViewData.products.forEach(p => {
-            const available = parseFloat(p.available_quantity || 0).toFixed(2);
-            const selected = item.product_id && p.id == item.product_id ? 'selected' : '';
-            productOptions += `<option value="${p.id}" data-price="${p.selling_price}" data-qty="${available}" ${selected}>${p.product_name} (${p.sku}) - Avail: ${available}</option>`;
-            if (item.product_id && p.id == item.product_id) {
-                currentProductFound = true;
+
+        // Load fresh products from database with available quantity > 0
+        fetch('index.php?r=inventory/get-available-products', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: '_csrf=<?= Yii::$app->request->getCsrfToken() ?>&warehouse_id=' + $('#so_warehouse').val()
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && Array.isArray(data.products)) {
+                window.saleOrderViewData.products = data.products;
+
+                let productOptions = '<option value="">-- Select Product --</option>';
+                let currentProductFound = false;
+                window.saleOrderViewData.products.forEach(p => {
+                    const available = parseFloat(p.available_quantity || 0).toFixed(2);
+                    const selected = item.product_id && p.id == item.product_id ? 'selected' : '';
+                    productOptions += `<option value="${p.id}" data-price="${p.selling_price}" data-qty="${available}" ${selected}>${p.product_name} (${p.sku}) - Avail: ${available}</option>`;
+                    if (item.product_id && p.id == item.product_id) {
+                        currentProductFound = true;
+                    }
+                });
+                if (item.product_id && !currentProductFound) {
+                    const available = parseFloat(item.available_quantity || 0).toFixed(2);
+                    productOptions += `<option value="${item.product_id}" data-price="${item.unit_price || 0}" data-qty="${available}" selected>${item.product_name} (${item.sku}) - Avail: ${available} (Out of Stock)</option>`;
+                }
+
+                // Add the row with fresh products
+                addSaleOrderRowToTable(productOptions, quantity, unitPrice, discountAmount, taxAmount, lineTotal, productId);
+            } else {
+                Swal.fire('Warning', 'No products with available quantity found', 'warning');
             }
+        })
+        .catch(error => {
+            console.error('Error loading products:', error);
+            Swal.fire('Error', 'Failed to load products', 'error');
         });
-        if (item.product_id && !currentProductFound) {
-            const available = parseFloat(item.available_quantity || 0).toFixed(2);
-            productOptions += `<option value="${item.product_id}" data-price="${item.unit_price || 0}" data-qty="${available}" selected>${item.product_name} (${item.sku}) - Avail: ${available} (Out of Stock)</option>`;
-        }
+    }
+
+    function addSaleOrderRowToTable(productOptions, quantity, unitPrice, discountAmount, taxAmount, lineTotal, productId) {
         $('#saleItemTable tbody').append(`<tr data-original-qty="${parseFloat(quantity).toFixed(2)}" data-product-id="${productId}">
             <td><select class="form-control item-product chzn-select" style="width:100%;" data-product-id="${productId}">${productOptions}</select></td>
             <td><span class="available-qty">0</span></td>
@@ -2206,7 +2246,11 @@ $this->title = 'Dashboard';
             </tr>`);
         const newRow = $('#saleItemTable tbody tr:last');
         const newSelect = newRow.find('.item-product');
-        newSelect.chosen({width: '100%', search_contains: true});
+        try {
+            newSelect.off().chosen('destroy').chosen({width: '100%', search_contains: true});
+        } catch(e) {
+            newSelect.chosen({width: '100%', search_contains: true});
+        }
         if (productId) {
             newSelect.val(productId).trigger('chosen:updated');
         }
@@ -2325,7 +2369,57 @@ $this->title = 'Dashboard';
         .then(r => r.json())
         .then(res => {
             if (res.success) {
-                Swal.fire({icon: 'success', title: 'Success', text: res.message, timer: 1500, showConfirmButton: false}).then(() => {
+                // Display order details after successful save
+                let detailsHtml = `
+                    <div style="text-align:left; margin:20px 0;">
+                        <h4 style="color:#2ecc71; margin-bottom:15px;">✓ Sale Order Created Successfully!</h4>
+                        <table style="width:100%; border-collapse:collapse;">
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Order Number:</td>
+                                <td style="padding:8px; color:#0066cc;">${res.order_number || 'N/A'}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Invoice Number:</td>
+                                <td style="padding:8px; color:#0066cc;">${res.invoice_number || 'N/A'}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Order Date:</td>
+                                <td style="padding:8px;">${res.order_date || 'N/A'}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Customer:</td>
+                                <td style="padding:8px;">${res.customer_name || 'Walk-in Customer'}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Total Items:</td>
+                                <td style="padding:8px;">${res.items_count || 0}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Subtotal:</td>
+                                <td style="padding:8px;">PKR ${parseFloat(res.subtotal || 0).toLocaleString()}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Tax:</td>
+                                <td style="padding:8px;">PKR ${parseFloat(res.tax || 0).toLocaleString()}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Grand Total:</td>
+                                <td style="padding:8px; font-weight:bold; color:#ff6b6b; font-size:16px;">PKR ${parseFloat(res.grand_total || 0).toLocaleString()}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Status:</td>
+                                <td style="padding:8px;">${res.order_status || 'Draft'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                `;
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    html: detailsHtml,
+                    confirmButtonText: 'Done',
+                    confirmButtonColor: '#87B87F'
+                }).then(() => {
                     loadDashboard();
                 });
             } else {
