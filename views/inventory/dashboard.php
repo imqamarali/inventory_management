@@ -1839,25 +1839,35 @@ $this->title = 'Dashboard';
     }
 
     function openOrderModal(orderData = null) {
-        // Show loading message while data is being loaded
-        Swal.fire({
-            title: 'Preparing Sales Order...',
-            html: '<p>Loading customers, warehouses, and products...</p>',
-            allowOutsideClick: false,
-            showConfirmButton: false,
-            didOpen: () => Swal.showLoading()
-        });
+        // Load data if not already loaded, then show modal
+        if (!window.saleOrderViewData || !window.saleOrderViewData.customers || window.saleOrderViewData.customers.length === 0) {
+            // Show loading message
+            Swal.fire({
+                title: 'Preparing Sales Order...',
+                html: '<p>Loading customers, warehouses, and products...</p>',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading()
+            });
 
-        // Load data when modal is clicked (not on page load)
-        loadDashboardModalData().then(() => {
-            console.log('Sales order data loaded successfully');
-            Swal.close();
+            // Load data with timeout
+            Promise.race([
+                loadDashboardModalData(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
+            ]).then(() => {
+                console.log('Sales order data loaded successfully');
+                Swal.close();
+                showSalesOrderModal(orderData);
+            }).catch((error) => {
+                Swal.close();
+                console.error('Error loading sales order data:', error);
+                // Show modal anyway with cached data
+                showSalesOrderModal(orderData);
+            });
+        } else {
+            // Data already loaded, show modal immediately
             showSalesOrderModal(orderData);
-        }).catch((error) => {
-            Swal.close();
-            console.error('Error loading sales order data:', error);
-            Swal.fire('Error', 'Failed to load data. Please try again.', 'error');
-        });
+        }
     }
 
     function showSalesOrderModal(orderData = null) {
