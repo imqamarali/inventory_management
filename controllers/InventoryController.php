@@ -573,6 +573,73 @@ class InventoryController extends Controller
         }
     }
 
+    public function actionSearchCustomer()
+    {
+        Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
+
+        try {
+            $name = trim(Yii::$app->request->post('name', ''));
+            $email = trim(Yii::$app->request->post('email', ''));
+
+            if (empty($name) && empty($email)) {
+                return [
+                    'success' => false,
+                    'message' => 'Name or email is required',
+                    'customer' => null
+                ];
+            }
+
+            // Search by name or email
+            $where = " WHERE c.is_deleted = 0 AND (";
+            $params = [];
+
+            if (!empty($name)) {
+                $where .= "(c.first_name LIKE :name OR c.last_name LIKE :name OR c.company_name LIKE :name)";
+                $params[':name'] = "%$name%";
+            }
+
+            if (!empty($email)) {
+                if (!empty($name)) {
+                    $where .= " OR ";
+                }
+                $where .= "c.email = :email";
+                $params[':email'] = $email;
+            }
+
+            $where .= ")";
+
+            $customer = Yii::$app->db->createCommand(
+                "SELECT c.id, c.first_name, c.last_name, c.company_name, c.email, c.phone
+                 FROM inventory_customers c
+                 $where
+                 LIMIT 1",
+                $params
+            )->queryOne();
+
+            if ($customer) {
+                return [
+                    'success' => true,
+                    'message' => 'Customer found',
+                    'customer' => $customer,
+                    'customer_name' => $customer['company_name'] ?? ($customer['first_name'] . ' ' . $customer['last_name'])
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'message' => 'Customer not found',
+                    'customer' => null
+                ];
+            }
+        } catch (\Exception $e) {
+            \Yii::error("Search customer error: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Failed to search customer: ' . $e->getMessage(),
+                'customer' => null
+            ];
+        }
+    }
+
     public function actionTruncateSales()
     {
         // Check delete permission

@@ -2080,8 +2080,10 @@ $this->title = 'Dashboard';
                 if (customerId === '') {
                     $('#walkinFields').show();
                     $('#customerDetails').hide();
+                    $('#customerExistsMessage').hide();
                 } else {
                     $('#walkinFields').hide();
+                    $('#customerExistsMessage').hide();
                     const customer = window.saleOrderViewData.customers.find(c => c.id == customerId);
                     if (customer) {
                         $('#detailName').text(customerName(customer));
@@ -2090,6 +2092,52 @@ $this->title = 'Dashboard';
                         $('#detailRef').text(customer.customer_code || 'N/A');
                         $('#customerDetails').show();
                     }
+                }
+            });
+
+            // Customer name/email search for existing customers
+            $(document).off('input', '#so_customer_name, #so_customer_email').on('input', '#so_customer_name, #so_customer_email', function() {
+                const name = $('#so_customer_name').val().trim();
+                const email = $('#so_customer_email').val().trim();
+
+                // Only search if at least one field has content and is reasonably long
+                if ((name.length >= 2 || email.length >= 3)) {
+                    fetch('index.php?r=inventory/search-customer', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        body: '_csrf=<?= Yii::$app->request->getCsrfToken() ?>&name=' + encodeURIComponent(name) + '&email=' + encodeURIComponent(email)
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success && data.customer) {
+                            // Customer found - auto-select and show message
+                            $('#so_customer').val(data.customer.id).trigger('chosen:updated');
+
+                            // Show existing customer message
+                            let messageHtml = '<div id="customerExistsMessage" style="padding:10px; background:#e8f5e9; border:1px solid #4caf50; border-radius:4px; color:#2e7d32; margin-top:10px; display:flex; align-items:center; gap:8px;"><i class="fa fa-check-circle" style="font-size:18px;"></i><span><strong>✓ Customer already exists!</strong> Selected from database.</span></div>';
+                            $('#walkinFields').after(messageHtml);
+
+                            // Update customer details
+                            const customer = data.customer;
+                            $('#detailName').text(data.customer_name);
+                            $('#detailEmail').text(customer.email || 'N/A');
+                            $('#detailPhone').text(customer.phone || 'N/A');
+                            $('#detailRef').text(customer.id);
+                            $('#customerDetails').show();
+
+                            // Trigger change event to hide walk-in fields
+                            $('#so_customer').trigger('change');
+                        } else {
+                            // Customer not found - hide message if it exists
+                            $('#customerExistsMessage').remove();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error searching customer:', error);
+                    });
+                } else {
+                    // Clear message if input is too short
+                    $('#customerExistsMessage').remove();
                 }
             });
 
