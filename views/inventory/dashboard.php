@@ -2443,12 +2443,15 @@ $this->title = 'Dashboard';
     }
 
     function saveSaleOrder(formData) {
-        // Show loading indicator on button
-        const confirmBtn = document.querySelector('.swal2-confirm');
-        if (confirmBtn) {
-            confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Saving...';
-        }
+        // Show loading modal
+        Swal.fire({
+            title: 'Processing Sale Order',
+            html: '<div style="text-align: center; padding: 20px;"><i class="fa fa-spinner fa-spin" style="font-size: 48px; color: #3498db; margin-bottom: 20px;"></i><p style="font-size: 16px; color: #666; margin-top: 20px;">Please wait while we save your order...</p></div>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading()
+        });
 
         const fd = new FormData();
         fd.append('_csrf', '<?= Yii::$app->request->getCsrfToken() ?>');
@@ -2460,64 +2463,73 @@ $this->title = 'Dashboard';
                 // Display order details after successful save
                 let detailsHtml = `
                     <div style="text-align:left; margin:20px 0;">
-                        <h4 style="color:#2ecc71; margin-bottom:15px;">✓ Sale Order Created Successfully!</h4>
+                        <h4 style="color:#2ecc71; margin-bottom:20px; font-size:18px;"><i class="fa fa-check-circle"></i> Sale Order Created Successfully!</h4>
                         <table style="width:100%; border-collapse:collapse;">
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Order Number:</td>
-                                <td style="padding:8px; color:#0066cc;">${res.order_number || 'N/A'}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0; background:#f9f9f9;">
+                                <td style="padding:12px 15px; font-weight:bold; width:40%;">Order Number:</td>
+                                <td style="padding:12px 15px; color:#0066cc; font-weight:600;">${res.order_number || 'N/A'}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Invoice Number:</td>
-                                <td style="padding:8px; color:#0066cc;">${res.invoice_number || 'N/A'}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0;">
+                                <td style="padding:12px 15px; font-weight:bold;">Invoice Number:</td>
+                                <td style="padding:12px 15px; color:#0066cc; font-weight:600;">${res.invoice_number || 'N/A'}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Order Date:</td>
-                                <td style="padding:8px;">${res.order_date || 'N/A'}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0; background:#f9f9f9;">
+                                <td style="padding:12px 15px; font-weight:bold;">Order Date:</td>
+                                <td style="padding:12px 15px;">${res.order_date || 'N/A'}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Customer:</td>
-                                <td style="padding:8px;">${res.customer_name || 'Walk-in Customer'}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0;">
+                                <td style="padding:12px 15px; font-weight:bold;">Customer:</td>
+                                <td style="padding:12px 15px;">${res.customer_name || 'Walk-in Customer'}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Total Items:</td>
-                                <td style="padding:8px;">${res.items_count || 0}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0; background:#f9f9f9;">
+                                <td style="padding:12px 15px; font-weight:bold;">Total Items:</td>
+                                <td style="padding:12px 15px;">${res.items_count || 0}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Subtotal:</td>
-                                <td style="padding:8px;">PKR ${parseFloat(res.subtotal || 0).toLocaleString()}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0;">
+                                <td style="padding:12px 15px; font-weight:bold;">Subtotal:</td>
+                                <td style="padding:12px 15px;">PKR ${parseFloat(res.subtotal || 0).toLocaleString()}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Tax:</td>
-                                <td style="padding:8px;">PKR ${parseFloat(res.tax || 0).toLocaleString()}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0; background:#f9f9f9;">
+                                <td style="padding:12px 15px; font-weight:bold;">Tax:</td>
+                                <td style="padding:12px 15px;">PKR ${parseFloat(res.tax || 0).toLocaleString()}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Grand Total:</td>
-                                <td style="padding:8px; font-weight:bold; color:#ff6b6b; font-size:16px;">PKR ${parseFloat(res.grand_total || 0).toLocaleString()}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0;">
+                                <td style="padding:12px 15px; font-weight:bold;">Grand Total:</td>
+                                <td style="padding:12px 15px; font-weight:bold; color:#ff6b6b; font-size:16px;">PKR ${parseFloat(res.grand_total || 0).toLocaleString()}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Paid Amount:</td>
-                                <td style="padding:8px; color:#2ecc71; font-weight:bold;">PKR ${parseFloat(res.paid_amount || 0).toLocaleString()}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0; background:#f9f9f9;">
+                                <td style="padding:12px 15px; font-weight:bold;">Paid Amount:</td>
+                                <td style="padding:12px 15px; color:#2ecc71; font-weight:bold;">PKR ${parseFloat(res.paid_amount || 0).toLocaleString()}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Remaining Balance:</td>
-                                <td style="padding:8px; color:#3498db; font-weight:bold;">PKR ${parseFloat(res.remaining_balance || 0).toLocaleString()}</td>
+                            <tr style="border-bottom:1px solid #e0e0e0;">
+                                <td style="padding:12px 15px; font-weight:bold;">Remaining Balance:</td>
+                                <td style="padding:12px 15px; color:#3498db; font-weight:bold;">PKR ${parseFloat(res.remaining_balance || 0).toLocaleString()}</td>
                             </tr>
-                            <tr style="border-bottom:1px solid #ddd;">
-                                <td style="padding:8px; font-weight:bold;">Status:</td>
-                                <td style="padding:8px;">${res.order_status || 'Draft'}</td>
+                            <tr>
+                                <td style="padding:12px 15px; font-weight:bold; background:#f9f9f9;">Status:</td>
+                                <td style="padding:12px 15px; background:#f9f9f9;"><span style="background:#e8f5e9; color:#2e7d32; padding:4px 8px; border-radius:4px; font-weight:bold;">${res.order_status || 'Draft'}</span></td>
                             </tr>
                         </table>
                     </div>
                 `;
                 Swal.fire({
                     icon: 'success',
-                    title: 'Success',
+                    title: 'Sale Order Created',
                     html: detailsHtml,
+                    width: '700px',
                     confirmButtonText: 'Done',
                     confirmButtonColor: '#87B87F',
                     showDenyButton: res.invoice_id ? true : false,
                     denyButtonText: res.invoice_id ? '<i class="fa fa-print"></i> Print Invoice' : null,
-                    denyButtonColor: '#3498db'
+                    denyButtonColor: '#3498db',
+                    didOpen: (modal) => {
+                        // Style the modal for better appearance
+                        const popup = modal.querySelector('.swal2-popup');
+                        if (popup) {
+                            popup.style.borderRadius = '8px';
+                            popup.style.boxShadow = '0 4px 20px rgba(0,0,0,0.15)';
+                        }
+                    }
                 }).then((result) => {
                     if (result.isConfirmed) {
                         loadDashboard();
@@ -2528,23 +2540,21 @@ $this->title = 'Dashboard';
                     }
                 });
             } else {
-                // Restore button on error
-                const confirmBtn = document.querySelector('.swal2-confirm');
-                if (confirmBtn) {
-                    confirmBtn.disabled = false;
-                    confirmBtn.innerHTML = 'Save Order';
-                }
-                Swal.fire({icon: 'error', title: 'Error', text: res.message || 'Unable to save order'});
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: res.message || 'Unable to save order',
+                    width: '500px'
+                });
             }
         })
         .catch(() => {
-            // Restore button on error
-            const confirmBtn = document.querySelector('.swal2-confirm');
-            if (confirmBtn) {
-                confirmBtn.disabled = false;
-                confirmBtn.innerHTML = 'Save Order';
-            }
-            Swal.fire({icon: 'error', title: 'Error', text: 'Unable to communicate with server'});
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Unable to communicate with server',
+                width: '500px'
+            });
         });
     }
 </script>
