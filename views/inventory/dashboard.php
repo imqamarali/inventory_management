@@ -418,7 +418,7 @@ $this->title = 'Dashboard';
 
                 <h4>
                     <i class="fa fa-bar-chart"></i>
-                    Purchase Performance
+                    Purchase Performance (Last 12 Months)
                 </h4>
 
                 <canvas id="purchasePerformanceChart" height="220"></canvas>
@@ -434,10 +434,70 @@ $this->title = 'Dashboard';
 
                 <h4>
                     <i class="fa fa-line-chart"></i>
-                    Sales Performance
+                    Sales Performance (Last 12 Months)
                 </h4>
 
                 <canvas id="salesPerformanceChart" height="220"></canvas>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Weekly Performance Section -->
+    <div class="row" style="margin-top: 20px;">
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-calendar"></i>
+                    Weekly Purchase Performance
+                </h4>
+
+                <div id="weeklyPurchasePerformance" style="overflow-x: auto;">
+                    <table class="table table-striped table-hover" style="margin-bottom: 0;">
+                        <thead>
+                            <tr style="background-color: #f5f5f5;">
+                                <th>Week</th>
+                                <th style="text-align: right;">Amount (PKR)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weeklyPurchaseBody">
+                            <tr><td colspan="2" class="text-center"><em>Loading...</em></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-calendar"></i>
+                    Weekly Sales Performance
+                </h4>
+
+                <div id="weeklySalesPerformance" style="overflow-x: auto;">
+                    <table class="table table-striped table-hover" style="margin-bottom: 0;">
+                        <thead>
+                            <tr style="background-color: #f5f5f5;">
+                                <th>Week</th>
+                                <th style="text-align: right;">Amount (PKR)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weeklySalesBody">
+                            <tr><td colspan="2" class="text-center"><em>Loading...</em></td></tr>
+                        </tbody>
+                    </table>
+                </div>
 
             </div>
 
@@ -502,6 +562,8 @@ $this->title = 'Dashboard';
                     } else {
                         console.warn('Chart.js not loaded');
                     }
+                    loadWeeklyPurchasePerformance(response.weeklyPurchasePerformance || []);
+                    loadWeeklySalesPerformance(response.weeklySalesPerformance || []);
                 } else {
                     showError(response.message || 'Failed to load dashboard');
                 }
@@ -758,6 +820,64 @@ $this->title = 'Dashboard';
             }
         );
 
+    }
+
+    function loadWeeklyPurchasePerformance(data) {
+        let html = '';
+        let totalAmount = 0;
+
+        if (data.length === 0) {
+            html = '<tr><td colspan="2" class="text-center"><em>No data available</em></td></tr>';
+        } else {
+            data.forEach(function(row) {
+                const amount = parseFloat(row.amount) || 0;
+                totalAmount += amount;
+                const formattedAmount = amount.toLocaleString('en-PK', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+                const bgColor = amount > 0 ? '#f0f8f0' : '#fff';
+                html += `<tr style="background-color: ${bgColor};">
+                    <td><strong>${row.label}</strong></td>
+                    <td style="text-align: right;"><strong>PKR ${formattedAmount}</strong></td>
+                </tr>`;
+            });
+            html += `<tr style="background-color: #e8f5e9; border-top: 2px solid #4caf50;">
+                <td><strong>Total</strong></td>
+                <td style="text-align: right;"><strong style="color: #4caf50;">PKR ${totalAmount.toLocaleString('en-PK', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</strong></td>
+            </tr>`;
+        }
+
+        $('#weeklyPurchaseBody').html(html);
+    }
+
+    function loadWeeklySalesPerformance(data) {
+        let html = '';
+        let totalAmount = 0;
+
+        if (data.length === 0) {
+            html = '<tr><td colspan="2" class="text-center"><em>No data available</em></td></tr>';
+        } else {
+            data.forEach(function(row) {
+                const amount = parseFloat(row.amount) || 0;
+                totalAmount += amount;
+                const formattedAmount = amount.toLocaleString('en-PK', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+                const bgColor = amount > 0 ? '#f0f8ff' : '#fff';
+                html += `<tr style="background-color: ${bgColor};">
+                    <td><strong>${row.label}</strong></td>
+                    <td style="text-align: right;"><strong>PKR ${formattedAmount}</strong></td>
+                </tr>`;
+            });
+            html += `<tr style="background-color: #e3f2fd; border-top: 2px solid #2196f3;">
+                <td><strong>Total</strong></td>
+                <td style="text-align: right;"><strong style="color: #2196f3;">PKR ${totalAmount.toLocaleString('en-PK', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</strong></td>
+            </tr>`;
+        }
+
+        $('#weeklySalesBody').html(html);
     }
 
     function showError(message) {
@@ -1627,6 +1747,13 @@ $this->title = 'Dashboard';
                         Swal.fire('Error', r.message, 'error');
                         return;
                     }
+
+                    // Check if order status is Completed
+                    if (r.order.status === 'Completed') {
+                        Swal.fire('Not Allowed', 'Cannot edit a completed purchase order. The order status is locked.', 'warning');
+                        return;
+                    }
+
                     r.order.items = r.items || [];
                     showOrderModal(r.order);
                 })
@@ -1757,6 +1884,8 @@ $this->title = 'Dashboard';
 
     function showOrderModal(data = {}) {
         const isEdit = !!data.id;
+        const isCompleted = data.status === 'Completed';
+
         Swal.fire({
             title: isEdit ? 'Update Purchase Order' : 'Add Purchase Order',
             width: '1100px',
@@ -1767,6 +1896,7 @@ $this->title = 'Dashboard';
             showCancelButton: true,
             confirmButtonText: isEdit ? 'Update Order' : 'Save Order',
             confirmButtonColor: '#87B87F',
+            confirmButtonDisabled: isCompleted,
             cancelButtonText: 'Cancel',
             didOpen: function() {
                 // Ensure dropdowns are properly initialized

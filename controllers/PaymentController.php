@@ -437,7 +437,8 @@ class PaymentController extends Controller
 
         // Get current month invoice
         $invoice = $db->createCommand(
-            "SELECT si.*, sc.contract_name
+            "SELECT si.*, sc.contract_name,
+                    (si.amount - COALESCE(si.paid_amount, 0)) as remaining_amount
              FROM system_invoices si
              JOIN system_contracts sc ON sc.id = si.contract_id
              WHERE si.is_deleted = 0
@@ -447,6 +448,11 @@ class PaymentController extends Controller
         )->queryOne();
 
         if ($invoice) {
+            // Ensure remaining_amount is numeric and non-negative
+            $invoice['remaining_amount'] = max(0, (float)($invoice['remaining_amount'] ?? 0));
+            $invoice['paid_amount'] = (float)($invoice['paid_amount'] ?? 0);
+            $invoice['amount'] = (float)($invoice['amount'] ?? 0);
+
             return [
                 'success' => true,
                 'invoice' => $invoice
@@ -471,14 +477,22 @@ class PaymentController extends Controller
             ];
         }
 
-        // Get invoice by ID with safety checks
+        // Get invoice by ID with safety checks and calculated remaining amount
         $invoice = $db->createCommand(
-            "SELECT si.*, sc.contract_name
+            "SELECT si.*, sc.contract_name,
+                    (si.amount - COALESCE(si.paid_amount, 0)) as remaining_amount
              FROM system_invoices si
              LEFT JOIN system_contracts sc ON sc.id = si.contract_id
              WHERE si.id = :id AND si.is_deleted = 0
              LIMIT 1"
         )->bindValue(':id', $invoiceId)->queryOne();
+
+        if ($invoice) {
+            // Ensure numeric values
+            $invoice['remaining_amount'] = max(0, (float)($invoice['remaining_amount'] ?? 0));
+            $invoice['paid_amount'] = (float)($invoice['paid_amount'] ?? 0);
+            $invoice['amount'] = (float)($invoice['amount'] ?? 0);
+        }
 
         if (!$invoice) {
             return [

@@ -68,6 +68,7 @@ if (!isset($warehouses)) $warehouses = [];
                             <th>Grand Total</th>
                             <th>Paid</th>
                             <th>Remaining</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -91,11 +92,14 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td><strong><?= number_format($grandTotal, 2) ?></strong></td>
                                 <td><?= number_format($paidAmount, 2) ?></td>
                                 <td><?= number_format($remainingAmount, 2) ?></td>
+                                <td><?= Html::encode($item['status']) ?></td>
                                 <td>
-                                    <button class="  btn-success" onclick="completeOrder(<?= $item['id'] ?>)">
+                                    <?php $isCompleted = ($item['status'] ?? '') === 'Completed'; ?>
+                                    <?php $isCancelled = ($item['status'] ?? '') === 'Cancelled'; ?>
+                                    <button class="btn-success" onclick="completeOrder(<?= $item['id'] ?>)" <?= $isCompleted ? 'disabled' : '' ?>>
                                         <i class="fa fa-check-square"></i> Complete
                                     </button>
-                                    <button class="  btn-danger" onclick="cancelOrder(<?= $item['id'] ?>)">
+                                    <button class="btn-danger" onclick="cancelOrder(<?= $item['id'] ?>)" <?= $isCancelled || $isCompleted ? 'disabled' : '' ?>>
                                         <i class="fa fa-times"></i> Cancel
                                     </button>
                                 </td>
@@ -184,6 +188,9 @@ if (!isset($warehouses)) $warehouses = [];
                 const paidAmount = parseFloat(item.paid_amount || 0);
                 const remainingAmount = grandTotal - paidAmount;
 
+                const isCompleted = item.status === 'Completed';
+                const isCancelled = item.status === 'Cancelled';
+
                 html += `
             <tr>
                 <td>${index+1}</td>
@@ -196,11 +203,12 @@ if (!isset($warehouses)) $warehouses = [];
                 <td><strong>${grandTotal.toFixed(2)}</strong></td>
                 <td>${paidAmount.toFixed(2)}</td>
                 <td>${remainingAmount.toFixed(2)}</td>
+                <td>${item.status??''}</td>
                 <td>
-                    <button class="btn-success" onclick="completeOrder(${item.id})">
+                    <button class="btn-success" onclick="completeOrder(${item.id})" ${isCompleted ? 'disabled' : ''}>
                         <i class="fa fa-check-square"></i> Complete
                     </button>
-                    <button class="btn-danger" onclick="cancelOrder(${item.id})">
+                    <button class="btn-danger" onclick="cancelOrder(${item.id})" ${isCancelled || isCompleted ? 'disabled' : ''}>
                         <i class="fa fa-times"></i> Cancel
                     </button>
                 </td>

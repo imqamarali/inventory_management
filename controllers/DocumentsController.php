@@ -2163,12 +2163,40 @@ class DocumentsController extends Controller
                 return $this->renderContent('Invoice not found');
             }
 
-            // Get payment records for this invoice
+            // Get payment records for this invoice with proper calculations
+            // Since amount might not be stored in payment_proofs, get it from system_payments if available
             $payments = $db->createCommand(
-                "SELECT sp.* FROM system_payment_proofs sp
+                "SELECT sp.*, si.amount as proof_amount
+                 FROM system_payment_proofs sp
+                 LEFT JOIN system_invoices si ON si.id = sp.invoice_id
                  WHERE sp.invoice_id = :id AND sp.is_deleted = 0
                  ORDER BY sp.created_at DESC"
             )->bindValue(':id', $invoiceId)->queryAll();
+
+            // Calculate total paid amount from VERIFIED payment proofs only
+            // Only count payments that have been verified/approved, not pending or rejected
+            $paidResult = $db->createCommand(
+                "SELECT COALESCE(SUM(si.amount), 0) as total_paid
+                 FROM system_payment_proofs spp
+                 LEFT JOIN system_invoices si ON si.id = spp.invoice_id
+                 WHERE spp.invoice_id = :id AND spp.is_deleted = 0
+                 AND spp.verification_status IN ('verified', 'pending_approval')"
+            )->bindValue(':id', $invoiceId)->queryOne();
+
+            $totalPaidAmount = (float)($paidResult['total_paid'] ?? 0);
+            $invoiceAmount = (float)($invoice['amount'] ?? 0);
+
+            // Update invoice with accurate paid amount from verified payments
+            $invoice['paid_amount'] = $totalPaidAmount;
+
+            // Determine correct payment status based on verified paid amount
+            if ($totalPaidAmount >= $invoiceAmount && $invoiceAmount > 0) {
+                $invoice['payment_status'] = 'paid';
+            } elseif ($totalPaidAmount > 0 && $totalPaidAmount < $invoiceAmount) {
+                $invoice['payment_status'] = 'partial';
+            } else {
+                $invoice['payment_status'] = 'unpaid';
+            }
 
             $this->generateBillPaymentPDF($invoice, $payments);
         } catch (\Exception $e) {
@@ -2246,9 +2274,12 @@ class DocumentsController extends Controller
         $pdf->SetFont('times', '', 10);
         $pdf->SetFillColor(245, 245, 245);
 
+        // Ensure amounts are numeric
+        $totalAmount = max(0, (float)($invoice['amount'] ?? 0));
+        $paidAmount = max(0, (float)($invoice['paid_amount'] ?? 0));
+        $remaining = $totalAmount - $paidAmount;
+
         // Row 1 - Amounts
-        $totalAmount = (float)($invoice['amount'] ?? 0);
-        $paidAmount = (float)($invoice['paid_amount'] ?? 0);
         $pdf->Cell(30, 6, 'Total Amount:', 0, 0, 'L', true);
         $pdf->Cell($col1Width - 30, 6, 'PKR ' . number_format($totalAmount, 2), 0, 0, 'L', true);
         $pdf->Cell(30, 6, 'Paid Amount:', 0, 0, 'L', true);
@@ -2256,13 +2287,14 @@ class DocumentsController extends Controller
         $pdf->Cell(0, 6, 'PKR ' . number_format($paidAmount, 2), 0, 1, 'L', true);
 
         // Row 2 - Remaining
-        $remaining = $totalAmount - $paidAmount;
         $pdf->SetFillColor(245, 245, 245);
         $pdf->Cell(30, 6, 'Remaining:', 0, 0, 'L', true);
         $pdf->Cell($col1Width - 30, 6, 'PKR ' . number_format(max(0, $remaining), 2), 0, 0, 'L', true);
         $pdf->Cell(30, 6, 'Status:', 0, 0, 'L', true);
-        $statusText = $remaining <= 0 ? 'PAID' : 'UNPAID';
-        $pdf->Cell(0, 6, $statusText, 0, 1, 'L', true);
+        $paymentStatusText = $remaining <= 0 ? 'FULLY PAID' : 'PENDING';
+        $statusColor = $remaining <= 0 ? 200 : 255;
+        $pdf->SetFillColor($statusColor, $statusColor, 200);
+        $pdf->Cell(0, 6, $paymentStatusText, 0, 1, 'L', true);
 
         $pdf->Ln(2);
 
@@ -2278,9 +2310,10 @@ class DocumentsController extends Controller
             $pdf->SetFillColor(220, 220, 220);
 
             // Table header
-            $pdf->Cell(35, 6, 'Payment Date', 1, 0, 'C', true);
-            $pdf->Cell(30, 6, 'Amount', 1, 0, 'R', true);
-            $pdf->Cell(35, 6, 'Method', 1, 0, 'C', true);
+            $pdf->Cell(28, 6, 'Date', 1, 0, 'C', true);
+            $pdf->Cell(25, 6, 'Amount', 1, 0, 'R', true);
+            $pdf->Cell(30, 6, 'Method', 1, 0, 'C', true);
+            $pdf->Cell(30, 6, 'Status', 1, 0, 'C', true);
             $pdf->Cell(0, 6, 'Transaction ID', 1, 1, 'L', true);
 
             $pdf->SetFont('times', '', 9);
@@ -2288,12 +2321,27 @@ class DocumentsController extends Controller
 
             // Table rows
             foreach ($payments as $payment) {
-                $payDate = $payment['proof_date'] ? date('M d, Y', strtotime($payment['proof_date'])) : 'N/A';
-                $paymentAmount = (float)($payment['amount'] ?? 0);
-                $pdf->Cell(35, 6, $payDate, 1, 0, 'C', true);
-                $pdf->Cell(30, 6, 'PKR ' . number_format($paymentAmount, 2), 1, 0, 'R', true);
-                $pdf->Cell(35, 6, ucfirst(str_replace('_', ' ', $payment['payment_method'] ?? 'N/A')), 1, 0, 'C', true);
-                $pdf->Cell(0, 6, substr($payment['transaction_id'] ?? 'N/A', 0, 20), 1, 1, 'L', true);
+                $payDate = $payment['proof_date'] ? date('M d, Y', strtotime($payment['proof_date'])) : date('M d, Y', strtotime($payment['created_at'] ?? 'now'));
+                // Use proof_amount (from invoice) since individual payment proof amounts might not be stored
+                $paymentAmount = max(0, (float)($payment['proof_amount'] ?? $payment['amount'] ?? 0));
+
+                // Determine payment method
+                $paymentMethod = 'Online Transfer';
+                if (!empty($payment['payment_method'])) {
+                    $paymentMethod = ucfirst(str_replace(['_', '-'], ' ', $payment['payment_method']));
+                }
+
+                // Get verification status
+                $verificationStatus = $payment['verification_status'] ?? 'pending';
+
+                // Format verification status for display
+                $statusDisplay = ucfirst(str_replace('_', ' ', $verificationStatus));
+
+                $pdf->Cell(28, 6, $payDate, 1, 0, 'C', true);
+                $pdf->Cell(25, 6, 'PKR ' . number_format($paymentAmount, 2), 1, 0, 'R', true);
+                $pdf->Cell(30, 6, $paymentMethod, 1, 0, 'C', true);
+                $pdf->Cell(30, 6, $statusDisplay, 1, 0, 'C', true);
+                $pdf->Cell(0, 6, substr(htmlspecialchars($payment['transaction_id'] ?? 'N/A'), 0, 15), 1, 1, 'L', true);
             }
 
             $pdf->Ln(2);
@@ -2312,11 +2360,29 @@ class DocumentsController extends Controller
             $pdf->SetFillColor(245, 245, 245);
 
             // Payment method info
+            $latestMethod = !empty($latestPayment['payment_method'])
+                ? ucfirst(str_replace(['_', '-'], ' ', $latestPayment['payment_method']))
+                : 'Online Transfer';
+
+            $latestAmount = max(0, (float)($latestPayment['proof_amount'] ?? $latestPayment['amount'] ?? 0));
+
             $pdf->Cell(30, 6, 'Payment Method:', 0, 0, 'L', true);
-            $pdf->Cell($col1Width - 30, 6, ucfirst(str_replace('_', ' ', $latestPayment['payment_method'] ?? 'N/A')), 0, 0, 'L', true);
+            $pdf->Cell($col1Width - 30, 6, $latestMethod, 0, 0, 'L', true);
+            $pdf->Cell(30, 6, 'Payment Amount:', 0, 0, 'L', true);
+            $pdf->Cell(0, 6, 'PKR ' . number_format($latestAmount, 2), 0, 1, 'L', true);
+
             $pdf->Cell(30, 6, 'Proof Date:', 0, 0, 'L', true);
-            $proofDate = $latestPayment['proof_date'] ? date('M d, Y', strtotime($latestPayment['proof_date'])) : 'N/A';
-            $pdf->Cell(0, 6, $proofDate, 0, 1, 'L', true);
+
+            $proofDate = $latestPayment['proof_date']
+                ? date('M d, Y', strtotime($latestPayment['proof_date']))
+                : ($latestPayment['created_at'] ? date('M d, Y', strtotime($latestPayment['created_at'])) : 'N/A');
+
+            $pdf->Cell($col1Width - 30, 6, $proofDate, 0, 0, 'L', true);
+            $pdf->Cell(30, 6, 'Status:', 0, 0, 'L', true);
+
+            $latestStatus = $latestPayment['verification_status'] ?? 'pending';
+            $statusText = ucfirst(str_replace('_', ' ', $latestStatus));
+            $pdf->Cell(0, 6, $statusText, 0, 1, 'L', true);
 
             if (!empty($latestPayment['transaction_id'])) {
                 $pdf->Cell(30, 6, 'Transaction ID:', 0, 0, 'L', true);
@@ -2362,10 +2428,26 @@ class DocumentsController extends Controller
 
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFont('times', '', 10);
-        $pdf->SetFillColor(200, 255, 200);
 
-        $verificationStatus = !empty($payments) ? 'PAYMENT VERIFIED' : 'PAYMENT VERIFIED';
-        $pdf->Cell(0, 6, '✓ ' . $verificationStatus, 0, 1, 'L', true);
+        // Determine status based on invoice payment status
+        $invoiceStatus = $invoice['payment_status'] ?? 'unpaid';
+        $isPaid = $invoiceStatus === 'paid';
+
+        if ($isPaid) {
+            $pdf->SetFillColor(200, 255, 200); // Green for verified
+            $statusIcon = '[VERIFIED]';
+            $statusText = 'PAYMENT VERIFIED - FULLY PAID';
+        } else if ($invoiceStatus === 'partial') {
+            $pdf->SetFillColor(255, 255, 200); // Yellow for partial
+            $statusIcon = '[PARTIAL]';
+            $statusText = 'PAYMENT PARTIALLY RECEIVED';
+        } else {
+            $pdf->SetFillColor(255, 200, 200); // Red for unpaid
+            $statusIcon = '[PENDING]';
+            $statusText = 'PAYMENT PENDING';
+        }
+
+        $pdf->Cell(0, 6, $statusIcon . ' ' . $statusText, 0, 1, 'L', true);
 
         $pdf->Ln(3);
 

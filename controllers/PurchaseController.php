@@ -2146,7 +2146,9 @@ class PurchaseController extends Controller
                 if(isset($post['flag']) && $post['flag']=='complete'){
 
                     $poId = (int)$post['id'];
-                    Yii::$app->db->createCommand()->update(
+                    $db = Yii::$app->db;
+
+                    $db->createCommand()->update(
                         'inventory_purchase_orders',
                         [
                             'status'=>'Completed',
@@ -2154,6 +2156,9 @@ class PurchaseController extends Controller
                         ],
                         ['id'=>$poId]
                     )->execute();
+
+                    // Update inventory stock when PO is completed
+                    $this->updateStockForCompletedPO($db, $poId);
 
                     // Log completion
                     \app\controllers\ActivitylogsController::logActivity(
@@ -2166,7 +2171,7 @@ class PurchaseController extends Controller
 
                     return[
                         'success'=>true,
-                        'message'=>'Purchase Order completed successfully.'
+                        'message'=>'Purchase Order completed successfully and inventory stock updated.'
                     ];
 
                 }

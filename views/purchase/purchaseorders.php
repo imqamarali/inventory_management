@@ -153,7 +153,8 @@ if (!isset($warehouses)) $warehouses = [];
                                 <td><?= statusBadgeServer($item['status']) ?></td>
                                 <td>
                                     <?php $isGrnCompleted = ($item['grn_status'] ?? '') === 'Completed'; ?>
-                                    <?php if (!$isGrnCompleted): ?>
+                                    <?php $isPoCompleted = ($item['status'] ?? '') === 'Completed'; ?>
+                                    <?php if (!$isGrnCompleted && !$isPoCompleted): ?>
                                         <button onclick="loadOrder(<?= $item['id'] ?>)" title="Edit">
                                             <i class="fa fa-pencil"></i>
                                         </button>
@@ -318,7 +319,7 @@ function statusBadgeServer($status)
                 <td>${item.invoice_no??'-'}</td>
                 <td>${statusBadge(item.status)}</td>
                 <td>
-                    ${item.grn_status === 'Completed' ? '' : `
+                    ${(item.grn_status === 'Completed' || item.status === 'Completed') ? '' : `
                     <button onclick="loadOrder(${item.id})" title="Edit">
                         <i class="fa fa-pencil"></i>
                     </button>

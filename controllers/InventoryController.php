@@ -438,11 +438,19 @@ class InventoryController extends Controller
             // Sales Performance Chart Data (Last 12 months)
             $salesPerformance = $this->getSalesPerformanceData();
 
+            // Weekly Purchase Performance Data
+            $weeklyPurchasePerformance = $this->getWeeklyPurchasePerformanceData();
+
+            // Weekly Sales Performance Data
+            $weeklySalesPerformance = $this->getWeeklySalesPerformanceData();
+
             return [
                 'success' => true,
                 'stats' => $stats,
                 'purchasePerformance' => $purchasePerformance,
                 'salesPerformance' => $salesPerformance,
+                'weeklyPurchasePerformance' => $weeklyPurchasePerformance,
+                'weeklySalesPerformance' => $weeklySalesPerformance,
             ];
         } catch (\Exception $e) {
             \Yii::error("Dashboard data error: " . $e->getMessage());
@@ -961,6 +969,76 @@ class InventoryController extends Controller
             }
         } catch (\Exception $e) {
             \Yii::error("Sales performance query failed: " . $e->getMessage());
+        }
+        return $data;
+    }
+
+    private function getWeeklyPurchasePerformanceData()
+    {
+        $data = [];
+        try {
+            for ($i = 3; $i >= 0; $i--) {
+                $weekStart = date('Y-m-d', strtotime("-$i weeks", strtotime('Monday this week')));
+                $weekEnd = date('Y-m-d', strtotime("+6 days", strtotime($weekStart)));
+
+                try {
+                    $amount = Yii::$app->db->createCommand(
+                        "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_purchase_invoices
+                         WHERE created_at >= :start AND created_at <= :end
+                         AND is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                    )->bindValues([':start' => $weekStart . ' 00:00:00', ':end' => $weekEnd . ' 23:59:59'])->queryScalar();
+
+                    $weekLabel = date('M d', strtotime($weekStart)) . ' - ' . date('d', strtotime($weekEnd));
+                    $data[] = [
+                        'label' => $weekLabel,
+                        'amount' => (float)$amount,
+                    ];
+                } catch (\Exception $e) {
+                    \Yii::warning("Weekly purchase performance data failed: " . $e->getMessage());
+                    $weekLabel = date('M d', strtotime($weekStart)) . ' - ' . date('d', strtotime($weekEnd));
+                    $data[] = [
+                        'label' => $weekLabel,
+                        'amount' => 0,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Yii::error("Weekly purchase performance query failed: " . $e->getMessage());
+        }
+        return $data;
+    }
+
+    private function getWeeklySalesPerformanceData()
+    {
+        $data = [];
+        try {
+            for ($i = 3; $i >= 0; $i--) {
+                $weekStart = date('Y-m-d', strtotime("-$i weeks", strtotime('Monday this week')));
+                $weekEnd = date('Y-m-d', strtotime("+6 days", strtotime($weekStart)));
+
+                try {
+                    $amount = Yii::$app->db->createCommand(
+                        "SELECT IFNULL(SUM(grand_total), 0) FROM inventory_sales_invoices
+                         WHERE created_at >= :start AND created_at <= :end
+                         AND is_deleted = 0 AND status IN ('Paid', 'Partially Paid', 'Issued')"
+                    )->bindValues([':start' => $weekStart . ' 00:00:00', ':end' => $weekEnd . ' 23:59:59'])->queryScalar();
+
+                    $weekLabel = date('M d', strtotime($weekStart)) . ' - ' . date('d', strtotime($weekEnd));
+                    $data[] = [
+                        'label' => $weekLabel,
+                        'amount' => (float)$amount,
+                    ];
+                } catch (\Exception $e) {
+                    \Yii::warning("Weekly sales performance data failed: " . $e->getMessage());
+                    $weekLabel = date('M d', strtotime($weekStart)) . ' - ' . date('d', strtotime($weekEnd));
+                    $data[] = [
+                        'label' => $weekLabel,
+                        'amount' => 0,
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Yii::error("Weekly sales performance query failed: " . $e->getMessage());
         }
         return $data;
     }

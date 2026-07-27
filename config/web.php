@@ -7,6 +7,7 @@ $config = [
     'id' => 'basic',
     'basePath' => dirname(__DIR__),
     'defaultRoute' => 'site/index',
+    'timeZone' => 'Asia/Karachi',
     'bootstrap' => ['log'],
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
