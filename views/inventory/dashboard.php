@@ -1961,7 +1961,7 @@ $this->title = 'Dashboard';
                 </div>
                 <div class="col-md-3">
                 <label>Payment Status</label>
-                <select id="so_payment_status" class="form-control" readonly style="background:#f5f5f5;">
+                <select id="so_payment_status" class="form-control" style="background:#f5f5f5;">
                 ${paymentStatusOptions}
                 </select>
                 </div>
@@ -2026,15 +2026,15 @@ $this->title = 'Dashboard';
                 </div>
                 <div class="col-md-2">
                 <label>Discount</label>
-                <input type="number" id="so_discount" readonly class="form-control" value="${discount}" step="0.01" placeholder="0.00">
+                <input type="number" id="so_discount" class="form-control" value="${discount}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label>Tax</label>
-                <input type="number" id="so_tax" readonly class="form-control" value="${tax}" step="0.01" placeholder="0.00">
+                <input type="number" id="so_tax" class="form-control" value="${tax}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label>Shipping</label>
-                <input type="number" id="so_shipping" readonly class="form-control" value="${shipping}" step="0.01" placeholder="0.00">
+                <input type="number" id="so_shipping" class="form-control" value="${shipping}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-2">
                 <label><strong>Grand Total</strong></label>
@@ -2152,6 +2152,11 @@ $this->title = 'Dashboard';
                 let paidAmount = parseFloat($(this).val()) || 0;
                 let remaining = Math.max(0, grandTotal - paidAmount);
                 $('#so_remaining_amount').val(remaining.toFixed(2));
+            });
+
+            // Discount, Tax, Shipping change events to recalculate grand total
+            $(document).off('input', '#so_discount, #so_tax, #so_shipping').on('input', '#so_discount, #so_tax, #so_shipping', function() {
+                calculateSaleOrderTotals();
             });
 
             // Remove item event
@@ -2299,26 +2304,29 @@ $this->title = 'Dashboard';
     }
 
     function calculateSaleOrderTotals() {
+        // Calculate subtotal from line items (qty * rate for each item)
         let subtotal = 0;
-        let rowDiscount = 0;
-        let rowTax = 0;
-        let lineTotal = 0;
         $('#saleItemTable tbody tr').each(function() {
             let qty = parseFloat($(this).find('.item-qty').val()) || 0;
             let rate = parseFloat($(this).find('.item-rate').val()) || 0;
             subtotal += (qty * rate);
-            rowDiscount += parseFloat($(this).find('.item-discount').val()) || 0;
-            rowTax += parseFloat($(this).find('.item-tax').val()) || 0;
-            lineTotal += parseFloat($(this).find('.item-total').val()) || 0;
         });
-        $('#so_discount').val(rowDiscount.toFixed(2));
-        $('#so_tax').val(rowTax.toFixed(2));
-        let discount = rowDiscount;
-        let tax = rowTax;
+
+        // Get discount, tax, and shipping from form fields (allow user to edit)
+        let discount = parseFloat($('#so_discount').val()) || 0;
+        let tax = parseFloat($('#so_tax').val()) || 0;
         let shipping = parseFloat($('#so_shipping').val()) || 0;
+
+        // Calculate grand total: subtotal - discount + tax + shipping
         let grand = subtotal - discount + tax + shipping;
+
+        // Update subtotal field
         $('#so_subtotal').val(Math.max(0, subtotal).toFixed(2));
+
+        // Update grand total field
         $('#so_grand_total').val(Math.max(0, grand).toFixed(2));
+
+        // Update remaining amount based on paid amount
         let paidAmount = parseFloat($('#so_paid_amount').val()) || 0;
         let remaining = grand - paidAmount;
         $('#so_remaining_amount').val(Math.max(0, remaining).toFixed(2));
