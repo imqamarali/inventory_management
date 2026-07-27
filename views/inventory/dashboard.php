@@ -1839,34 +1839,23 @@ $this->title = 'Dashboard';
     }
 
     function openOrderModal(orderData = null) {
-        // Load data if not already loaded, then show modal
-        if (!window.saleOrderViewData || !window.saleOrderViewData.customers || window.saleOrderViewData.customers.length === 0) {
-            // Show loading message
-            Swal.fire({
-                title: 'Preparing Sales Order...',
-                html: '<p>Loading customers, warehouses, and products...</p>',
-                allowOutsideClick: false,
-                showConfirmButton: false,
-                didOpen: () => Swal.showLoading()
-            });
+        // Show modal immediately, load data in background
+        showSalesOrderModal(orderData);
 
-            // Load data with timeout
-            Promise.race([
-                loadDashboardModalData(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000))
-            ]).then(() => {
+        // Load data in background if needed
+        if (!window.saleOrderViewData || !window.saleOrderViewData.customers || window.saleOrderViewData.customers.length === 0) {
+            loadDashboardModalData().then(() => {
                 console.log('Sales order data loaded successfully');
-                Swal.close();
-                showSalesOrderModal(orderData);
+                // Update modal with fresh data if it's still open
+                if (document.querySelector('.swal2-popup')) {
+                    const currentWarehouse = $('#so_warehouse').val();
+                    if (currentWarehouse) {
+                        loadProductsForWarehouse(currentWarehouse);
+                    }
+                }
             }).catch((error) => {
-                Swal.close();
                 console.error('Error loading sales order data:', error);
-                // Show modal anyway with cached data
-                showSalesOrderModal(orderData);
             });
-        } else {
-            // Data already loaded, show modal immediately
-            showSalesOrderModal(orderData);
         }
     }
 
