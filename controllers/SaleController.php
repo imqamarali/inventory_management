@@ -1654,17 +1654,28 @@ class SaleController extends Controller
                             foreach ($items as $item) {
                                 $productId = $item['product_id'] ?? null;
                                 if ($productId) {
+                                    $quantity = (float)($item['quantity'] ?? 0);
+                                    $unitPrice = (float)($item['unit_price'] ?? 0);
+                                    $discount = (float)($item['discount_amount'] ?? 0);
+                                    $tax = (float)($item['tax_amount'] ?? 0);
+                                    $total = (float)($item['line_total'] ?? 0);
+
                                     $db->createCommand()->insert(
                                         'inventory_sales_order_items',
                                         [
                                             'sales_order_id' => $salesOrderId,
                                             'product_id' => $productId,
-                                            'quantity' => (float)($item['quantity'] ?? 0),
-                                            'unit_price' => (float)($item['unit_price'] ?? 0),
-                                            'discount_amount' => (float)($item['discount_amount'] ?? 0),
-                                            'tax_amount' => (float)($item['tax_amount'] ?? 0),
-                                            'line_total' => (float)($item['line_total'] ?? 0),
+                                            'quantity' => $quantity,
+                                            'delivered_quantity' => 0,
+                                            'remaining_quantity' => $quantity,
+                                            'unit_price' => $unitPrice,
+                                            'discount' => $discount,
+                                            'tax' => $tax,
+                                            'total' => $total,
+                                            'remarks' => $item['remarks'] ?? null,
                                             'created_at' => date('Y-m-d H:i:s'),
+                                            'created_by' => $this->currentUserId(),
+                                            'is_active' => 1,
                                             'is_deleted' => 0
                                         ]
                                     )->execute();
