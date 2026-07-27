@@ -1637,6 +1637,10 @@ class SaleController extends Controller
                             // Create sales invoice automatically
                             $invoiceNumber = 'SINV-' . date('Y') . '-' . str_pad($db->createCommand("SELECT COUNT(*) + 1 FROM inventory_sales_invoices")->queryScalar(), 5, '0', STR_PAD_LEFT);
 
+                            $grandTotal = (float)($post['grand_total'] ?? 0);
+                            $paidAmount = (float)($post['paid_amount'] ?? 0);
+                            $remainingBalance = $grandTotal - $paidAmount;
+
                             $db->createCommand()->insert(
                                 'inventory_sales_invoices',
                                 [
@@ -1650,10 +1654,10 @@ class SaleController extends Controller
                                     'discount' => (float)($post['discount'] ?? 0),
                                     'tax' => (float)($post['tax'] ?? 0),
                                     'shipping' => (float)($post['shipping'] ?? 0),
-                                    'grand_total' => (float)($post['grand_total'] ?? 0),
-                                    'paid_amount' => 0,
-                                    'remaining_balance' => (float)($post['grand_total'] ?? 0),
-                                    'status' => 'Draft',
+                                    'grand_total' => $grandTotal,
+                                    'paid_amount' => $paidAmount,
+                                    'remaining_balance' => $remainingBalance,
+                                    'status' => $paidAmount > 0 ? ($paidAmount >= $grandTotal ? 'Paid' : 'Partially Paid') : 'Draft',
                                     'notes' => $post['notes'] ?? null,
                                     'created_at' => date('Y-m-d H:i:s'),
                                     'created_by' => $this->currentUserId(),
@@ -1685,6 +1689,8 @@ class SaleController extends Controller
                             'subtotal' => (float)($post['subtotal'] ?? 0),
                             'tax' => (float)($post['tax'] ?? 0),
                             'grand_total' => (float)($post['grand_total'] ?? 0),
+                            'paid_amount' => $paidAmount ?? 0,
+                            'remaining_balance' => $remainingBalance ?? (float)($post['grand_total'] ?? 0),
                             'order_status' => $data['order_status']
                         ];
                     } catch (\Exception $e) {

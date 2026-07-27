@@ -2046,7 +2046,7 @@ $this->title = 'Dashboard';
                 <div class="row" style="margin-top:10px;">
                 <div class="col-md-3">
                 <label>Paid Amount</label>
-                <input type="number" id="so_paid_amount" readonly class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00" style="background:#e8f4f8;">
+                <input type="number" id="so_paid_amount" class="form-control" value="${paidAmount}" step="0.01" placeholder="0.00">
                 </div>
                 <div class="col-md-3">
                 <label><strong>Remaining Amount</strong></label>
@@ -2146,6 +2146,14 @@ $this->title = 'Dashboard';
                 let tr = $(this).closest('tr');
                 calculateSaleOrderRow(tr);
                 calculateSaleOrderTotals();
+            });
+
+            // Paid amount change event to recalculate remaining amount
+            $(document).off('input', '#so_paid_amount').on('input', '#so_paid_amount', function() {
+                let grandTotal = parseFloat($('#so_grand_total').val()) || 0;
+                let paidAmount = parseFloat($(this).val()) || 0;
+                let remaining = Math.max(0, grandTotal - paidAmount);
+                $('#so_remaining_amount').val(remaining.toFixed(2));
             });
 
             // Remove item event
@@ -2350,6 +2358,12 @@ $this->title = 'Dashboard';
             delivery_date: $('#so_delivery_date').val(),
             order_status: $('#so_order_status').val(),
             payment_status: $('#so_payment_status').val(),
+            subtotal: $('#so_subtotal').val(),
+            discount: $('#so_discount').val(),
+            tax: $('#so_tax').val(),
+            shipping: $('#so_shipping').val(),
+            grand_total: $('#so_grand_total').val(),
+            paid_amount: $('#so_paid_amount').val(),
             notes: $('#so_notes').val(),
             customer_name: $('#so_customer_name').val(),
             customer_email: $('#so_customer_email').val(),
@@ -2405,6 +2419,14 @@ $this->title = 'Dashboard';
                             <tr style="border-bottom:1px solid #ddd;">
                                 <td style="padding:8px; font-weight:bold;">Grand Total:</td>
                                 <td style="padding:8px; font-weight:bold; color:#ff6b6b; font-size:16px;">PKR ${parseFloat(res.grand_total || 0).toLocaleString()}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Paid Amount:</td>
+                                <td style="padding:8px; color:#2ecc71; font-weight:bold;">PKR ${parseFloat(res.paid_amount || 0).toLocaleString()}</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #ddd;">
+                                <td style="padding:8px; font-weight:bold;">Remaining Balance:</td>
+                                <td style="padding:8px; color:#3498db; font-weight:bold;">PKR ${parseFloat(res.remaining_balance || 0).toLocaleString()}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #ddd;">
                                 <td style="padding:8px; font-weight:bold;">Status:</td>
