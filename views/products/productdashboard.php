@@ -600,75 +600,99 @@
 
     }
 
-    // Truncate Products Handler
-    document.addEventListener('DOMContentLoaded', function() {
-        const truncateBtn = document.getElementById('truncateProducts');
-        if (truncateBtn) {
-            truncateBtn.addEventListener('click', function() {
-                Swal.fire({
-                    title: 'Truncate All Products?',
-                    html: '<div style="text-align: left;"><p style="margin-bottom: 15px;"><strong>⚠️ WARNING: This action is IRREVERSIBLE!</strong></p><p style="margin-bottom: 10px;">This will permanently delete:</p><ul style="margin: 10px 0; padding-left: 20px;"><li>All Products</li><li>All Stock Records</li><li>All Purchase Orders & Details</li><li>All Sales Orders & Details</li></ul><p style="margin-top: 15px; color: #d32f2f;"><strong>There is NO way to recover this data after truncation!</strong></p></div>',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Yes, Delete All',
-                    confirmButtonColor: '#dc3545',
-                    cancelButtonText: 'Cancel',
-                    width: 500
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        Swal.fire({
-                            title: 'Enter Your Password',
-                            text: 'Please confirm by entering your Inventory Admin password',
-                            input: 'password',
-                            inputPlaceholder: 'Enter your password...',
-                            showCancelButton: true,
-                            confirmButtonText: 'Confirm',
-                            confirmButtonColor: '#dc3545',
-                            cancelButtonText: 'Cancel',
-                            inputAttributes: {
-                                autocapitalize: 'off',
-                                autocorrect: 'off'
-                            }
-                        }).then((passwordResult) => {
-                            if (passwordResult.isConfirmed) {
-                                const password = passwordResult.value;
+    // Truncate All Data Handler
+    $(document).ready(function() {
+        $('#truncateProducts').on('click', function(e) {
+            e.preventDefault();
 
-                                if (!password || password === '') {
-                                    Swal.fire('Error!', 'Password is required', 'error');
-                                    return;
-                                }
-
-                                truncateProductsData(password);
+            Swal.fire({
+                title: 'Truncate All Inventory Data?',
+                html: '<div style="text-align: left; padding: 15px;"><p style="margin-bottom: 15px; color: #d32f2f;"><strong>⚠️ WARNING: This action is IRREVERSIBLE!</strong></p><p style="margin-bottom: 10px;"><strong>This will permanently delete:</strong></p><ul style="margin: 10px 0; padding-left: 20px;"><li><strong>Products:</strong> All inventory products</li><li><strong>Master Data:</strong> Categories, Brands, Units, Vehicle Makes, Vehicle Models</li><li><strong>Stock:</strong> All inventory stock records</li><li><strong>Purchases:</strong> All purchase orders and details</li><li><strong>Sales:</strong> All sales orders and details</li></ul><p style="margin-top: 15px; color: #d32f2f; font-weight: bold;">⚠️ There is NO way to recover this data after truncation!</p></div>',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Delete Everything',
+                confirmButtonColor: '#dc3545',
+                cancelButtonText: 'Cancel',
+                width: 600
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Confirm with Password',
+                        text: 'Enter your admin password to confirm this permanent action:',
+                        input: 'password',
+                        inputPlaceholder: 'Enter your password...',
+                        showCancelButton: true,
+                        confirmButtonText: 'Confirm & Delete',
+                        confirmButtonColor: '#dc3545',
+                        cancelButtonText: 'Cancel',
+                        inputAttributes: {
+                            autocapitalize: 'off',
+                            autocorrect: 'off',
+                            spellcheck: 'false'
+                        },
+                        preConfirm: (password) => {
+                            if (!password) {
+                                Swal.showValidationMessage('Password is required');
+                                return false;
                             }
-                        });
-                    }
-                });
+                            return password;
+                        }
+                    }).then((passwordResult) => {
+                        if (passwordResult.isConfirmed) {
+                            truncateAllData(passwordResult.value);
+                        }
+                    });
+                }
             });
-        }
+        });
     });
 
-    function truncateProductsData(password) {
+    function truncateAllData(password) {
+        Swal.fire({
+            title: 'Processing...',
+            html: '<p>Truncating all data...</p><div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
         $.ajax({
             url: '<?= Yii::$app->urlManager->createUrl("products/productdashboard") ?>',
             type: 'POST',
             dataType: 'json',
-            data: { flag: 'truncate_products', password: password },
+            data: {
+                flag: 'truncate_all',
+                password: password
+            },
             success: function(response) {
                 if (response.success) {
                     Swal.fire({
-                        title: 'Deleted!',
-                        text: response.message,
+                        title: '✅ Success!',
+                        html: '<div style="text-align: left;"><p><strong>' + response.message + '</strong></p><p style="margin-top: 10px; font-size: 12px; color: #666;">Redirecting to dashboard...</p></div>',
                         icon: 'success',
-                        confirmButtonColor: '#0f4c29'
+                        confirmButtonColor: '#0f4c29',
+                        allowOutsideClick: false
                     }).then(() => {
                         location.reload();
                     });
                 } else {
-                    Swal.fire('Error!', response.message || 'Failed to truncate products', 'error');
+                    Swal.fire({
+                        title: '❌ Error',
+                        text: response.message || 'Failed to truncate data',
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545'
+                    });
                 }
             },
-            error: function() {
-                Swal.fire('Error!', 'Failed to truncate products', 'error');
+            error: function(xhr, status, error) {
+                Swal.fire({
+                    title: '❌ Error',
+                    text: 'Failed to process truncation request: ' + error,
+                    icon: 'error',
+                    confirmButtonColor: '#dc3545'
+                });
             }
         });
     }

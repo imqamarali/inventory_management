@@ -971,8 +971,8 @@ class ProductsController extends Controller
         try {
             $post = Yii::$app->request->post();
 
-            // Handle truncate products
-            if (isset($post['flag']) && $post['flag'] == 'truncate_products') {
+            // Handle truncate all (products + master data)
+            if (isset($post['flag']) && $post['flag'] == 'truncate_all') {
                 // Only allow Super Admin to truncate
                 $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
                 if ($roleId !== 1) {
@@ -999,40 +999,47 @@ class ProductsController extends Controller
 
                 $db = Yii::$app->db;
                 $transaction = $db->beginTransaction();
+                $deletedRecords = [];
+
                 try {
                     // Delete related purchase records
                     try {
-                        $db->createCommand("DELETE FROM purchase_order_details WHERE purchase_id IN (SELECT id FROM purchase_orders WHERE is_deleted = 0 OR is_deleted = 1)")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist, continue anyway
-                    }
+                        $deletedRecords['purchase_order_details'] = $db->createCommand("DELETE FROM purchase_order_details WHERE purchase_id IN (SELECT id FROM purchase_orders)")->execute();
+                    } catch (\Exception $e) {}
                     try {
-                        $db->createCommand("DELETE FROM purchase_orders WHERE is_deleted = 0 OR is_deleted = 1")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist, continue anyway
-                    }
+                        $deletedRecords['purchase_orders'] = $db->createCommand("DELETE FROM purchase_orders")->execute();
+                    } catch (\Exception $e) {}
 
                     // Delete related sales records
                     try {
-                        $db->createCommand("DELETE FROM sales_order_details WHERE sales_id IN (SELECT id FROM sales_orders WHERE is_deleted = 0 OR is_deleted = 1)")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist, continue anyway
-                    }
+                        $deletedRecords['sales_order_details'] = $db->createCommand("DELETE FROM sales_order_details WHERE sales_id IN (SELECT id FROM sales_orders)")->execute();
+                    } catch (\Exception $e) {}
                     try {
-                        $db->createCommand("DELETE FROM sales_orders WHERE is_deleted = 0 OR is_deleted = 1")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist, continue anyway
-                    }
+                        $deletedRecords['sales_orders'] = $db->createCommand("DELETE FROM sales_orders")->execute();
+                    } catch (\Exception $e) {}
 
                     // Delete related stock records
                     try {
-                        $db->createCommand("DELETE FROM inventory_stock WHERE is_deleted = 0 OR is_deleted = 1")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist, continue anyway
-                    }
+                        $deletedRecords['inventory_stock'] = $db->createCommand("DELETE FROM inventory_stock")->execute();
+                    } catch (\Exception $e) {}
 
                     // Delete all products
-                    $db->createCommand("DELETE FROM inventory_products WHERE is_deleted = 0 OR is_deleted = 1")->execute();
+                    $deletedRecords['inventory_products'] = $db->createCommand("DELETE FROM inventory_products")->execute();
+
+                    // Delete vehicle models
+                    $deletedRecords['inventory_vehicle_models'] = $db->createCommand("DELETE FROM inventory_vehicle_models")->execute();
+
+                    // Delete vehicle makes
+                    $deletedRecords['inventory_vehicle_makes'] = $db->createCommand("DELETE FROM inventory_vehicle_makes")->execute();
+
+                    // Delete brands
+                    $deletedRecords['inventory_brands'] = $db->createCommand("DELETE FROM inventory_brands")->execute();
+
+                    // Delete units
+                    $deletedRecords['inventory_units'] = $db->createCommand("DELETE FROM inventory_units")->execute();
+
+                    // Delete categories
+                    $deletedRecords['inventory_categories'] = $db->createCommand("DELETE FROM inventory_categories")->execute();
 
                     $transaction->commit();
 
@@ -1041,7 +1048,7 @@ class ProductsController extends Controller
                         $db->createCommand()->insert(
                             'activitylogs',
                             [
-                                'activity' => 'Truncate Products - Deleted all products, stock, purchase orders, and sales orders',
+                                'activity' => 'Truncate All Data - Deleted all products, master data (categories, brands, units, makes, models), stock, purchase orders, and sales orders',
                                 'activitytype' => 'Truncate',
                                 'module' => 'Products',
                                 'uid' => $user_id,
@@ -1050,17 +1057,16 @@ class ProductsController extends Controller
                                 'datetime' => date('Y-m-d H:i:s')
                             ]
                         )->execute();
-                    } catch (\Exception $e) {
-                        // Log table might not exist, continue anyway
-                    }
+                    } catch (\Exception $e) {}
 
                     return [
                         'success' => true,
-                        'message' => 'All products, stock, purchase orders, and sales orders have been truncated successfully.'
+                        'message' => 'All products, master data (categories, brands, units, makes, models), stock, purchase orders, and sales orders have been truncated successfully.',
+                        'details' => $deletedRecords
                     ];
                 } catch (\Exception $e) {
                     $transaction->rollBack();
-                    return ['success' => false, 'message' => 'Error truncating products: ' . $e->getMessage()];
+                    return ['success' => false, 'message' => 'Error truncating data: ' . $e->getMessage()];
                 }
             }
 
