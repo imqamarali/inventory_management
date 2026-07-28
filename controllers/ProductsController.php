@@ -36,7 +36,7 @@ class ProductsController extends Controller
                 'rules' => [
                     [
                         'allow' => true,
-                        'actions' => ['fetchexternaldata', 'injectbulkdata'],
+                        'actions' => ['fetchexternaldata', 'injectbulkdata', 'getmodelproducts'],
                         'roles' => ['?', '@'],
                     ],
                     [
@@ -2032,5 +2032,38 @@ class ProductsController extends Controller
         }
     }
 
- 
+    /**
+     * Get products by vehicle model
+     */
+    public function actionGetmodelproducts()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $modelId = Yii::$app->request->post('model_id');
+
+        if (!$modelId) {
+            return $this->jsonResponse(false, 'Model ID is required');
+        }
+
+        try {
+            $products = Yii::$app->db->createCommand(
+                "SELECT p.id, p.product_name, p.sku, p.purchase_price, p.selling_price,
+                        c.category_name, b.brand_name, u.unit_name
+                 FROM inventory_products p
+                 LEFT JOIN inventory_categories c ON p.category_id = c.id
+                 LEFT JOIN inventory_brands b ON p.brand_id = b.id
+                 LEFT JOIN inventory_units u ON p.unit_id = u.id
+                 WHERE p.model_id = :model_id AND p.is_deleted = 0
+                 ORDER BY p.product_name"
+            )->bindValue(':model_id', $modelId)->queryAll();
+
+            return $this->jsonResponse(true, 'Products fetched successfully', [
+                'products' => $products,
+                'count' => count($products)
+            ]);
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, 'Error fetching products: ' . $e->getMessage());
+        }
+    }
+
+
 }
