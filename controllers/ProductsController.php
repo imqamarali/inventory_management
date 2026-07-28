@@ -227,8 +227,6 @@ class ProductsController extends Controller
                 }
 
                 $results['progress'] = intval(($results['inserted'] + $results['skipped'] + $results['errors']) / $results['total'] * 100);
-                flush();
-                ob_flush();
             }
 
             return $this->jsonResponse(true, "Injection complete: {$results['inserted']} inserted, {$results['skipped']} skipped, {$results['errors']} errors", $results);
