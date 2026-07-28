@@ -41,13 +41,11 @@ if (!isset($warehouses)) $warehouses = [];
                         <?php } ?>
                     </select>
 
-                    <button type="button" onclick="loadReport()"
-                        style="height:32px; padding:6px 16px; font-size:12px; background:#0f4c29; color:white; border:none; border-radius:3px; cursor:pointer;">
+                    <button type="button" onclick="loadReport()">
                         <i class="ace-icon fa fa-search"></i> Generate
                     </button>
 
-                    <button onclick="exportReport()"
-                        style="height:32px; padding:6px 16px; font-size:12px; background:#0f4c29; color:white; border:none; border-radius:3px; cursor:pointer;">
+                    <button onclick="exportReport()">
                         <i class="ace-icon fa fa-download"></i> Export Excel
                     </button>
                 </li>
