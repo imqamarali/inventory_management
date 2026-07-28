@@ -1002,44 +1002,85 @@ class ProductsController extends Controller
                 $deletedRecords = [];
 
                 try {
-                    // Delete related purchase records
-                    try {
-                        $deletedRecords['purchase_order_details'] = $db->createCommand("DELETE FROM purchase_order_details WHERE purchase_id IN (SELECT id FROM purchase_orders)")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $deletedRecords['purchase_orders'] = $db->createCommand("DELETE FROM purchase_orders")->execute();
-                    } catch (\Exception $e) {}
+                    // Disable foreign key checks temporarily
+                    $db->createCommand("SET FOREIGN_KEY_CHECKS=0")->execute();
 
-                    // Delete related sales records
-                    try {
-                        $deletedRecords['sales_order_details'] = $db->createCommand("DELETE FROM sales_order_details WHERE sales_id IN (SELECT id FROM sales_orders)")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $deletedRecords['sales_orders'] = $db->createCommand("DELETE FROM sales_orders")->execute();
-                    } catch (\Exception $e) {}
+                    // Delete in order of dependencies (respecting foreign keys)
 
-                    // Delete related stock records
+                    // 1. Delete purchase order items first (references products)
+                    try {
+                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_order_items")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist
+                    }
+
+                    // 2. Delete purchase orders
+                    try {
+                        $deletedRecords['purchase_orders'] = $db->createCommand("DELETE FROM inventory_purchase_orders")->execute();
+                    } catch (\Exception $e) {
+                        // Try alternative table names
+                        try {
+                            $db->createCommand("DELETE FROM purchase_orders")->execute();
+                        } catch (\Exception $e2) {}
+                    }
+
+                    // 3. Delete sales order items (references products)
+                    try {
+                        $deletedRecords['sales_order_items'] = $db->createCommand("DELETE FROM inventory_sales_order_items")->execute();
+                    } catch (\Exception $e) {
+                        // Try alternative table names
+                        try {
+                            $db->createCommand("DELETE FROM sales_order_details")->execute();
+                        } catch (\Exception $e2) {}
+                    }
+
+                    // 4. Delete sales orders
+                    try {
+                        $deletedRecords['sales_orders'] = $db->createCommand("DELETE FROM inventory_sales_orders")->execute();
+                    } catch (\Exception $e) {
+                        // Try alternative table names
+                        try {
+                            $db->createCommand("DELETE FROM sales_orders")->execute();
+                        } catch (\Exception $e2) {}
+                    }
+
+                    // 5. Delete stock records (references products)
                     try {
                         $deletedRecords['inventory_stock'] = $db->createCommand("DELETE FROM inventory_stock")->execute();
                     } catch (\Exception $e) {}
 
-                    // Delete all products
-                    $deletedRecords['inventory_products'] = $db->createCommand("DELETE FROM inventory_products")->execute();
+                    // 6. Delete all products (referenced by stock, purchases, sales)
+                    try {
+                        $deletedRecords['inventory_products'] = $db->createCommand("DELETE FROM inventory_products")->execute();
+                    } catch (\Exception $e) {}
 
-                    // Delete vehicle models
-                    $deletedRecords['inventory_vehicle_models'] = $db->createCommand("DELETE FROM inventory_vehicle_models")->execute();
+                    // 7. Delete vehicle models (references vehicle makes)
+                    try {
+                        $deletedRecords['inventory_vehicle_models'] = $db->createCommand("DELETE FROM inventory_vehicle_models")->execute();
+                    } catch (\Exception $e) {}
 
-                    // Delete vehicle makes
-                    $deletedRecords['inventory_vehicle_makes'] = $db->createCommand("DELETE FROM inventory_vehicle_makes")->execute();
+                    // 8. Delete vehicle makes (referenced by models)
+                    try {
+                        $deletedRecords['inventory_vehicle_makes'] = $db->createCommand("DELETE FROM inventory_vehicle_makes")->execute();
+                    } catch (\Exception $e) {}
 
-                    // Delete brands
-                    $deletedRecords['inventory_brands'] = $db->createCommand("DELETE FROM inventory_brands")->execute();
+                    // 9. Delete brands
+                    try {
+                        $deletedRecords['inventory_brands'] = $db->createCommand("DELETE FROM inventory_brands")->execute();
+                    } catch (\Exception $e) {}
 
-                    // Delete units
-                    $deletedRecords['inventory_units'] = $db->createCommand("DELETE FROM inventory_units")->execute();
+                    // 10. Delete units
+                    try {
+                        $deletedRecords['inventory_units'] = $db->createCommand("DELETE FROM inventory_units")->execute();
+                    } catch (\Exception $e) {}
 
-                    // Delete categories
-                    $deletedRecords['inventory_categories'] = $db->createCommand("DELETE FROM inventory_categories")->execute();
+                    // 11. Delete categories (self-referencing, so delete all)
+                    try {
+                        $deletedRecords['inventory_categories'] = $db->createCommand("DELETE FROM inventory_categories")->execute();
+                    } catch (\Exception $e) {}
+
+                    // Re-enable foreign key checks
+                    $db->createCommand("SET FOREIGN_KEY_CHECKS=1")->execute();
 
                     $transaction->commit();
 
@@ -1065,6 +1106,12 @@ class ProductsController extends Controller
                         'details' => $deletedRecords
                     ];
                 } catch (\Exception $e) {
+                    try {
+                        // Re-enable foreign key checks on error
+                        $db->createCommand("SET FOREIGN_KEY_CHECKS=1")->execute();
+                    } catch (\Exception $fkE) {
+                        // Ignore FK re-enable errors
+                    }
                     $transaction->rollBack();
                     return ['success' => false, 'message' => 'Error truncating data: ' . $e->getMessage()];
                 }
