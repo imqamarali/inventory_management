@@ -78,6 +78,7 @@ class ProductsController extends Controller
     {
         $modules = [
             ['name' => 'Product Dashboard', 'controller' => 'products/productdashboard', 'icon' => 'fa fa-dashboard'],
+            ['name' => 'Load Products Data', 'controller' => 'products/loadproductsdata', 'icon' => 'fa fa-upload'],
             ['name' => 'Categories', 'controller' => 'products/categories', 'icon' => 'fa fa-tags'],
             ['name' => 'Brands', 'controller' => 'products/brands', 'icon' => 'fa fa-certificate'],
             ['name' => 'Units', 'controller' => 'products/units', 'icon' => 'fa fa-balance-scale'],
@@ -87,6 +88,572 @@ class ProductsController extends Controller
         ];
 
         return $this->render('index', compact('modules'));
+    }
+
+    /**
+     * Load Products Data - Real-time insertion for Categories, Brands, Units, Makes & Models
+     */
+    public function actionLoadProductsData()
+    {
+        if (Yii::$app->request->isGet) {
+            // Load initial data for displaying in view
+            $categories = Yii::$app->db->createCommand(
+                "SELECT id, parent_id, category_name, category_code, is_active
+                 FROM inventory_categories
+                 WHERE is_deleted = 0
+                 ORDER BY parent_id, category_name"
+            )->queryAll();
+
+            $brands = Yii::$app->db->createCommand(
+                "SELECT id, brand_name, brand_code, is_active
+                 FROM inventory_brands
+                 WHERE is_deleted = 0
+                 ORDER BY brand_name"
+            )->queryAll();
+
+            $units = Yii::$app->db->createCommand(
+                "SELECT id, unit_name, short_name, is_active
+                 FROM inventory_units
+                 WHERE is_deleted = 0
+                 ORDER BY unit_name"
+            )->queryAll();
+
+            $makes = Yii::$app->db->createCommand(
+                "SELECT id, make_name, make_code, country, is_active
+                 FROM inventory_vehicle_makes
+                 WHERE is_deleted = 0
+                 ORDER BY make_name"
+            )->queryAll();
+
+            $models = Yii::$app->db->createCommand(
+                "SELECT vm.id, vm.make_id, vm.model_name, vm.model_code, vm.model_year,
+                        vm.engine_type, vm.fuel_type, vm.transmission,
+                        m.make_name, vm.is_active
+                 FROM inventory_vehicle_models vm
+                 LEFT JOIN inventory_vehicle_makes m ON m.id = vm.make_id
+                 WHERE vm.is_deleted = 0
+                 ORDER BY m.make_name, vm.model_name"
+            )->queryAll();
+
+            return $this->render('loadproductsdata', compact(
+                'categories', 'brands', 'units', 'makes', 'models'
+            ));
+        }
+
+        // AJAX POST requests for real-time data insertion
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $post = Yii::$app->request->post();
+        $action = $post['action'] ?? null;
+        $userId = $this->currentUserId();
+
+        try {
+            switch ($action) {
+                case 'add_category':
+                    return $this->addCategory($post, $userId);
+                case 'add_brand':
+                    return $this->addBrand($post, $userId);
+                case 'add_unit':
+                    return $this->addUnit($post, $userId);
+                case 'add_make':
+                    return $this->addVehicleMake($post, $userId);
+                case 'add_model':
+                    return $this->addVehicleModel($post, $userId);
+                case 'update_category':
+                    return $this->updateCategory($post, $userId);
+                case 'update_brand':
+                    return $this->updateBrand($post, $userId);
+                case 'update_unit':
+                    return $this->updateUnit($post, $userId);
+                case 'update_make':
+                    return $this->updateVehicleMake($post, $userId);
+                case 'update_model':
+                    return $this->updateVehicleModel($post, $userId);
+                case 'delete_category':
+                    return $this->deleteCategory($post);
+                case 'delete_brand':
+                    return $this->deleteBrand($post);
+                case 'delete_unit':
+                    return $this->deleteUnit($post);
+                case 'delete_make':
+                    return $this->deleteVehicleMake($post);
+                case 'delete_model':
+                    return $this->deleteVehicleModel($post);
+                case 'get_data':
+                    return $this->getTableData($post);
+                default:
+                    return $this->jsonResponse(false, 'Invalid action');
+            }
+        } catch (\Exception $e) {
+            return $this->jsonResponse(false, 'Error: ' . $e->getMessage());
+        }
+    }
+
+    // ========== CATEGORY FUNCTIONS ==========
+    private function addCategory($post, $userId)
+    {
+        $categoryName = trim($post['category_name'] ?? '');
+        $categoryCode = trim($post['category_code'] ?? '');
+        $parentId = $post['parent_id'] ?? null;
+        $description = $post['description'] ?? '';
+
+        if (empty($categoryName)) {
+            return $this->jsonResponse(false, 'Category name is required');
+        }
+
+        // Check for duplicate code
+        if (!empty($categoryCode)) {
+            $exists = Yii::$app->db->createCommand(
+                "SELECT COUNT(*) FROM inventory_categories WHERE category_code = :code AND is_deleted = 0"
+            )->bindValue(':code', $categoryCode)->queryScalar();
+
+            if ($exists) {
+                return $this->jsonResponse(false, 'Category code already exists');
+            }
+        }
+
+        Yii::$app->db->createCommand()->insert('inventory_categories', [
+            'category_name' => $categoryName,
+            'category_code' => $categoryCode ?: null,
+            'parent_id' => $parentId ?: null,
+            'description' => $description,
+            'created_by' => $userId,
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ])->execute();
+
+        return $this->jsonResponse(true, 'Category added successfully', [
+            'id' => Yii::$app->db->lastInsertID
+        ]);
+    }
+
+    private function updateCategory($post, $userId)
+    {
+        $id = $post['id'] ?? null;
+        $categoryName = trim($post['category_name'] ?? '');
+        $categoryCode = trim($post['category_code'] ?? '');
+        $parentId = $post['parent_id'] ?? null;
+        $description = $post['description'] ?? '';
+        $isActive = $post['is_active'] ?? 1;
+
+        if (!$id || empty($categoryName)) {
+            return $this->jsonResponse(false, 'Category ID and name are required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_categories', [
+            'category_name' => $categoryName,
+            'category_code' => $categoryCode ?: null,
+            'parent_id' => $parentId ?: null,
+            'description' => $description,
+            'updated_by' => $userId,
+            'is_active' => $isActive,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Category updated successfully');
+    }
+
+    private function deleteCategory($post)
+    {
+        $id = $post['id'] ?? null;
+        if (!$id) {
+            return $this->jsonResponse(false, 'Category ID is required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_categories', [
+            'is_deleted' => 1,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Category deleted successfully');
+    }
+
+    // ========== BRAND FUNCTIONS ==========
+    private function addBrand($post, $userId)
+    {
+        $brandName = trim($post['brand_name'] ?? '');
+        $brandCode = trim($post['brand_code'] ?? '');
+        $website = trim($post['website'] ?? '');
+        $email = trim($post['email'] ?? '');
+        $phone = trim($post['phone'] ?? '');
+
+        if (empty($brandName)) {
+            return $this->jsonResponse(false, 'Brand name is required');
+        }
+
+        if (!empty($brandCode)) {
+            $exists = Yii::$app->db->createCommand(
+                "SELECT COUNT(*) FROM inventory_brands WHERE brand_code = :code AND is_deleted = 0"
+            )->bindValue(':code', $brandCode)->queryScalar();
+
+            if ($exists) {
+                return $this->jsonResponse(false, 'Brand code already exists');
+            }
+        }
+
+        Yii::$app->db->createCommand()->insert('inventory_brands', [
+            'brand_name' => $brandName,
+            'brand_code' => $brandCode ?: null,
+            'website' => !empty($website) ? $website : null,
+            'email' => !empty($email) ? $email : null,
+            'phone' => !empty($phone) ? $phone : null,
+            'created_by' => $userId,
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ])->execute();
+
+        return $this->jsonResponse(true, 'Brand added successfully', [
+            'id' => Yii::$app->db->lastInsertID
+        ]);
+    }
+
+    private function updateBrand($post, $userId)
+    {
+        $id = $post['id'] ?? null;
+        $brandName = trim($post['brand_name'] ?? '');
+        $brandCode = trim($post['brand_code'] ?? '');
+        $website = trim($post['website'] ?? '');
+        $email = trim($post['email'] ?? '');
+        $phone = trim($post['phone'] ?? '');
+        $isActive = $post['is_active'] ?? 1;
+
+        if (!$id || empty($brandName)) {
+            return $this->jsonResponse(false, 'Brand ID and name are required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_brands', [
+            'brand_name' => $brandName,
+            'brand_code' => $brandCode ?: null,
+            'website' => !empty($website) ? $website : null,
+            'email' => !empty($email) ? $email : null,
+            'phone' => !empty($phone) ? $phone : null,
+            'updated_by' => $userId,
+            'is_active' => $isActive,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Brand updated successfully');
+    }
+
+    private function deleteBrand($post)
+    {
+        $id = $post['id'] ?? null;
+        if (!$id) {
+            return $this->jsonResponse(false, 'Brand ID is required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_brands', [
+            'is_deleted' => 1,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Brand deleted successfully');
+    }
+
+    // ========== UNIT FUNCTIONS ==========
+    private function addUnit($post, $userId)
+    {
+        $unitName = trim($post['unit_name'] ?? '');
+        $shortName = trim($post['short_name'] ?? '');
+        $description = $post['description'] ?? '';
+
+        if (empty($unitName) || empty($shortName)) {
+            return $this->jsonResponse(false, 'Unit name and short name are required');
+        }
+
+        Yii::$app->db->createCommand()->insert('inventory_units', [
+            'unit_name' => $unitName,
+            'short_name' => $shortName,
+            'description' => $description,
+            'created_by' => $userId,
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ])->execute();
+
+        return $this->jsonResponse(true, 'Unit added successfully', [
+            'id' => Yii::$app->db->lastInsertID
+        ]);
+    }
+
+    private function updateUnit($post, $userId)
+    {
+        $id = $post['id'] ?? null;
+        $unitName = trim($post['unit_name'] ?? '');
+        $shortName = trim($post['short_name'] ?? '');
+        $description = $post['description'] ?? '';
+        $isActive = $post['is_active'] ?? 1;
+
+        if (!$id || empty($unitName) || empty($shortName)) {
+            return $this->jsonResponse(false, 'Unit ID, name and short name are required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_units', [
+            'unit_name' => $unitName,
+            'short_name' => $shortName,
+            'description' => $description,
+            'updated_by' => $userId,
+            'is_active' => $isActive,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Unit updated successfully');
+    }
+
+    private function deleteUnit($post)
+    {
+        $id = $post['id'] ?? null;
+        if (!$id) {
+            return $this->jsonResponse(false, 'Unit ID is required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_units', [
+            'is_deleted' => 1,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Unit deleted successfully');
+    }
+
+    // ========== VEHICLE MAKE FUNCTIONS ==========
+    private function addVehicleMake($post, $userId)
+    {
+        $makeName = trim($post['make_name'] ?? '');
+        $makeCode = trim($post['make_code'] ?? '');
+        $country = trim($post['country'] ?? '');
+        $website = trim($post['website'] ?? '');
+
+        if (empty($makeName)) {
+            return $this->jsonResponse(false, 'Make name is required');
+        }
+
+        if (!empty($makeCode)) {
+            $exists = Yii::$app->db->createCommand(
+                "SELECT COUNT(*) FROM inventory_vehicle_makes WHERE make_code = :code AND is_deleted = 0"
+            )->bindValue(':code', $makeCode)->queryScalar();
+
+            if ($exists) {
+                return $this->jsonResponse(false, 'Make code already exists');
+            }
+        }
+
+        Yii::$app->db->createCommand()->insert('inventory_vehicle_makes', [
+            'make_name' => $makeName,
+            'make_code' => $makeCode ?: null,
+            'country' => !empty($country) ? $country : null,
+            'website' => !empty($website) ? $website : null,
+            'created_by' => $userId,
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ])->execute();
+
+        return $this->jsonResponse(true, 'Vehicle Make added successfully', [
+            'id' => Yii::$app->db->lastInsertID
+        ]);
+    }
+
+    private function updateVehicleMake($post, $userId)
+    {
+        $id = $post['id'] ?? null;
+        $makeName = trim($post['make_name'] ?? '');
+        $makeCode = trim($post['make_code'] ?? '');
+        $country = trim($post['country'] ?? '');
+        $website = trim($post['website'] ?? '');
+        $isActive = $post['is_active'] ?? 1;
+
+        if (!$id || empty($makeName)) {
+            return $this->jsonResponse(false, 'Make ID and name are required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_vehicle_makes', [
+            'make_name' => $makeName,
+            'make_code' => $makeCode ?: null,
+            'country' => !empty($country) ? $country : null,
+            'website' => !empty($website) ? $website : null,
+            'updated_by' => $userId,
+            'is_active' => $isActive,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Vehicle Make updated successfully');
+    }
+
+    private function deleteVehicleMake($post)
+    {
+        $id = $post['id'] ?? null;
+        if (!$id) {
+            return $this->jsonResponse(false, 'Make ID is required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_vehicle_makes', [
+            'is_deleted' => 1,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Vehicle Make deleted successfully');
+    }
+
+    // ========== VEHICLE MODEL FUNCTIONS ==========
+    private function addVehicleModel($post, $userId)
+    {
+        $makeId = $post['make_id'] ?? null;
+        $modelName = trim($post['model_name'] ?? '');
+        $modelCode = trim($post['model_code'] ?? '');
+        $modelYear = trim($post['model_year'] ?? '');
+        $engineType = trim($post['engine_type'] ?? '');
+        $engineCapacity = trim($post['engine_capacity'] ?? '');
+        $fuelType = $post['fuel_type'] ?? 'Petrol';
+        $transmission = $post['transmission'] ?? 'Manual';
+
+        if (!$makeId || empty($modelName)) {
+            return $this->jsonResponse(false, 'Make ID and model name are required');
+        }
+
+        // Verify make exists
+        $makeExists = Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM inventory_vehicle_makes WHERE id = :id AND is_deleted = 0"
+        )->bindValue(':id', $makeId)->queryScalar();
+
+        if (!$makeExists) {
+            return $this->jsonResponse(false, 'Selected make does not exist');
+        }
+
+        Yii::$app->db->createCommand()->insert('inventory_vehicle_models', [
+            'make_id' => $makeId,
+            'model_name' => $modelName,
+            'model_code' => $modelCode ?: null,
+            'model_year' => $modelYear ?: null,
+            'engine_type' => !empty($engineType) ? $engineType : null,
+            'engine_capacity' => !empty($engineCapacity) ? $engineCapacity : null,
+            'fuel_type' => $fuelType,
+            'transmission' => $transmission,
+            'created_by' => $userId,
+            'is_active' => 1,
+            'is_deleted' => 0,
+        ])->execute();
+
+        return $this->jsonResponse(true, 'Vehicle Model added successfully', [
+            'id' => Yii::$app->db->lastInsertID
+        ]);
+    }
+
+    private function updateVehicleModel($post, $userId)
+    {
+        $id = $post['id'] ?? null;
+        $makeId = $post['make_id'] ?? null;
+        $modelName = trim($post['model_name'] ?? '');
+        $modelCode = trim($post['model_code'] ?? '');
+        $modelYear = trim($post['model_year'] ?? '');
+        $engineType = trim($post['engine_type'] ?? '');
+        $engineCapacity = trim($post['engine_capacity'] ?? '');
+        $fuelType = $post['fuel_type'] ?? 'Petrol';
+        $transmission = $post['transmission'] ?? 'Manual';
+        $isActive = $post['is_active'] ?? 1;
+
+        if (!$id || !$makeId || empty($modelName)) {
+            return $this->jsonResponse(false, 'Model ID, Make ID and name are required');
+        }
+
+        // Verify make exists
+        $makeExists = Yii::$app->db->createCommand(
+            "SELECT COUNT(*) FROM inventory_vehicle_makes WHERE id = :id AND is_deleted = 0"
+        )->bindValue(':id', $makeId)->queryScalar();
+
+        if (!$makeExists) {
+            return $this->jsonResponse(false, 'Selected make does not exist');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_vehicle_models', [
+            'make_id' => $makeId,
+            'model_name' => $modelName,
+            'model_code' => $modelCode ?: null,
+            'model_year' => $modelYear ?: null,
+            'engine_type' => !empty($engineType) ? $engineType : null,
+            'engine_capacity' => !empty($engineCapacity) ? $engineCapacity : null,
+            'fuel_type' => $fuelType,
+            'transmission' => $transmission,
+            'updated_by' => $userId,
+            'is_active' => $isActive,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Vehicle Model updated successfully');
+    }
+
+    private function deleteVehicleModel($post)
+    {
+        $id = $post['id'] ?? null;
+        if (!$id) {
+            return $this->jsonResponse(false, 'Model ID is required');
+        }
+
+        Yii::$app->db->createCommand()->update('inventory_vehicle_models', [
+            'is_deleted' => 1,
+        ], 'id = :id', [':id' => $id])->execute();
+
+        return $this->jsonResponse(true, 'Vehicle Model deleted successfully');
+    }
+
+    // ========== GET DATA FUNCTION ==========
+    private function getTableData($post)
+    {
+        $table = $post['table'] ?? null;
+        $page = (int)($post['page'] ?? 1);
+        $limit = (int)($post['limit'] ?? 15);
+        $offset = ($page - 1) * $limit;
+
+        if (!$table) {
+            return $this->jsonResponse(false, 'Table name is required');
+        }
+
+        $data = [];
+        $total = 0;
+
+        switch ($table) {
+            case 'categories':
+                $total = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_categories WHERE is_deleted = 0"
+                )->queryScalar();
+                $data = Yii::$app->db->createCommand(
+                    "SELECT * FROM inventory_categories WHERE is_deleted = 0
+                     ORDER BY parent_id, category_name LIMIT $offset, $limit"
+                )->queryAll();
+                break;
+            case 'brands':
+                $total = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_brands WHERE is_deleted = 0"
+                )->queryScalar();
+                $data = Yii::$app->db->createCommand(
+                    "SELECT * FROM inventory_brands WHERE is_deleted = 0
+                     ORDER BY brand_name LIMIT $offset, $limit"
+                )->queryAll();
+                break;
+            case 'units':
+                $total = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_units WHERE is_deleted = 0"
+                )->queryScalar();
+                $data = Yii::$app->db->createCommand(
+                    "SELECT * FROM inventory_units WHERE is_deleted = 0
+                     ORDER BY unit_name LIMIT $offset, $limit"
+                )->queryAll();
+                break;
+            case 'makes':
+                $total = Yii::$app->db->createCommand(
+                    "SELECT COUNT(*) FROM inventory_vehicle_makes WHERE is_deleted = 0"
+                )->queryScalar();
+                $data = Yii::$app->db->createCommand(
+                    "SELECT * FROM inventory_vehicle_makes WHERE is_deleted = 0
+                     ORDER BY make_name LIMIT $offset, $limit"
+                )->queryAll();
+                break;
+            case 'models':
+                $total = Yii::$app->db->createCommand(
+                    "SELECT * FROM inventory_vehicle_models WHERE is_deleted = 0"
+                )->queryScalar();
+                $data = Yii::$app->db->createCommand(
+                    "SELECT vm.*, m.make_name FROM inventory_vehicle_models vm
+                     LEFT JOIN inventory_vehicle_makes m ON m.id = vm.make_id
+                     WHERE vm.is_deleted = 0
+                     ORDER BY m.make_name, vm.model_name LIMIT $offset, $limit"
+                )->queryAll();
+                break;
+        }
+
+        return $this->jsonResponse(true, 'Data retrieved successfully', [
+            'data' => $data,
+            'total' => $total,
+            'pages' => ceil($total / $limit),
+            'current_page' => $page
+        ]);
     }
 
     public function actionProductdashboard()
