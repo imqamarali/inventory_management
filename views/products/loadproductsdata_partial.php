@@ -294,10 +294,20 @@ function startImportModels() {
     const makeId = document.getElementById('model_make_select').value;
     if (!makeId) {
         Swal.fire({
-            icon: 'warning',
-            title: 'Please Select',
-            text: 'Please select a vehicle make first',
-            confirmButtonColor: '#0f4c29'
+            icon: 'question',
+            title: 'Import Models for All Makes?',
+            text: 'No specific make selected. Would you like to load vehicle models for ALL makes in your database?',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Load All',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#0f4c29',
+            cancelButtonColor: '#6c757d'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                currentMakeId = '';
+                currentImportType = 'models';
+                fetchExternalData('models');
+            }
         });
         return;
     }
@@ -438,12 +448,15 @@ function injectBulkData() {
     Swal.fire({
         title: 'Injecting Data...',
         html: '<div class="swal-progress-container show">' +
-              '<div class="progress">' +
-              '<div class="progress-bar" id="swalProgressBar" style="width: 0%;">0%</div>' +
+              '<div style="text-align: left; margin-bottom: 15px;">' +
+              '<p style="font-size: 13px; margin: 0 0 10px 0;"><strong>Processing:</strong> <span id="swalProgressText">0/0</span></p>' +
+              '<p style="font-size: 13px; margin: 0 0 10px 0;"><strong>Status:</strong> <span id="swalProgressStatus">Initializing...</span></p>' +
               '</div>' +
-              '<div class="progress-text">Processing: <span id="swalProgressText">0/0</span></div>' +
+              '<div class="progress" style="height: 25px; margin-bottom: 15px;">' +
+              '<div class="progress-bar" id="swalProgressBar" style="width: 0%; font-weight: bold;">0%</div>' +
               '</div>' +
-              '<div class="swal-results" id="swalResults"></div>',
+              '<div class="swal-results" id="swalResults" style="background: #f5f5f5; padding: 10px; border-radius: 4px;"></div>' +
+              '</div>',
         allowOutsideClick: false,
         allowEscapeKey: false,
         didOpen: () => {
@@ -459,35 +472,46 @@ function injectBulkData() {
         success: function(response) {
             if (response.success) {
                 const progress = response.progress || 100;
-                document.getElementById('swalProgressBar').style.width = progress + '%';
-                document.getElementById('swalProgressBar').textContent = progress + '%';
+                const progressPercent = Math.min(progress, 100);
+                document.getElementById('swalProgressBar').style.width = progressPercent + '%';
+                document.getElementById('swalProgressBar').textContent = progressPercent + '%';
                 document.getElementById('swalProgressText').textContent = response.inserted + '/' + selected.length;
+
+                let statusText = 'Inserted: ' + response.inserted + ' | Skipped: ' + response.skipped + ' | Errors: ' + response.errors;
+                document.getElementById('swalProgressStatus').textContent = statusText;
 
                 let resultHtml = '';
                 if (response.messages && response.messages.length > 0) {
-                    response.messages.forEach(msg => {
+                    // Show last 5 messages in real-time
+                    const messagesToShow = response.messages.slice(-5);
+                    messagesToShow.forEach(msg => {
                         let cls = 'success';
                         if (msg.includes('Skipped')) cls = 'warning';
                         if (msg.includes('Error')) cls = 'error';
-                        resultHtml += '<div class="result-item ' + cls + '">' + msg + '</div>';
+                        resultHtml += '<div class="result-item ' + cls + '" style="padding: 5px 8px; margin: 3px 0; border-radius: 3px; font-size: 12px;">' + msg + '</div>';
                     });
                 }
                 document.getElementById('swalResults').innerHTML = resultHtml;
 
-                setTimeout(() => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        html: '<p><strong>' + response.inserted + ' records</strong> injected successfully!</p>' +
-                              '<p style="font-size: 12px; color: #666; margin-top: 10px;">Page will refresh automatically...</p>',
-                        confirmButtonColor: '#0f4c29',
-                        didOpen: () => {
-                            setTimeout(() => {
-                                location.reload();
-                            }, 2000);
-                        }
-                    });
-                }, 1000);
+                if (progress >= 100) {
+                    setTimeout(() => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '✅ Complete!',
+                            html: '<div style="text-align: left;">' +
+                                  '<p><strong>' + response.inserted + ' records</strong> injected successfully!</p>' +
+                                  '<p>Skipped: <strong>' + response.skipped + '</strong> | Errors: <strong>' + response.errors + '</strong></p>' +
+                                  '<p style="font-size: 12px; color: #666; margin-top: 15px;">Page will refresh automatically...</p>' +
+                                  '</div>',
+                            confirmButtonColor: '#0f4c29',
+                            didOpen: () => {
+                                setTimeout(() => {
+                                    location.reload();
+                                }, 2000);
+                            }
+                        });
+                    }, 500);
+                }
             } else {
                 Swal.fire({
                     icon: 'error',

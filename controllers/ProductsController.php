@@ -134,19 +134,32 @@ class ProductsController extends Controller
                     break;
                 case 'models':
                     $makeId = $post['make_id'] ?? null;
-                    if (!$makeId) {
-                        return $this->jsonResponse(false, 'Make ID is required for models');
-                    }
-                    // Get make name first
-                    $make = Yii::$app->db->createCommand(
-                        "SELECT make_name FROM inventory_vehicle_makes WHERE id = :id"
-                    )->bindValue(':id', $makeId)->queryOne();
+                    if ($makeId) {
+                        // Get models for specific make
+                        $make = Yii::$app->db->createCommand(
+                            "SELECT make_name FROM inventory_vehicle_makes WHERE id = :id AND is_deleted = 0"
+                        )->bindValue(':id', $makeId)->queryOne();
 
-                    if (!$make) {
-                        return $this->jsonResponse(false, 'Selected make not found');
-                    }
+                        if (!$make) {
+                            return $this->jsonResponse(false, 'Selected make not found');
+                        }
 
-                    $data = $dataService->getModelsForMake($make['make_name']);
+                        $data = $dataService->getModelsForMake($make['make_name']);
+                    } else {
+                        // Get models for all makes
+                        $makes = Yii::$app->db->createCommand(
+                            "SELECT make_name FROM inventory_vehicle_makes WHERE is_deleted = 0 ORDER BY make_name"
+                        )->queryAll();
+
+                        $data = [];
+                        foreach ($makes as $make) {
+                            $models = $dataService->getModelsForMake($make['make_name']);
+                            foreach ($models as $model) {
+                                $model['make_name'] = $make['make_name'];
+                                $data[] = $model;
+                            }
+                        }
+                    }
                     break;
                 default:
                     return $this->jsonResponse(false, 'Invalid data type');
@@ -365,8 +378,26 @@ class ProductsController extends Controller
     private function insertVehicleModel($item, $userId, $makeId)
     {
         $modelName = trim($item['model_name'] ?? '');
-        if (empty($modelName) || !$makeId) {
-            return 'Missing model name or make ID';
+
+        if (empty($modelName)) {
+            return 'Missing model name';
+        }
+
+        // If makeId is not provided, try to get it from make_name in the item
+        if (!$makeId && isset($item['make_name'])) {
+            $makeName = trim($item['make_name']);
+            $make = Yii::$app->db->createCommand(
+                "SELECT id FROM inventory_vehicle_makes WHERE make_name = :name AND is_deleted = 0"
+            )->bindValue(':name', $makeName)->queryOne();
+
+            if (!$make) {
+                return 'Make "' . $makeName . '" not found in database';
+            }
+            $makeId = $make['id'];
+        }
+
+        if (!$makeId) {
+            return 'Make ID is required';
         }
 
         // Verify make exists
