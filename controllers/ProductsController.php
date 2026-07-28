@@ -1005,151 +1005,103 @@ class ProductsController extends Controller
                     // Disable foreign key checks temporarily
                     $db->createCommand("SET FOREIGN_KEY_CHECKS=0")->execute();
 
-                    // Delete in order of dependencies (respecting foreign keys)
+                    // Delete in correct order (respecting all foreign key relationships)
 
-                    // 1. Delete purchase order items first (references products)
-                     try {
-                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_invoices")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist
-                    }
-                     try {
-                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_invoice_items")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist
-                    }
-                     try {
-                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_invoice_payments")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist
-                    }
-                    try {
-                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_order_items")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist
-                    }
-                    
+                    // TIER 1: POS Related (no dependencies)
+                    try { $db->createCommand("DELETE FROM inventory_pos_payment_history")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_pos_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_pos_transactions")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_pos_sales")->execute(); } catch (\Exception $e) {}
 
-                    // 2. Delete purchase orders
-                    try {
-                        $deletedRecords['purchase_orders'] = $db->createCommand("DELETE FROM inventory_purchase_orders")->execute();
-                    } catch (\Exception $e) {
-                        // Try alternative table names
+                    // TIER 2: Purchase Returns (child of purchases)
+                    try { $db->createCommand("DELETE FROM inventory_purchase_return_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_returns")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 3: Purchase Invoices & Details (references purchases)
+                    try { $db->createCommand("DELETE FROM inventory_purchase_invoice_payments")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_invoice_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_invoices")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 4: Purchase Orders & Items (parent of invoices)
+                    try { $db->createCommand("DELETE FROM inventory_purchase_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_orders")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM purchase_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM purchase_orders")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 5: Sales Returns (child of sales)
+                    try { $db->createCommand("DELETE FROM inventory_sales_returns")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 6: Sales Invoices & Details (references sales)
+                    try { $db->createCommand("DELETE FROM inventory_sale_invoice_payments")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sale_invoice_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_invoice_payments")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_invoice_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_invoices")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 7: Sales Orders & Items (parent of invoices)
+                    try { $db->createCommand("DELETE FROM inventory_sales_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_orders")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM sales_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM sales_orders")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 8: Goods Receiving (references products)
+                    try { $db->createCommand("DELETE FROM inventory_goods_receiving_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_goods_receiving")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 9: Stock Audits & Movements (references stock & products)
+                    try { $db->createCommand("DELETE FROM inventory_stock_audit_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_stock_audits")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_stock_transfer_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_stock_transfers")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_stock_adjustment_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_stock_adjustments")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_stock_movements")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 10: Stock Records (references products)
+                    try { $db->createCommand("DELETE FROM inventory_stock")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 11: Transactions & Payments (references products)
+                    try { $db->createCommand("DELETE FROM inventory_transactions")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_payments")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 12: Products (all references cleaned up)
+                    try { $db->createCommand("DELETE FROM inventory_products")->execute(); } catch (\Exception $e) {}
+
+                    // TIER 13: Master Data (Vehicle Models & Makes)
+                    try { $db->createCommand("DELETE FROM inventory_vehicle_models")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_vehicle_makes")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_brands")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_units")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_categories")->execute(); } catch (\Exception $e) {}
+
+                    // Reset auto-increment for ALL truncated tables
+                    $autoIncrementTables = [
+                        'inventory_categories', 'inventory_brands', 'inventory_units',
+                        'inventory_vehicle_makes', 'inventory_vehicle_models',
+                        'inventory_products', 'inventory_stock',
+                        'inventory_stock_adjustments', 'inventory_stock_adjustment_items',
+                        'inventory_stock_movements', 'inventory_stock_transfers', 'inventory_stock_transfer_items',
+                        'inventory_stock_audits', 'inventory_stock_audit_items',
+                        'inventory_purchase_orders', 'inventory_purchase_order_items',
+                        'inventory_purchase_invoices', 'inventory_purchase_invoice_items', 'inventory_purchase_invoice_payments',
+                        'inventory_purchase_returns', 'inventory_purchase_return_items',
+                        'inventory_sales_orders', 'inventory_sales_order_items',
+                        'inventory_sales_invoices', 'inventory_sales_invoice_items', 'inventory_sales_invoice_payments',
+                        'inventory_sales_returns', 'inventory_sale_invoice_items', 'inventory_sale_invoice_payments',
+                        'inventory_goods_receiving', 'inventory_goods_receiving_items',
+                        'inventory_transactions', 'inventory_payments',
+                        'inventory_pos_sales', 'inventory_pos_items', 'inventory_pos_transactions', 'inventory_pos_payment_history',
+                        // Alternative table names
+                        'purchase_orders', 'purchase_order_items', 'sales_orders', 'sales_order_items', 'sales_order_details'
+                    ];
+
+                    foreach ($autoIncrementTables as $table) {
                         try {
-                            $db->createCommand("DELETE FROM purchase_orders")->execute();
-                        } catch (\Exception $e2) {}
+                            $db->createCommand("ALTER TABLE " . $table . " AUTO_INCREMENT = 1")->execute();
+                        } catch (\Exception $e) {
+                            // Table might not exist, continue
+                        }
                     }
-
-                    // 3. Delete sales order items (references products)
-                    try {
-                        $deletedRecords['sales_order_items'] = $db->createCommand("DELETE FROM inventory_sales_order_items")->execute();
-                    } catch (\Exception $e) {
-                        // Try alternative table names
-                        try {
-                            $db->createCommand("DELETE FROM sales_order_details")->execute();
-                        } catch (\Exception $e2) {}
-                    }
-
-                    // 4. Delete sales orders
-                    try {
-                        $deletedRecords['sales_orders'] = $db->createCommand("DELETE FROM inventory_sales_orders")->execute();
-                    } catch (\Exception $e) {
-                        // Try alternative table names
-                        try {
-                            $db->createCommand("DELETE FROM sales_orders")->execute();
-                        } catch (\Exception $e2) {}
-                    }
-
-                    // 5. Delete stock records (references products)
-                    try {
-                        $deletedRecords['inventory_stock'] = $db->createCommand("DELETE FROM inventory_stock")->execute();
-                    } catch (\Exception $e) {}
-
-                    // 6. Delete all products (referenced by stock, purchases, sales)
-                    try {
-                        $deletedRecords['inventory_products'] = $db->createCommand("DELETE FROM inventory_products")->execute();
-                    } catch (\Exception $e) {}
-
-                    // 7. Delete vehicle models (references vehicle makes)
-                    try {
-                        $deletedRecords['inventory_vehicle_models'] = $db->createCommand("DELETE FROM inventory_vehicle_models")->execute();
-                    } catch (\Exception $e) {}
-
-                    // 8. Delete vehicle makes (referenced by models)
-                    try {
-                        $deletedRecords['inventory_vehicle_makes'] = $db->createCommand("DELETE FROM inventory_vehicle_makes")->execute();
-                    } catch (\Exception $e) {}
-
-                    // 9. Delete brands
-                    try {
-                        $deletedRecords['inventory_brands'] = $db->createCommand("DELETE FROM inventory_brands")->execute();
-                    } catch (\Exception $e) {}
-
-                    // 10. Delete units
-                    try {
-                        $deletedRecords['inventory_units'] = $db->createCommand("DELETE FROM inventory_units")->execute();
-                    } catch (\Exception $e) {}
-
-                    // 11. Delete categories (self-referencing, so delete all)
-                    try {
-                        $deletedRecords['inventory_categories'] = $db->createCommand("DELETE FROM inventory_categories")->execute();
-                    } catch (\Exception $e) {}
-
-                    // Reset auto-increment for all tables
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_categories AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_brands AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_units AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_vehicle_makes AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_vehicle_models AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_products AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_stock AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_purchase_orders AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE purchase_orders AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_purchase_order_items AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE purchase_order_details AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_purchase_invoices AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_purchase_invoice_items AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_purchase_invoice_payments AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_sales_orders AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE sales_orders AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE inventory_sales_order_items AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
-                    try {
-                        $db->createCommand("ALTER TABLE sales_order_details AUTO_INCREMENT = 1")->execute();
-                    } catch (\Exception $e) {}
 
                     // Re-enable foreign key checks
                     $db->createCommand("SET FOREIGN_KEY_CHECKS=1")->execute();
