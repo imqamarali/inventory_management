@@ -186,6 +186,68 @@ class ExternalDataService
                 ['model_name' => 'E-Class', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
                 ['model_name' => 'GLE', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
             ],
+            'Audi' => [
+                ['model_name' => 'A4', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'A6', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
+                ['model_name' => 'Q5', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Q7', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
+            ],
+            'Volkswagen' => [
+                ['model_name' => 'Jetta', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Passat', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Tiguan', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Touareg', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
+            ],
+            'Ford' => [
+                ['model_name' => 'Focus', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Mustang', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Explorer', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+            ],
+            'Chevrolet' => [
+                ['model_name' => 'Cruze', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Malibu', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Equinox', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+            ],
+            'Nissan' => [
+                ['model_name' => 'Altima', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Sentra', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Rogue', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Pathfinder', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+            ],
+            'Mazda' => [
+                ['model_name' => '3', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => '6', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'CX-5', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+            ],
+            'Mitsubishi' => [
+                ['model_name' => 'Lancer', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Outlander', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => 'Pajero', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
+            ],
+            'Daihatsu' => [
+                ['model_name' => 'Terios', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Rocky', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+            ],
+            'Isuzu' => [
+                ['model_name' => 'D-Max', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Manual'],
+                ['model_name' => 'MU-X', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
+            ],
+            'Renault' => [
+                ['model_name' => 'Duster', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Kwid', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+            ],
+            'Peugeot' => [
+                ['model_name' => '3008', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+                ['model_name' => '5008', 'model_year' => '2023', 'fuel_type' => 'Diesel', 'transmission' => 'Automatic'],
+            ],
+            'Citroen' => [
+                ['model_name' => 'C3', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'C5', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Automatic'],
+            ],
+            'Fiat' => [
+                ['model_name' => 'Punto', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+                ['model_name' => 'Panda', 'model_year' => '2023', 'fuel_type' => 'Petrol', 'transmission' => 'Manual'],
+            ],
         ];
 
         return $models[$makeName] ?? [];
