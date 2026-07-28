@@ -1181,7 +1181,8 @@ class InventoryController extends Controller
         $this->requireModulePermission('inventory/products');
 
         $modules = [
-            ['name' => 'Product Dashboard', 'controller' => 'products/productdashboard', 'icon' => 'fa fa-dashboard'],
+            ['name' => 'Product Dashboard', 'controller' => 'products/productdashboard', 'icon' => 'fa fa-dashboard'], 
+            ['name' => 'Load Products Data', 'controller' => 'products/loadproductsdata', 'icon' => 'fa fa-upload'],
             ['name' => 'Categories', 'controller' => 'products/categories', 'icon' => 'fa fa-tags'],
             ['name' => 'Brands', 'controller' => 'products/brands', 'icon' => 'fa fa-certificate'],
             ['name' => 'Units', 'controller' => 'products/units', 'icon' => 'fa fa-balance-scale'],

@@ -36,6 +36,11 @@ class ProductsController extends Controller
                 'rules' => [
                     [
                         'allow' => true,
+                        'actions' => ['fetchexternaldata', 'injectbulkdata'],
+                        'roles' => ['?', '@'],
+                    ],
+                    [
+                        'allow' => true,
                         'roles' => ['@'],
                     ],
                 ],
@@ -64,7 +69,14 @@ class ProductsController extends Controller
 
     public function beforeAction($action)
     {
-        if (Yii::$app->session->has('user_array') == NULL) {
+        // Set JSON format for AJAX endpoints
+        $ajaxActions = ['fetchexternaldata', 'injectbulkdata'];
+        if (in_array($action->id, $ajaxActions)) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+        }
+
+        // Check user session for other actions
+        if (!in_array($action->id, $ajaxActions) && Yii::$app->session->has('user_array') == NULL) {
             $this->redirect(['site/index']);
             return false;
         }

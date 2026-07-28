@@ -333,7 +333,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                                     <td><?= $brand['id'] ?></td>
                                                     <td><?= Html::encode($brand['brand_name']) ?></td>
                                                     <td><code><?= $brand['brand_code'] ?? '-' ?></code></td>
-                                                    <td><small><?= $brand['website'] ? Html::encode($brand['website']) : '-' ?></small></td>
+                                                    <td><small><?= $brand['website']??"" ? Html::encode($brand['website']) : '-' ?></small></td>
                                                     <td><small><?= $brand['email'] ?? '-' ?></small></td>
                                                     <td>
                                                         <span class="badge badge-status <?= $brand['is_active'] ? 'badge-success' : 'badge-warning' ?>">
@@ -484,7 +484,7 @@ $this->params['breadcrumbs'][] = $this->title;
                                                     <td><strong><?= Html::encode($make['make_name']) ?></strong></td>
                                                     <td><code><?= $make['make_code'] ?? '-' ?></code></td>
                                                     <td><?= $make['country'] ?? '-' ?></td>
-                                                    <td><small><?= $make['website'] ? Html::encode($make['website']) : '-' ?></small></td>
+                                                    <td><small><?= $make['website']??"" ? Html::encode($make['website']) : '-' ?></small></td>
                                                     <td>
                                                         <span class="badge badge-status <?= $make['is_active'] ? 'badge-success' : 'badge-warning' ?>">
                                                             <?= $make['is_active'] ? 'Active' : 'Inactive' ?>
