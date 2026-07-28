@@ -18,9 +18,9 @@
 <script src="assets/js/jquery.gritter.min.js"></script>
 <script src="assets/js/bootbox.js"></script>
 
-<!-- SweetAlert2 -->
-<link rel="stylesheet" href="assets/css/sweetalert2.min.css">
-<script src="assets/js/sweetalert2.all.min.js"></script>
+<!-- SweetAlert2 from CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script src="assets/js/jquery.easypiechart.min.js"></script>
 <script src="assets/js/bootstrap-datepicker.min.js"></script>

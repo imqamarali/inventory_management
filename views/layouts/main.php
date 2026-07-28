@@ -81,8 +81,9 @@ $body_class = $is_student ? 'no-skin student-role' : 'no-skin';
     </div>
     <?php $this->endBody() ?>
 
-    <link rel="stylesheet" href="<?= Yii::$app->request->baseUrl ?>/css/sweetalert2.min.css">
-    <script src="<?= Yii::$app->request->baseUrl ?>/js/sweetalert2.all.min.js"></script>
+    <!-- SweetAlert2 from CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <script>
         // Define the toolbar HTML
