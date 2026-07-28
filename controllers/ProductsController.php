@@ -1008,11 +1008,27 @@ class ProductsController extends Controller
                     // Delete in order of dependencies (respecting foreign keys)
 
                     // 1. Delete purchase order items first (references products)
+                     try {
+                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_invoices")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist
+                    }
+                     try {
+                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_invoice_items")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist
+                    }
+                     try {
+                        $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_invoice_payments")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist
+                    }
                     try {
                         $deletedRecords['purchase_order_items'] = $db->createCommand("DELETE FROM inventory_purchase_order_items")->execute();
                     } catch (\Exception $e) {
                         // Table might not exist
                     }
+                    
 
                     // 2. Delete purchase orders
                     try {
@@ -1077,6 +1093,62 @@ class ProductsController extends Controller
                     // 11. Delete categories (self-referencing, so delete all)
                     try {
                         $deletedRecords['inventory_categories'] = $db->createCommand("DELETE FROM inventory_categories")->execute();
+                    } catch (\Exception $e) {}
+
+                    // Reset auto-increment for all tables
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_categories AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_brands AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_units AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_vehicle_makes AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_vehicle_models AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_products AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_stock AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_purchase_orders AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE purchase_orders AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_purchase_order_items AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE purchase_order_details AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_purchase_invoices AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_purchase_invoice_items AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_purchase_invoice_payments AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_sales_orders AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE sales_orders AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE inventory_sales_order_items AUTO_INCREMENT = 1")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("ALTER TABLE sales_order_details AUTO_INCREMENT = 1")->execute();
                     } catch (\Exception $e) {}
 
                     // Re-enable foreign key checks
