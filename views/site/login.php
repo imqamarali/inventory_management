@@ -61,37 +61,11 @@ if(!isset($model))
         width: 100%;
         border-top: 3px solid #2E7CB5;
     }
-
-    .login-header {
-        background: #ffffff;
-        padding: 20px 25px 15px;
-        text-align: center;
-        border-bottom: 1px solid #e3e3e3;
-    }
-
-    .logo-container {
-        display: inline-block;
-        margin-bottom: 10px;
-    }
-
-    .logo-icon {
-        width: 55px;
-        height: 55px;
-        background: #2E7CB5;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 26px;
-        color: #ffffff;
-        box-shadow: 0 2px 8px rgba(46, 124, 181, 0.3);
-        margin: 0 auto;
-    }
-
+ 
     .system-title {
         font-size: 20px;
         font-weight: 700;
-        color: #2E7CB5;
+        color: white;
         margin: 0 0 4px 0;
         letter-spacing: -0.3px;
     }
@@ -109,18 +83,19 @@ if(!isset($model))
     .welcome-text {
         text-align: center;
         margin-bottom: 15px;
+        color: white;
     }
 
     .welcome-text h3 {
-        font-size: 16px;
-        color: #555;
-        font-weight: 600;
+        font-size: 24px;
+        color: white;
+        font-weight: bold;
         margin-bottom: 3px;
     }
 
     .welcome-text p {
         font-size: 12px;
-        color: #999;
+        color: #e3e3e3;
         font-weight: 400;
     }
 
@@ -190,7 +165,7 @@ if(!isset($model))
         margin-bottom: 5px;
         font-size: 13px;
         font-weight: 600;
-        color: #555;
+        color: #ffffff;
     }
 
     .input-group i.icon {
@@ -536,16 +511,7 @@ if(!isset($model))
 
 <body>
     <div class="container">
-        <div class="login-card">
-            <!-- Header Section -->
-            <div class="login-header">
-                <div class="logo-container">
-                    <div class="logo-icon">
-                        <i class="fas fa-chart-network"></i>
-                    </div>
-                </div>
-                <h1 class="system-title">Inventory Management System</h1>
-            </div>
+        <div  > 
 
             <!-- Body Section -->
             <div class="login-body">
@@ -560,7 +526,6 @@ if(!isset($model))
                     <div class="feature-badge role-badge" data-role="student" data-username="superadmin"
                         data-password="superadmin321">
                         <i class="fas fa-user-shield"></i>
-                        <span>Super Admin</span>
                     </div> 
                 </div>
 
@@ -658,7 +623,7 @@ if(!isset($model))
                 </div>
 
                 <div class="footer-text">
-                    <p>© <?= date('Y') ?> InventoryManagementSystem. All rights reserved.</p>
+                    <p>© <?= date('Y') ?> InventoryManagement. All rights reserved.</p>
                 </div>
             </div>
         </div>
