@@ -443,7 +443,7 @@ class ProductsController extends Controller
                  ORDER BY m.make_name, vm.model_name"
             )->queryAll();
 
-            return $this->render('loadproductsdata_partial');
+            return $this->renderPartial('loadproductsdata_partial');
         }
 
         // AJAX POST requests for real-time data insertion
@@ -970,6 +970,100 @@ class ProductsController extends Controller
         Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
         try {
             $post = Yii::$app->request->post();
+
+            // Handle truncate products
+            if (isset($post['flag']) && $post['flag'] == 'truncate_products') {
+                // Only allow Super Admin to truncate
+                $roleId = Yii::$app->session->get('user_array')['role_id'] ?? null;
+                if ($roleId !== 1) {
+                    return ['success' => false, 'message' => 'Unauthorized. Only Super Admin can truncate records.'];
+                }
+
+                $password = Yii::$app->request->post('password', '');
+                $user_id = Yii::$app->user->id ?? 1;
+
+                // Verify password against admin user
+                $admin = Yii::$app->db->createCommand(
+                    "SELECT password FROM system_users WHERE id = :id AND is_active = 1",
+                    [':id' => $user_id]
+                )->queryOne();
+
+                if (!$admin) {
+                    return ['success' => false, 'message' => 'User not found'];
+                }
+
+                // Verify password using bcrypt
+                if (!password_verify($password, $admin['password'])) {
+                    return ['success' => false, 'message' => 'Invalid password'];
+                }
+
+                $db = Yii::$app->db;
+                $transaction = $db->beginTransaction();
+                try {
+                    // Delete related purchase records
+                    try {
+                        $db->createCommand("DELETE FROM purchase_order_details WHERE purchase_id IN (SELECT id FROM purchase_orders WHERE is_deleted = 0 OR is_deleted = 1)")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist, continue anyway
+                    }
+                    try {
+                        $db->createCommand("DELETE FROM purchase_orders WHERE is_deleted = 0 OR is_deleted = 1")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist, continue anyway
+                    }
+
+                    // Delete related sales records
+                    try {
+                        $db->createCommand("DELETE FROM sales_order_details WHERE sales_id IN (SELECT id FROM sales_orders WHERE is_deleted = 0 OR is_deleted = 1)")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist, continue anyway
+                    }
+                    try {
+                        $db->createCommand("DELETE FROM sales_orders WHERE is_deleted = 0 OR is_deleted = 1")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist, continue anyway
+                    }
+
+                    // Delete related stock records
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock WHERE is_deleted = 0 OR is_deleted = 1")->execute();
+                    } catch (\Exception $e) {
+                        // Table might not exist, continue anyway
+                    }
+
+                    // Delete all products
+                    $db->createCommand("DELETE FROM inventory_products WHERE is_deleted = 0 OR is_deleted = 1")->execute();
+
+                    $transaction->commit();
+
+                    // Log the action
+                    try {
+                        $db->createCommand()->insert(
+                            'activitylogs',
+                            [
+                                'activity' => 'Truncate Products - Deleted all products, stock, purchase orders, and sales orders',
+                                'activitytype' => 'Truncate',
+                                'module' => 'Products',
+                                'uid' => $user_id,
+                                'ip_address' => Yii::$app->request->userIP,
+                                'date' => date('Y-m-d'),
+                                'datetime' => date('Y-m-d H:i:s')
+                            ]
+                        )->execute();
+                    } catch (\Exception $e) {
+                        // Log table might not exist, continue anyway
+                    }
+
+                    return [
+                        'success' => true,
+                        'message' => 'All products, stock, purchase orders, and sales orders have been truncated successfully.'
+                    ];
+                } catch (\Exception $e) {
+                    $transaction->rollBack();
+                    return ['success' => false, 'message' => 'Error truncating products: ' . $e->getMessage()];
+                }
+            }
+
             if (!isset($post['flag']) || $post['flag'] != 'load_dashboard') {
                 return [
                     'success' => false,

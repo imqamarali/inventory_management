@@ -10,6 +10,20 @@
             <button id="refreshDashboard">
                 <i class="fa fa-refresh"></i> Refresh
             </button>
+            <?php
+                $isSuperAdmin = false;
+                if (isset(Yii::$app->session['user_array']['role_id'])) {
+                    $roleId = Yii::$app->session['user_array']['role_id'];
+                    $isSuperAdmin = Yii::$app->db->createCommand(
+                        "SELECT COUNT(*) FROM roles WHERE id = :role_id AND name = 'Super Admin'"
+                    )->bindValue(':role_id', $roleId)->queryScalar() > 0;
+                }
+            ?>
+            <?php if ($isSuperAdmin): ?>
+            <button id="truncateProducts">
+                <i class="fa fa-trash"></i> Truncate Products
+            </button>
+            <?php endif; ?>
         </div>
     </div>
     <div class="stats-grid">
@@ -584,5 +598,78 @@
             }
         );
 
+    }
+
+    // Truncate Products Handler
+    document.addEventListener('DOMContentLoaded', function() {
+        const truncateBtn = document.getElementById('truncateProducts');
+        if (truncateBtn) {
+            truncateBtn.addEventListener('click', function() {
+                Swal.fire({
+                    title: 'Truncate All Products?',
+                    html: '<div style="text-align: left;"><p style="margin-bottom: 15px;"><strong>⚠️ WARNING: This action is IRREVERSIBLE!</strong></p><p style="margin-bottom: 10px;">This will permanently delete:</p><ul style="margin: 10px 0; padding-left: 20px;"><li>All Products</li><li>All Stock Records</li><li>All Purchase Orders & Details</li><li>All Sales Orders & Details</li></ul><p style="margin-top: 15px; color: #d32f2f;"><strong>There is NO way to recover this data after truncation!</strong></p></div>',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, Delete All',
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonText: 'Cancel',
+                    width: 500
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        Swal.fire({
+                            title: 'Enter Your Password',
+                            text: 'Please confirm by entering your Inventory Admin password',
+                            input: 'password',
+                            inputPlaceholder: 'Enter your password...',
+                            showCancelButton: true,
+                            confirmButtonText: 'Confirm',
+                            confirmButtonColor: '#dc3545',
+                            cancelButtonText: 'Cancel',
+                            inputAttributes: {
+                                autocapitalize: 'off',
+                                autocorrect: 'off'
+                            }
+                        }).then((passwordResult) => {
+                            if (passwordResult.isConfirmed) {
+                                const password = passwordResult.value;
+
+                                if (!password || password === '') {
+                                    Swal.fire('Error!', 'Password is required', 'error');
+                                    return;
+                                }
+
+                                truncateProductsData(password);
+                            }
+                        });
+                    }
+                });
+            });
+        }
+    });
+
+    function truncateProductsData(password) {
+        $.ajax({
+            url: '<?= Yii::$app->urlManager->createUrl("products/productdashboard") ?>',
+            type: 'POST',
+            dataType: 'json',
+            data: { flag: 'truncate_products', password: password },
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        title: 'Deleted!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonColor: '#0f4c29'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error!', response.message || 'Failed to truncate products', 'error');
+                }
+            },
+            error: function() {
+                Swal.fire('Error!', 'Failed to truncate products', 'error');
+            }
+        });
     }
 </script>
