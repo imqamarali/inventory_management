@@ -443,9 +443,7 @@ class ProductsController extends Controller
                  ORDER BY m.make_name, vm.model_name"
             )->queryAll();
 
-            return $this->render('loadproductsdata_enhanced', compact(
-                'categories', 'brands', 'units', 'makes', 'models'
-            ));
+            return $this->render('loadproductsdata_partial');
         }
 
         // AJAX POST requests for real-time data insertion
