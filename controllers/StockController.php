@@ -154,19 +154,63 @@ class StockController extends Controller
 
                 $transaction = $db->beginTransaction();
                 try {
-                    // Delete all stock adjustments (if table exists)
-                    try {
-                        $db->createCommand("DELETE FROM inventory_stock_adjustments WHERE is_deleted = 0 OR is_deleted = 1")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist, continue anyway
-                    }
-                    try {
-                        $db->createCommand("DELETE FROM inventory_damaged_stock WHERE is_deleted = 0 OR is_deleted = 1")->execute();
-                    } catch (\Exception $e) {
-                        // Table might not exist, continue anyway
-                    }
+                    // Disable foreign key checks
+                    $db->createCommand("SET FOREIGN_KEY_CHECKS=0")->execute();
 
+                    // Delete Sales related data first
+                    try { $db->createCommand("DELETE FROM inventory_sale_invoice_payments")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sale_invoice_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_invoice_payments")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_invoice_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_invoices")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_orders")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_sales_returns")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM sales_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM sales_orders")->execute(); } catch (\Exception $e) {}
+
+                    // Delete Purchase related data
+                    try { $db->createCommand("DELETE FROM inventory_purchase_invoice_payments")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_invoice_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_invoices")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_orders")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_returns")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM inventory_purchase_return_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM purchase_order_items")->execute(); } catch (\Exception $e) {}
+                    try { $db->createCommand("DELETE FROM purchase_orders")->execute(); } catch (\Exception $e) {}
+
+                    // Delete Stock related data
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_audit_items")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_audits")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_transfer_items")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_transfers")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_adjustment_items")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_adjustments")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("DELETE FROM inventory_stock_movements")->execute();
+                    } catch (\Exception $e) {}
+                    try {
+                        $db->createCommand("DELETE FROM inventory_damaged_stock")->execute();
+                    } catch (\Exception $e) {}
+
+                    // Delete all stock records
                     $db->createCommand("DELETE FROM inventory_stock")->execute();
+
+                    // Re-enable foreign key checks
+                    $db->createCommand("SET FOREIGN_KEY_CHECKS=1")->execute();
 
                     $activeProducts = $db->createCommand("SELECT id, unit_id FROM inventory_products WHERE is_active = 1 AND is_deleted = 0")->queryAll();
 
@@ -190,12 +234,32 @@ class StockController extends Controller
 
                     $transaction->commit();
 
+                    // Reset auto-increment for all truncated tables
+                    $autoIncrementTables = [
+                        'inventory_stock', 'inventory_stock_adjustments', 'inventory_stock_adjustment_items',
+                        'inventory_stock_movements', 'inventory_stock_transfers', 'inventory_stock_transfer_items',
+                        'inventory_stock_audits', 'inventory_stock_audit_items',
+                        'inventory_purchase_orders', 'inventory_purchase_order_items',
+                        'inventory_purchase_invoices', 'inventory_purchase_invoice_items', 'inventory_purchase_invoice_payments',
+                        'inventory_purchase_returns', 'inventory_purchase_return_items',
+                        'inventory_sales_orders', 'inventory_sales_order_items',
+                        'inventory_sales_invoices', 'inventory_sales_invoice_items', 'inventory_sales_invoice_payments',
+                        'inventory_sales_returns', 'inventory_sale_invoice_items', 'inventory_sale_invoice_payments',
+                        'purchase_orders', 'purchase_order_items', 'sales_orders', 'sales_order_items'
+                    ];
+
+                    foreach ($autoIncrementTables as $table) {
+                        try {
+                            $db->createCommand("ALTER TABLE " . $table . " AUTO_INCREMENT = 1")->execute();
+                        } catch (\Exception $e) {}
+                    }
+
                     // Log the action
                     try {
                         $db->createCommand()->insert(
                             'activitylogs',
                             [
-                                'activity' => 'Truncate Stock Details - Deleted all inventory stock records and repopulated with active products at zero quantities',
+                                'activity' => 'Truncate Stock Details - Deleted all inventory stock, sales orders, purchase orders, and related records. Repopulated stock with active products at zero quantities',
                                 'activitytype' => 'Truncate',
                                 'module' => 'Stock',
                                 'uid' => $user_id,
@@ -210,11 +274,14 @@ class StockController extends Controller
 
                     return [
                         'success' => true,
-                        'message' => 'Stock details truncated successfully. ' . count($activeProducts) . ' active products added to inventory with zero quantities.'
+                        'message' => 'All stock, sales, and purchase data truncated successfully. ' . count($activeProducts) . ' active products added to inventory with zero quantities.'
                     ];
                 } catch (\Exception $e) {
+                    try {
+                        $db->createCommand("SET FOREIGN_KEY_CHECKS=1")->execute();
+                    } catch (\Exception $fkE) {}
                     $transaction->rollBack();
-                    return ['success' => false, 'message' => 'Error truncating stock: ' . $e->getMessage()];
+                    return ['success' => false, 'message' => 'Error truncating data: ' . $e->getMessage()];
                 }
             }
 
