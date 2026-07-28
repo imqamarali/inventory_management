@@ -104,11 +104,11 @@ if (!isset($modules) && empty($modules)) {
                     <button class="action-btn" title="Search" onclick="filterReports()">
                         <i class="fa fa-search"></i> Search
                     </button>
-
-                    <button class="action-btn primary" title="Export" onclick="exportReport()">
-                        <i class="fa fa-download"></i> Export
-                    </button>
                 </div>
+
+                <button class="action-btn primary" title="Export" onclick="exportReport()">
+                    <i class="fa fa-download"></i> Export
+                </button>
             </div>
         </div>
 

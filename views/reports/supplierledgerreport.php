@@ -7,11 +7,20 @@ if (!isset($suppliers)) $suppliers = [];
 <div class="main-content">
     <div class="main-content-inner">
         <div class="breadcrumbs ace-save-state" id="breadcrumbs">
-            <ul class="breadcrumb" style="width:100%;">
-                <li><i class="ace-icon fa fa-home home-icon"></i><a href="index.php?r=reports/reports">Reports</a></li>
-                <li class="active">Supplier Ledger</li>
-                <li style="float:right;">
-                    <button class="btn btn-sm btn-primary" onclick="exportReport()" style="font-size:12px;">
+            <ul class="breadcrumb" style="width:100%; display:flex; justify-content:space-between; align-items:center;">
+                <li style="display:flex; align-items:center; gap:10px;">
+                    <a href="index.php?r=inventory/reports" style="color: #0f4c29;">
+                        <i class="fa fa-file-text"></i> Reports</a>
+                    <span style="margin:0 5px;">›</span>
+                    <span class="active">Supplier Ledger</span>
+                </li>
+                <li style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search..."
+                        style="height:32px; font-size:12px; min-width:150px; padding:6px 10px;">
+                    <button onclick="filterTable()" class="btn btn-sm btn-default" style="height:32px; font-size:12px;">
+                        <i class="ace-icon fa fa-search"></i> Search
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="exportReport()" style="font-size:12px; height:32px;">
                         <i class="ace-icon fa fa-download"></i> Export Excel
                     </button>
                 </li>
