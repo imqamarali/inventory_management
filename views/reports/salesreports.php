@@ -7,33 +7,32 @@ if (!isset($warehouses)) $warehouses = [];
 
 <div class="main-content">
     <div class="main-content-inner">
+        <form id="filter_form" style="display:none;">
+            <input type="hidden" name="from_date">
+            <input type="hidden" name="to_date">
+            <input type="hidden" name="customer_id">
+        </form>
+
         <div class="breadcrumbs ace-save-state" id="breadcrumbs">
-            <ul class="breadcrumb" style="width:100%; display:flex; justify-content:space-between; align-items:center;">
-                <li style="display:flex; align-items:center; gap:10px;">
+            <ul class="breadcrumb" style="width:100%; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <li style="display:flex; align-items:center; gap:10px; min-width:300px;">
                     <a href="index.php?r=inventory/reports" style="color: #0f4c29;">
                         <i class="fa fa-file-text"></i> Reports</a>
                     <span style="margin:0 5px;">›</span>
                     <span class="active">Sales Reports</span>
                 </li>
-                <li style="display:flex; gap:8px; align-items:center;">
-                    <input type="text" id="searchInput" class="form-control" placeholder="Search..."
-                        style="height:32px; font-size:12px; min-width:150px; padding:6px 10px;">
-                    <button onclick="filterTable()" class="btn btn-sm btn-default" style="height:32px; font-size:12px;">
-                        <i class="ace-icon fa fa-search"></i> Search
-                    </button>
-                    <button class="btn btn-sm btn-primary" onclick="exportReport()" style="font-size:12px; height:32px;">
-                        <i class="ace-icon fa fa-download"></i> Export Excel
-                    </button>
-                </li>
-            </ul>
-        </div>
+                <li style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="searchInput" placeholder="Search..."
+                        style="height:32px; font-size:12px; min-width:120px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
 
-        <div style="padding:15px; background:#f5f5f5; border-radius:4px; margin-bottom:15px;">
-            <form id="filter_form">
-                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                    <input type="date" name="from_date" class="new-input" style="flex:1; min-width:120px; height:32px;">
-                    <input type="date" name="to_date" class="new-input" style="flex:1; min-width:120px; height:32px;">
-                    <select name="customer_id" class="new-input" style="flex:1; min-width:150px; height:32px;">
+                    <input type="date" id="fromDateFilter" form="filter_form" name="from_date"
+                        style="height:32px; font-size:12px; min-width:120px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
+
+                    <input type="date" id="toDateFilter" form="filter_form" name="to_date"
+                        style="height:32px; font-size:12px; min-width:120px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
+
+                    <select id="customerFilter" form="filter_form" name="customer_id"
+                        style="height:32px; font-size:12px; min-width:130px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
                         <option value="">All Customers</option>
                         <?php foreach ($customers as $row) {
                             $name = $row['company_name'] ?? trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
@@ -41,11 +40,18 @@ if (!isset($warehouses)) $warehouses = [];
                             <option value="<?= $row['id'] ?>"><?= Html::encode($name) ?></option>
                         <?php } ?>
                     </select>
-                    <button type="button" class="btn btn-primary" onclick="loadReport()" style="height:32px; padding:0 20px;">
+
+                    <button type="button" onclick="loadReport()"
+                        style="height:32px; padding:6px 16px; font-size:12px; background:#0f4c29; color:white; border:none; border-radius:3px; cursor:pointer;">
                         <i class="ace-icon fa fa-search"></i> Generate
                     </button>
-                </div>
-            </form>
+
+                    <button onclick="exportReport()"
+                        style="height:32px; padding:6px 16px; font-size:12px; background:#0f4c29; color:white; border:none; border-radius:3px; cursor:pointer;">
+                        <i class="ace-icon fa fa-download"></i> Export Excel
+                    </button>
+                </li>
+            </ul>
         </div>
 
         <div id="report_container" class="widget-main">

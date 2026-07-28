@@ -101,12 +101,14 @@ if (!isset($modules) && empty($modules)) {
                         <option value="Warehouse">Warehouse</option>
                     </select>
 
-                    <button class="action-btn" title="Search" onclick="filterReports()">
+                    <button title="Search" onclick="filterReports()"
+                        style="height:32px; padding:6px 16px; font-size:12px; background:#f5f5f5; color:#333; border:1px solid #ddd; border-radius:3px; cursor:pointer;">
                         <i class="fa fa-search"></i> Search
                     </button>
                 </div>
 
-                <button class="action-btn primary" title="Export" onclick="exportReport()">
+                <button title="Export" onclick="exportReport()"
+                    style="height:32px; padding:6px 16px; font-size:12px; background:#0f4c29; color:white; border:none; border-radius:3px; cursor:pointer;">
                     <i class="fa fa-download"></i> Export
                 </button>
             </div>
@@ -117,10 +119,10 @@ if (!isset($modules) && empty($modules)) {
             <div class="exam-quick-actions-group">
                 <?php foreach ($modules as $module): ?>
                     <button type="button"
-                        class="btn btn-sm btn-white btn-primary ajax-module"
+                        class="ajax-module"
                         data-url="<?= Url::to([$module['controller']])?>"
                         data-module="<?= htmlspecialchars($module['name']) ?>"
-                        style="font-size:12px;margin-left:4px;margin-bottom:4px;">
+                        style="font-size:12px; padding:8px 12px; margin-left:4px; margin-bottom:4px; background:#f5f5f5; color:#333; border:1px solid #ddd; border-radius:3px; cursor:pointer;">
                         <i class="<?= Html::encode($module['icon']) ?>"></i>
                         <?= Html::encode($module['name']) ?>
                     </button>
