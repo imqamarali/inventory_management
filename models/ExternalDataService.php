@@ -10,15 +10,11 @@ use Yii;
  */
 class ExternalDataService
 {
-    const VEHICLE_MAKES_SOURCE = 'https://api.github.com/repos/rbhalla/automobile-specifications/contents/makes.json';
-    const VEHICLE_MODELS_SOURCE = 'https://api.github.com/repos/rbhalla/automobile-specifications/contents/models.json';
-
-    private $httpClient;
     private $timeout = 30;
 
     public function __construct()
     {
-        $this->httpClient = new \yii\httpclient\Client();
+        // Uses native PHP functions for data fetching
     }
 
     /**

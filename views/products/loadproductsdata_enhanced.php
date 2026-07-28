@@ -294,38 +294,6 @@ $this->params['breadcrumbs'][] = $this->title;
                                 </button>
                             </div>
 
-                            <div class="data-form">
-                                <h4><i class="fa fa-tags"></i> Add New Category Manually</h4>
-                                <div class="form-row-custom">
-                                    <div class="form-group">
-                                        <label>Category Name *</label>
-                                        <input type="text" class="form-control input-sm" id="cat_name" placeholder="e.g., Filters">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Category Code</label>
-                                        <input type="text" class="form-control input-sm" id="cat_code" placeholder="e.g., CAT-001">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Parent Category</label>
-                                        <select class="form-control input-sm" id="cat_parent">
-                                            <option value="">-- None --</option>
-                                            <?php foreach ($categories as $cat): ?>
-                                                <?php if (!$cat['parent_id']): ?>
-                                                    <option value="<?= $cat['id'] ?>"><?= Html::encode($cat['category_name']) ?></option>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label>Description</label>
-                                    <textarea class="form-control input-sm" id="cat_description" placeholder="Category description" rows="2"></textarea>
-                                </div>
-                                <button class="btn btn-primary btn-sm" onclick="addData('category')">
-                                    <i class="fa fa-plus"></i> Add Category
-                                </button>
-                            </div>
-
                             <div class="data-count">
                                 Total Categories: <strong><?= count($categories) ?></strong>
                             </div>
