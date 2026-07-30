@@ -7,43 +7,48 @@ if (!isset($warehouses)) $warehouses = [];
 
 <div class="main-content">
     <div class="main-content-inner">
-        <div class="breadcrumbs ace-save-state" id="breadcrumbs">
-            <ul class="breadcrumb" style="width:100%;">
-                <li>
-                    <i class="ace-icon fa fa-home home-icon"></i>
-                    <a href="index.php?r=reports/reports">Reports</a>
-                </li>
-                <li class="active">Inventory Reports</li>
-                <li style="float:right;">
-                    <button class="btn btn-sm btn-primary" onclick="exportReport()" style="font-size:12px;">
-                        <i class="ace-icon fa fa-download"></i> Export Excel
-                    </button>
-                </li>
-            </ul>
-        </div>
+        <form id="filter_form" style="display:none;">
+            <input type="hidden" name="category_id">
+            <input type="hidden" name="warehouse_id">
+        </form>
 
-        <div style="padding:15px; background:#f5f5f5; border-radius:4px; margin-bottom:15px;">
-            <form id="filter_form">
-                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                    <select name="category_id" class="new-input" style="flex:1; min-width:150px; height:32px;">
+        <div class="breadcrumbs ace-save-state" id="breadcrumbs">
+            <ul class="breadcrumb" style="width:100%; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <li style="display:flex; align-items:center; gap:10px; min-width:300px;">
+                    <a href="index.php?r=inventory/reports">
+                        <i class="fa fa-file-text"></i> Reports</a>
+                    <span style="margin:0 5px;">›</span>
+                    <span class="active">Inventory Reports</span>
+                </li>
+                <li style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="searchInput" placeholder="Search..."
+                        style="height:32px; font-size:12px; min-width:120px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
+
+                    <select id="categoryFilter" form="filter_form" name="category_id"
+                        style="height:32px; font-size:12px; min-width:130px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
                         <option value="">All Categories</option>
                         <?php foreach ($categories as $row) { ?>
                             <option value="<?= $row['id'] ?>"><?= Html::encode($row['category_name']) ?></option>
                         <?php } ?>
                     </select>
 
-                    <select name="warehouse_id" class="new-input" style="flex:1; min-width:150px; height:32px;">
+                    <select id="warehouseFilter" form="filter_form" name="warehouse_id"
+                        style="height:32px; font-size:12px; min-width:130px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
                         <option value="">All Warehouses</option>
                         <?php foreach ($warehouses as $row) { ?>
                             <option value="<?= $row['id'] ?>"><?= Html::encode($row['warehouse_name']) ?></option>
                         <?php } ?>
                     </select>
 
-                    <button type="button" class="btn btn-primary" onclick="loadReport()" style="height:32px; padding:0 20px;">
+                    <button type="button" onclick="loadReport()">
                         <i class="ace-icon fa fa-search"></i> Generate
                     </button>
-                </div>
-            </form>
+
+                    <button onclick="exportReport()">
+                        <i class="ace-icon fa fa-download"></i> Export Excel
+                    </button>
+                </li>
+            </ul>
         </div>
 
         <div id="report_container" class="widget-main">

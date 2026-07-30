@@ -5,21 +5,26 @@ use yii\helpers\Html;
 <div class="main-content">
     <div class="main-content-inner">
         <div class="breadcrumbs ace-save-state" id="breadcrumbs">
-            <ul class="breadcrumb" style="width:100%;">
-                <li><i class="ace-icon fa fa-home home-icon"></i><a href="index.php?r=reports/reports">Reports</a></li>
-                <li class="active">Warehouse Reports</li>
-                <li style="float:right;">
-                    <button class="btn btn-sm btn-primary" onclick="exportReport()" style="font-size:12px;">
+            <ul class="breadcrumb" style="width:100%; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <li style="display:flex; align-items:center; gap:10px; min-width:300px;">
+                    <a href="index.php?r=inventory/reports">
+                        <i class="fa fa-file-text"></i> Reports</a>
+                    <span style="margin:0 5px;">›</span>
+                    <span class="active">Warehouse Reports</span>
+                </li>
+                <li style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="searchInput" placeholder="Search..."
+                        style="height:32px; font-size:12px; min-width:120px; padding:6px 10px; border:1px solid #ddd; border-radius:3px;">
+
+                    <button type="button" onclick="loadReport()">
+                        <i class="ace-icon fa fa-refresh"></i> Refresh
+                    </button>
+
+                    <button onclick="exportReport()">
                         <i class="ace-icon fa fa-download"></i> Export Excel
                     </button>
                 </li>
             </ul>
-        </div>
-
-        <div style="padding:15px; background:#f5f5f5; border-radius:4px; margin-bottom:15px;">
-            <button type="button" class="btn btn-primary" onclick="loadReport()" style="height:32px; padding:0 20px;">
-                <i class="ace-icon fa fa-refresh"></i> Refresh Report
-            </button>
         </div>
 
         <div id="report_container" class="widget-main">

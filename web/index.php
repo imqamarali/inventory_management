@@ -1,8 +1,5 @@
 <?php
 
-// Set system timezone to Asia/Karachi (Pakistan)
-date_default_timezone_set('Asia/Karachi');
-
 defined('YII_DEBUG') or define('YII_DEBUG', true);
 defined('YII_ENV') or define('YII_ENV', 'dev');
 
