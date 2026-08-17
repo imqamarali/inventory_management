@@ -49,7 +49,7 @@ if (!isset($warehouses)) $warehouses = [];
                     <a href="index.php?r=sale/salesdashboard">Home</a>
                 </li>
                 <li class="active">Sales Orders</li>
-                <li style="float:right;">
+                <!-- <li style="float:right;">
                     <div class="nav-search" id="nav-search">
                         <div class="exam-quick-actions-group">
                             <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="showOrderModal()">
@@ -58,7 +58,7 @@ if (!isset($warehouses)) $warehouses = [];
                             </a>
                         </div>
                     </div>
-                </li>
+                </li> -->
             </ul>
         </div>
 
@@ -74,7 +74,7 @@ if (!isset($warehouses)) $warehouses = [];
                     <?php } ?>
                 </select>
 
-                <select name="warehouse_id" id="warehouse_id" class="new-input" style="width:13%;">
+                <select name="warehouse_id" id="warehouse_id" class="new-input" style="width:13%; display:none">
                     <option value="">All Warehouses</option>
                     <?php foreach ($warehouses as $row) { ?>
                         <option value="<?= $row['id'] ?>"><?= Html::encode($row['warehouse_name']) ?></option>

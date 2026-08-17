@@ -123,10 +123,10 @@ if (!isset($products)) $products = [];
                                     <td class="text-right"><?= number_format($item['available_quantity'] ?? 0, 2) ?></td>
                                     <td class="text-right"><?= number_format($item['sold_quantity'] ?? 0, 2) ?></td>
                                     <td class="text-right"><?= number_format($item['sold_amount'] ?? 0, 2) ?></td>
-                                    <td class="text-right"><?= number_format($item['quantity'] ?? 0, 2) ?></td>
+                                    <td class="text-right"><?= number_format($item['remaining_quantity'] ?? 0, 2) ?></td>
 
                                     <td>
-                                        <button onclick='viewProductStats(<?= json_encode($item) ?>)' title="View Details">
+                                        <button onclick='loadProductDetailsModal(<?= $item["product_id"] ?>)' title="View Details" style="background: none; border: none; cursor: pointer; color: #0f4c29; font-size: 16px;">
                                             <i class="fa fa-eye"></i>
                                         </button>
                                     </td>
@@ -241,9 +241,9 @@ if (!isset($products)) $products = [];
                     <td class="text-right">${parseFloat(item.available_quantity??0).toFixed(2)}</td>
                     <td class="text-right">${parseFloat(item.sold_quantity??0).toFixed(2)}</td>
                     <td class="text-right">${parseFloat(item.sold_amount??0).toFixed(2)}</td>
-                    <td class="text-right">${parseFloat(item.quantity??0).toFixed(2)}</td>
+                    <td class="text-right">${parseFloat(item.remaining_quantity??0).toFixed(2)}</td>
                     <td>
-                        <button onclick='viewProductStats(${JSON.stringify(item).replace(/'/g, "&apos;")})' title="View Details">
+                        <button onclick='loadProductDetailsModal(${item.product_id})' title="View Details" style="background: none; border: none; cursor: pointer; color: #0f4c29; font-size: 16px;">
                             <i class="fa fa-eye"></i>
                         </button>
                     </td>

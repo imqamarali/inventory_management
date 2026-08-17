@@ -66,7 +66,8 @@ $body_class = $is_student ? 'no-skin student-role' : 'no-skin';
 
         <div class="main-content1">
             <div class="main-content1-inner">
-                <?= $content ?? null ?>
+            
+            <?= $content ?? null ?>
             </div>
         </div><!-- /.main-content1 -->
 
@@ -282,6 +283,288 @@ $body_class = $is_student ? 'no-skin student-role' : 'no-skin';
     </script>
     <script src="assets/js/jquery.js"></script>
     <script src="assets/js/chosen.jquery.min.js"></script>
+
+    <!-- Product Search Script -->
+    <script>
+        $(document).ready(function() {
+            let searchTimeout;
+
+            // Check if element exists before initializing
+            if ($('#product_search_select').length > 0) {
+                // Wait for DOM to be ready, then initialize Chosen
+                setTimeout(function() {
+                    // Initialize Chosen select ONLY for navbar search
+                    $('#product_search_select').chosen({
+                        width: '280px',
+                        search_contains: true,
+                        no_results_text: 'No products found',
+                        placeholder_text_single: 'Search Product by Name or SKU...'
+                    });
+
+                    console.log('✓ Chosen initialized for product search');
+
+                    // Get the Chosen container and search input
+                    const chosenContainer = $('#product_search_select').next('.chosen-container');
+                    const searchInput = chosenContainer.find('.chosen-search input');
+
+                    console.log('✓ Search input found:', searchInput.length > 0);
+
+                    if (searchInput.length > 0) {
+                        // Handle search input in Chosen
+                        searchInput.on('keyup', function(e) {
+                            clearTimeout(searchTimeout);
+                            const query = $(this).val().trim();
+
+                            console.log('→ Typing in search:', query);
+
+                            if (query.length < 2) {
+                                return;
+                            }
+
+                            searchTimeout = setTimeout(() => {
+                                console.log('→ Searching for:', query);
+
+                                $.ajax({
+                                    url: 'index.php?r=inventory/search-products',
+                                    type: 'POST',
+                                    data: {
+                                        query: query,
+                                        _csrf: $('meta[name="csrf-token"]').attr('content')
+                                    },
+                                    dataType: 'json',
+                                    success: function(response) {
+                                        console.log('✓ Response received:', response);
+
+                                        if (response.success && response.products && response.products.length > 0) {
+                                            // Remove all options except the first one
+                                            $('#product_search_select').find('option:not(:first)').remove();
+
+                                            response.products.forEach(product => {
+                                                $('#product_search_select').append(
+                                                    `<option value="${product.id}">${product.product_name} (SKU: ${product.sku || 'N/A'})</option>`
+                                                );
+                                            });
+
+                                            $('#product_search_select').trigger('chosen:updated');
+                                            console.log('✓ Dropdown updated with', response.products.length, 'products');
+                                        } else {
+                                            console.log('→ No products found');
+                                        }
+                                    },
+                                    error: function(xhr, status, error) {
+                                        console.error('✗ AJAX Error:', error);
+                                        console.error('Response:', xhr.responseText);
+                                    }
+                                });
+                            }, 300);
+                        });
+                    } else {
+                        console.error('✗ Search input not found!');
+                    }
+
+                    // Handle product selection
+                    $('#product_search_select').on('change', function() {
+                        const productId = $(this).val();
+                        console.log('→ Product selected, ID:', productId);
+
+                        if (productId) {
+                            loadProductDetailsModal(productId);
+                            // Reset the dropdown after selection
+                            setTimeout(() => {
+                                $('#product_search_select').val('').trigger('chosen:updated');
+                                console.log('✓ Dropdown reset');
+                            }, 500);
+                        }
+                    });
+
+                }, 500); // Wait for Chosen library to fully load
+            } else {
+                console.warn('⚠ Product search select element not found in DOM');
+            }
+        });
+
+        function loadProductDetailsModal(productId) {
+            $.ajax({
+                url: 'index.php?r=inventory/product-details',
+                type: 'POST',
+                data: {
+                    id: productId,
+                    _csrf: $('meta[name="csrf-token"]').attr('content')
+                },
+                dataType: 'json',
+                success: function(response) {
+                    if (response.success) {
+                        showProductDetailsModal(response.product, response.stock, response.purchase, response.sales);
+                    } else {
+                        Swal.fire('Error', response.message || 'Failed to load product details', 'error');
+                    }
+                },
+                error: function() {
+                    Swal.fire('Error', 'Unable to load product details', 'error');
+                }
+            });
+        }
+
+        function showProductDetailsModal(product, stock, purchase, sales) {
+            const totalQuantity = stock.total_quantity || 0;
+            const soldQuantity = sales.total_sold || 0;
+            const remainingQuantity = totalQuantity - soldQuantity;
+            const totalStockValue = stock.total_purchase_value || 0;
+            const totalPurchaseCost = purchase.total_purchase_cost || 0;
+            const totalSoldPrice = sales.total_sold_value || 0;
+            const avgPurchaseCost = purchase.total_purchased > 0 ? totalPurchaseCost / purchase.total_purchased : 0;
+            const avgSellingPrice = soldQuantity > 0 ? totalSoldPrice / soldQuantity : 0;
+            const totalProfit = totalSoldPrice - (avgPurchaseCost * soldQuantity);
+
+            const html = `
+                <div style="width: 100%; padding: 12px; font-family: 'Poppins', sans-serif;">
+                    <!-- Product Header -->
+                    <div style="margin-bottom: 15px; border-bottom: 3px solid #667eea; padding-bottom: 10px;">
+                        <h2 style="margin: 0 0 6px 0; font-size: 28px; font-weight: 700; color: #333;">${product.product_name}</h2>
+                        <p style="margin: 0; font-size: 12px; color: #666;">SKU: <strong>${product.sku || 'N/A'}</strong></p>
+                    </div>
+
+                    <!-- Basic Information Row -->
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="margin: 0 0 8px 0; color: #333; font-size: 13px;"><i class="fa fa-info-circle"></i> Basic Information</h4>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #666;"><strong>Category</strong></p>
+                                <p style="margin: 0; font-size: 12px;">${product.category_name || 'N/A'}</p>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #666;"><strong>Brand</strong></p>
+                                <p style="margin: 0; font-size: 12px;">${product.brand_name || 'N/A'}</p>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #666;"><strong>Model</strong></p>
+                                <p style="margin: 0; font-size: 12px;">${product.model_name || 'N/A'}</p>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #666;"><strong>Unit</strong></p>
+                                <p style="margin: 0; font-size: 12px;">${product.unit_name || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Information Row -->
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="margin: 0 0 8px 0; color: #558b2f; font-size: 13px;"><i class="fa fa-cubes"></i> Stock Information</h4>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                            <div style="background: #f1f8e9; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #558b2f;"><strong>Total Qty</strong></p>
+                                <p style="margin: 0; font-size: 16px; font-weight: bold; color: #558b2f;">${parseFloat(totalQuantity).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #ffebee; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #d32f2f;"><strong>Sold Qty</strong></p>
+                                <p style="margin: 0; font-size: 16px; font-weight: bold; color: #d32f2f;">${parseFloat(soldQuantity).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #e3f2fd; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #1976d2;"><strong>Remaining Qty</strong></p>
+                                <p style="margin: 0; font-size: 16px; font-weight: bold; color: #1976d2;">${parseFloat(remainingQuantity).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #fce4ec; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #c2185b;"><strong>Stock Value</strong></p>
+                                <p style="margin: 0; font-size: 13px; font-weight: bold; color: #c2185b;">PKR ${parseFloat(totalStockValue).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing Row -->
+                    <div style="margin-bottom: 10px;">
+                        <h4 style="margin: 0 0 8px 0; color: #1976d2; font-size: 13px;"><i class="fa fa-dollar"></i> Pricing</h4>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                            <div style="background: #e3f2fd; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #1976d2;"><strong>Purchase Price</strong></p>
+                                <p style="margin: 0; font-size: 12px;">PKR ${parseFloat(product.purchase_price || 0).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #e8f5e9; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #388e3c;"><strong>Selling Price</strong></p>
+                                <p style="margin: 0; font-size: 12px;">PKR ${parseFloat(product.selling_price || 0).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #fff3cd; padding: 10px; border-radius: 6px;">
+                                <p style="margin: 0 0 4px 0; font-size: 11px; color: #f57f17;"><strong>Profit/Unit</strong></p>
+                                <p style="margin: 0; font-size: 12px;">PKR ${parseFloat((product.selling_price - product.purchase_price) || 0).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Summary Row -->
+                    <div>
+                        <h4 style="margin: 0 0 8px 0; color: #c2185b; font-size: 13px;"><i class="fa fa-chart-bar"></i> Financial Summary</h4>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                            <div style="background: #fce4ec; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 3px 0; font-size: 10px; color: #c2185b;"><strong>Purchased Cost</strong></p>
+                                <p style="margin: 0; font-size: 12px; font-weight: bold; color: #c2185b;">PKR ${parseFloat(totalPurchaseCost).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #e8f5e9; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 3px 0; font-size: 10px; color: #388e3c;"><strong>Sold Revenue</strong></p>
+                                <p style="margin: 0; font-size: 12px; font-weight: bold; color: #388e3c;">PKR ${parseFloat(totalSoldPrice).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #e3f2fd; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 3px 0; font-size: 10px; color: #1976d2;"><strong>Avg Cost/Unit</strong></p>
+                                <p style="margin: 0; font-size: 12px; font-weight: bold; color: #1976d2;">PKR ${parseFloat(avgPurchaseCost).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                            <div style="background: #fff3cd; padding: 10px; border-radius: 6px; text-align: center;">
+                                <p style="margin: 0 0 3px 0; font-size: 10px; color: #f57f17;"><strong>Total Profit</strong></p>
+                                <p style="margin: 0; font-size: 12px; font-weight: bold; color: #f57f17;">PKR ${parseFloat(totalProfit).toLocaleString('en-PK', {maximumFractionDigits: 0})}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            Swal.fire({
+                title: '',
+                html: html,
+                width: '1000px',
+                heightAuto: false,
+                allowOutsideClick: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Close',
+                customClass: {
+                    popup: 'compact-modal'
+                }
+            });
+        }
+
+        // Handle navbar button clicks - redirect to dashboard if function doesn't exist
+        function navbarClickAction(action) {
+            let functionName = '';
+            switch(action) {
+                case 'product':
+                    functionName = 'openProductModal';
+                    break;
+                case 'stock':
+                    functionName = 'openStockModal';
+                    break;
+                case 'supplier':
+                    functionName = 'openSupplierModal';
+                    break;
+                case 'customer':
+                    functionName = 'openCustomerModal';
+                    break;
+                case 'po':
+                    functionName = 'loadOrder';
+                    break;
+                case 'so':
+                    functionName = 'openOrderModal';
+                    break;
+            }
+
+            // Check if function exists and call it
+            if (typeof window[functionName] === 'function') {
+                if (action === 'po') {
+                    window[functionName]();
+                } else {
+                    window[functionName]();
+                }
+            } else {
+                // If function doesn't exist, redirect to dashboard with action parameter
+                window.location.href = 'index.php?r=inventory/dashboard&action=' + action;
+            }
+        }
+    </script>
 </body>
 
 </html>

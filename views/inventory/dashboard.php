@@ -146,6 +146,7 @@ $this->title = 'Dashboard';
 </style>
 
 <div class="page-content">
+    
     <?php if (!empty($unpaidInvoices)): ?>
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script>
@@ -231,61 +232,6 @@ $this->title = 'Dashboard';
         </script>
     <?php endif; ?>
 
-    <!-- Quick Action Buttons -->
-    <style>
-        .dashboard-actions-wrapper {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .exam-quick-actions-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-    </style>
-
-    <div class="dashboard-actions-wrapper">
-        <div class="exam-quick-actions-group">
-            <!-- Add New Product -->
-            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openProductModal()" title="Add New Product">
-                <i class="ace-icon fa fa-plus"></i>
-                Add New Product
-            </a>
-
-            <!-- Add Current Stock -->
-            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openStockModal()" title="Add Current Stock">
-                <i class="ace-icon fa fa-plus"></i>
-                Add Current Stock
-            </a>
-
-            <!-- Add New Supplier -->
-            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openSupplierModal()" title="Add New Supplier">
-                <i class="ace-icon fa fa-plus"></i>
-                Add New Supplier
-            </a>
-
-            <!-- Add New Customer -->
-            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openCustomerModal()" title="Add New Customer">
-                <i class="ace-icon fa fa-plus"></i>
-                Add New Customer
-            </a>
-
-            <!-- Add Purchase Order -->
-            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="loadOrder()" title="Add Purchase Order">
-                <i class="ace-icon fa fa-plus"></i>
-                Add Purchase Order
-            </a>
-
-            <!-- Add Sales Order -->
-            <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="openOrderModal()" title="Add Sales Order">
-                <i class="ace-icon fa fa-plus"></i>
-                Add Sales Order
-            </a>
-        </div>
-    </div>
 
     <div class="welcome-banner">
         <?php
@@ -408,43 +354,6 @@ $this->title = 'Dashboard';
 
     </div>
 
-    <!-- Performance Charts -->
-
-    <div class="row">
-
-        <div class="col-md-6">
-
-            <div class="dashboard-box">
-
-                <h4>
-                    <i class="fa fa-bar-chart"></i>
-                    Purchase Performance (Last 12 Months)
-                </h4>
-
-                <canvas id="purchasePerformanceChart" height="220"></canvas>
-
-            </div>
-
-        </div>
-
-
-        <div class="col-md-6">
-
-            <div class="dashboard-box">
-
-                <h4>
-                    <i class="fa fa-line-chart"></i>
-                    Sales Performance (Last 12 Months)
-                </h4>
-
-                <canvas id="salesPerformanceChart" height="220"></canvas>
-
-            </div>
-
-        </div>
-
-    </div>
-
     <!-- Weekly Performance Section -->
     <div class="row" style="margin-top: 20px;">
 
@@ -505,6 +414,43 @@ $this->title = 'Dashboard';
 
     </div>
 
+    <!-- Performance Charts -->
+
+    <div class="row">
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-bar-chart"></i>
+                    Purchase Performance (Last 12 Months)
+                </h4>
+
+                <canvas id="purchasePerformanceChart" height="220"></canvas>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-6">
+
+            <div class="dashboard-box">
+
+                <h4>
+                    <i class="fa fa-line-chart"></i>
+                    Sales Performance (Last 12 Months)
+                </h4>
+
+                <canvas id="salesPerformanceChart" height="220"></canvas>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </div>
 
 
@@ -530,6 +476,40 @@ $this->title = 'Dashboard';
 
     // Initial call to set time immediately
     updateLiveTime();
+
+    // Check for action parameter from navbar buttons
+    $(document).ready(function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action');
+
+        if (action) {
+            // Small delay to ensure modals are loaded
+            setTimeout(() => {
+                switch(action) {
+                    case 'product':
+                        if (typeof openProductModal === 'function') openProductModal();
+                        break;
+                    case 'stock':
+                        if (typeof openStockModal === 'function') openStockModal();
+                        break;
+                    case 'supplier':
+                        if (typeof openSupplierModal === 'function') openSupplierModal();
+                        break;
+                    case 'customer':
+                        if (typeof openCustomerModal === 'function') openCustomerModal();
+                        break;
+                    case 'po':
+                        if (typeof loadOrder === 'function') loadOrder();
+                        break;
+                    case 'so':
+                        if (typeof openOrderModal === 'function') openOrderModal();
+                        break;
+                }
+                // Remove the action parameter from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }, 500);
+        }
+    });
 
     $(function() {
 
@@ -1009,21 +989,21 @@ $this->title = 'Dashboard';
                     </div>
                     <div class="col-md-4">
                         <label>Category</label>
-                        <select id="swal_category_id" class="form-control">${categoryOptions}</select>
+                        <select id="swal_category_id" class="form-control chosen-select">${categoryOptions}</select>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-md-4">
                         <label>Brand</label>
-                        <select id="swal_brand_id" class="form-control">${brandOptions}</select>
+                        <select id="swal_brand_id" class="form-control chosen-select">${brandOptions}</select>
                     </div>
                     <div class="col-md-4">
                         <label>Model</label>
-                        <select id="swal_model_id" class="form-control">${modelOptions}</select>
+                        <select id="swal_model_id" class="form-control chosen-select">${modelOptions}</select>
                     </div>
                     <div class="col-md-4">
                         <label>Unit</label>
-                        <select id="swal_unit_id" class="form-control">${unitOptions}</select>
+                        <select id="swal_unit_id" class="form-control chosen-select">${unitOptions}</select>
                     </div>
                 </div>
                 <div class="row">
@@ -1058,6 +1038,14 @@ $this->title = 'Dashboard';
             showCancelButton: true,
             confirmButtonText: isEdit ? '<i class="ace-icon fa fa-save"></i> Update' : '<i class="ace-icon fa fa-save"></i> Create',
             cancelButtonText: 'Cancel',
+            didOpen: () => {
+                setTimeout(() => {
+                    $('#swal_category_id').chosen({width: '100%', search_contains: true});
+                    $('#swal_brand_id').chosen({width: '100%', search_contains: true});
+                    $('#swal_model_id').chosen({width: '100%', search_contains: true});
+                    $('#swal_unit_id').chosen({width: '100%', search_contains: true});
+                }, 100);
+            },
             preConfirm: () => {
                 const productName = document.getElementById('swal_product_name').value.trim();
                 if (!productName) {
@@ -1113,7 +1101,7 @@ $this->title = 'Dashboard';
             productOptions += `<option value="${item.id}">${item.product_name}</option>`;
         });
 
-        let warehouseOptions = '<option value="">Select Warehouse</option>';
+        let warehouseOptions = '';
         (dashboardModalData.warehouses || []).forEach(item => {
             warehouseOptions += `<option value="${item.id}">${item.warehouse_name}</option>`;
         });
@@ -1122,15 +1110,15 @@ $this->title = 'Dashboard';
             title: 'Add Current Stock',
             allowOutsideClick: false,
             allowEscapeKey: false,
-            html: `<form style="text-align:left;">
+            html: `<form style="text-align:left; height: 200px;">
                 <div class="row">
                     <div class="col-md-6">
                         <label>Product <span class="text-danger">*</span></label>
-                        <select id="swal_product_id" class="form-control">${productOptions}</select>
+                        <select id="swal_product_id" class="form-control chosen-select">${productOptions}</select>
                     </div>
                     <div class="col-md-6">
                         <label>Warehouse</label>
-                        <select id="swal_warehouse_id" class="form-control">${warehouseOptions}</select>
+                        <select id="swal_warehouse_id" class="form-control chosen-select">${warehouseOptions}</select>
                     </div>
                 </div>
                 <div class="row">
@@ -1144,9 +1132,15 @@ $this->title = 'Dashboard';
                     </div>
                 </div>
             </form>`,
-            width: '600px',
+            width: '900px', 
             showCancelButton: true,
             confirmButtonText: '<i class="ace-icon fa fa-save"></i> Add Stock',
+            didOpen: () => {
+                setTimeout(() => {
+                    $('#swal_product_id').chosen({width: '100%', search_contains: true});
+                    $('#swal_warehouse_id').chosen({width: '100%', search_contains: true});
+                }, 100);
+            },
             preConfirm: () => {
                 const product = document.getElementById('swal_product_id').value;
                 const quantity = document.getElementById('swal_stock_quantity').value;
@@ -1192,7 +1186,7 @@ $this->title = 'Dashboard';
 
         Swal.fire({
             title: isEdit ? 'Update Supplier' : 'Add New Supplier',
-            html: `<form style="text-align:left; max-height: 500px; overflow-y: auto;">
+            html: `<form style="text-align:left; max-height: 500px;">
                 <input type="hidden" id="swal_supplier_id" value="${id}">
                 <div class="row">
                     <div class="col-md-6">

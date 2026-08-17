@@ -52,7 +52,7 @@ if (!isset($warehouses)) $warehouses = [];
                     <a href="index.php?r=purchase/purchasedashboard">Home</a>
                 </li>
                 <li class="active">Purchase Orders</li>
-                <li style="float:right;">
+                <!-- <li style="float:right;">
                     <div class="nav-search" id="nav-search">
                         <div class="exam-quick-actions-group">
                             <a class="btn btn-sm btn-white btn-primary" style="font-size:12px;cursor:pointer;" onclick="loadOrder()">
@@ -61,7 +61,7 @@ if (!isset($warehouses)) $warehouses = [];
                             </a>
                         </div>
                     </div>
-                </li>
+                </li> -->
             </ul>
         </div>
 

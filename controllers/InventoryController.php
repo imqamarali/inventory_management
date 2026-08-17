@@ -4268,4 +4268,118 @@ class InventoryController extends Controller
             exit;
         }
     }
+
+    public function actionSearchProducts()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $query = trim(Yii::$app->request->post('query', ''));
+
+        if (empty($query) || strlen($query) < 2) {
+            return [
+                'success' => false,
+                'message' => 'Query must be at least 2 characters',
+                'products' => []
+            ];
+        }
+
+        try {
+            $products = Yii::$app->db->createCommand("
+                SELECT id, product_name, sku, description
+                FROM inventory_products
+                WHERE is_active = 1 AND is_deleted = 0
+                AND (
+                    product_name LIKE :query
+                    OR sku LIKE :query
+                    OR description LIKE :query
+                )
+                ORDER BY product_name ASC
+                LIMIT 20
+            ")->bindValue(':query', "%{$query}%")->queryAll();
+
+            return [
+                'success' => true,
+                'products' => $products,
+                'message' => count($products) . ' products found'
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+                'products' => []
+            ];
+        }
+    }
+
+    public function actionProductDetails()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        if (!Yii::$app->request->isPost) {
+            return ['success' => false, 'message' => 'Invalid request'];
+        }
+
+        $productId = Yii::$app->request->post('id');
+
+        try {
+            $product = Yii::$app->db->createCommand("
+                SELECT p.*,
+                        c.category_name,
+                        b.brand_name,
+                        u.unit_name
+                 FROM inventory_products p
+                 LEFT JOIN inventory_categories c ON p.category_id = c.id
+                 LEFT JOIN inventory_brands b ON p.brand_id = b.id
+                 LEFT JOIN inventory_units u ON p.unit_id = u.id
+                 WHERE p.id = :id AND p.is_deleted = 0
+            ")->bindValue(':id', $productId)->queryOne();
+
+            if (!$product) {
+                return ['success' => false, 'message' => 'Product not found'];
+            }
+
+            $stock = Yii::$app->db->createCommand("
+                SELECT
+                    COALESCE(SUM(quantity), 0) as total_quantity,
+                    COALESCE(SUM(quantity * average_cost), 0) as total_purchase_value
+                 FROM inventory_stock
+                 WHERE product_id = :product_id AND is_deleted = 0
+            ")->bindValue(':product_id', $productId)->queryOne();
+
+            $purchase = Yii::$app->db->createCommand("
+                SELECT
+                    COALESCE(SUM(quantity), 0) as total_purchased,
+                    COALESCE(SUM(quantity * unit_price), 0) as total_purchase_cost
+                 FROM inventory_purchase_order_items
+                 WHERE product_id = :product_id AND is_deleted = 0
+            ")->bindValue(':product_id', $productId)->queryOne();
+
+            $sales = Yii::$app->db->createCommand("
+                SELECT
+                    COALESCE(SUM(quantity), 0) as total_sold,
+                    COALESCE(SUM(quantity * unit_price), 0) as total_sold_value
+                 FROM inventory_sales_order_items
+                 WHERE product_id = :product_id AND is_deleted = 0
+            ")->bindValue(':product_id', $productId)->queryOne();
+
+            return [
+                'success' => true,
+                'product' => $product,
+                'stock' => [
+                    'total_quantity' => (float)($stock['total_quantity'] ?? 0),
+                    'total_purchase_value' => (float)($stock['total_purchase_value'] ?? 0)
+                ],
+                'purchase' => [
+                    'total_purchased' => (float)($purchase['total_purchased'] ?? 0),
+                    'total_purchase_cost' => (float)($purchase['total_purchase_cost'] ?? 0)
+                ],
+                'sales' => [
+                    'total_sold' => (float)($sales['total_sold'] ?? 0),
+                    'total_sold_value' => (float)($sales['total_sold_value'] ?? 0)
+                ]
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Database Error: ' . $e->getMessage()];
+        }
+    }
 }

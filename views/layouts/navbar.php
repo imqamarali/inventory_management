@@ -63,7 +63,7 @@ if ($loggedIn && isset($user['role_id'])) {
             </a>
 
         </div>
-        <div class="navbar-header pull-left hidden-xs">
+        <!-- <div class="navbar-header pull-left hidden-xs">
 
             <ul class="nav navbar-nav">
                 <li>
@@ -73,54 +73,37 @@ if ($loggedIn && isset($user['role_id'])) {
                 </li>
             </ul>
 
-        </div>
+        </div> -->
 
         <?php if ($loggedIn): ?>
 
-            <!-- Current Month Invoice Info Chip (Centered) -->
-            <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);">
-                <?php
-                $currentInvoice = Yii::$app->db->createCommand(
-                    "SELECT si.invoice_number, si.due_date, si.payment_status
-                     FROM system_invoices si
-                     WHERE si.is_deleted = 0
-                     AND MONTH(si.invoice_date) = MONTH(NOW())
-                     AND YEAR(si.invoice_date) = YEAR(NOW())
-                     LIMIT 1"
-                )->queryOne();
-                ?>
-                <?php if ($currentInvoice): ?>
-                    <?php
-                    $dueDate = new DateTime($currentInvoice['due_date']);
-                    $today = new DateTime();
-                    $daysLeft = $dueDate->diff($today)->days;
-                    if ($dueDate < $today) {
-                        $daysLeft = -$daysLeft;
-                    }
+            <!-- Quick Action Buttons (Centered) -->
+            <div style="position: absolute; background:transparent; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 10px; flex-wrap: nowrap; align-items: center;">
+                <a class="btn btn-sm  btn-primary" style="border-right: 1px solid #fff; font-size:12px;cursor:pointer;" onclick="navbarClickAction('product')" title="Add New Product">
+                    <i class="ace-icon fa fa-plus"></i> Add Product
+                </a>
+                <a class="btn btn-sm btn-primary" style="border-right: 1px solid #fff; font-size:12px;cursor:pointer;" onclick="navbarClickAction('stock')" title="Add Current Stock">
+                    <i class="ace-icon fa fa-plus"></i> Add Stock
+                </a>
+                <a class="btn btn-sm btn-primary" style="border-right: 1px solid #fff; font-size:12px;cursor:pointer;" onclick="navbarClickAction('supplier')" title="Add New Supplier">
+                    <i class="ace-icon fa fa-plus"></i> Add Supplier
+                </a>
+                <a class="btn btn-sm btn-primary" style="border-right: 1px solid #fff; font-size:12px;cursor:pointer;" onclick="navbarClickAction('customer')" title="Add New Customer">
+                    <i class="ace-icon fa fa-plus"></i> Add Customer
+                </a>
+                <a class="btn btn-sm btn-primary" style="border-right: 1px solid #fff; font-size:12px;cursor:pointer;" onclick="navbarClickAction('po')" title="Add Purchase Order">
+                    <i class="ace-icon fa fa-plus"></i> Add PO
+                </a>
+                <a class="btn btn-sm btn-primary" style="font-size:12px;cursor:pointer;" onclick="navbarClickAction('so')" title="Add Sales Order">
+                    <i class="ace-icon fa fa-plus"></i> Add SO
+                </a>
 
-                    $borderColor = $daysLeft > 3 ? '#4CAF50' : '#FF5252';
-                    $textColor = $daysLeft > 3 ? '#4CAF50' : '#FF5252';
-                    $statusIcon = $currentInvoice['payment_status'] === 'paid' ? '✓ PAID' : '⚠️ UNPAID';
-                    $statusColor = $currentInvoice['payment_status'] === 'paid' ? '#4CAF50' : '#FF5252';
-                    ?>
-                    <div style="
-                        display: inline-block;
-                        padding: 8px 16px;
-                        border-radius: 20px;
-                        color: white;
-                        font-size: 13px;
-                        font-weight: 500;
-                        white-space: nowrap;
-                    ">
-                        <span>
-                            ⏱️ <?php if ($daysLeft > 0): ?><?= $daysLeft ?> days<?php else: ?><?= abs($daysLeft) ?> overdue<?php endif; ?>
-                        </span>
-                        &nbsp;|&nbsp;
-                        <span style="color: <?= $statusColor ?>;">
-                            <?= $statusIcon ?>
-                        </span>
-                    </div>
-                <?php endif; ?>
+                <!-- Product Search Select Dropdown -->
+                <div style="margin-left: 20px;">
+                    <select id="product_search_select" class="form-control product-search-select" style="width: 280px; font-size: 12px;">
+                        <option value="">Search Product by Name or SKU...</option>
+                    </select>
+                </div>
             </div>
 
             <div class="navbar-buttons navbar-header pull-right">

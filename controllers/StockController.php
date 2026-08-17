@@ -491,13 +491,15 @@ class StockController extends Controller
                     p.maximum_stock,
                     p.reorder_level,
                     p.selling_price,
+                    p.is_active,
                     c.category_name,
                     b.brand_name,
                     u.short_name unit_name,
                     w.warehouse_name,
                     w.warehouse_code,
-                    COALESCE(SUM(soi.quantity), 0) as sold_quantity,
-                    COALESCE(SUM(soi.quantity * soi.unit_price), 0) as sold_amount
+                    (SELECT COALESCE(SUM(quantity), 0) FROM inventory_sales_order_items WHERE product_id = p.id AND is_deleted = 0) as sold_quantity,
+                    (SELECT COALESCE(SUM(quantity * unit_price), 0) FROM inventory_sales_order_items WHERE product_id = p.id AND is_deleted = 0) as sold_amount,
+                    (COALESCE(s.quantity, 0) - COALESCE((SELECT COALESCE(SUM(quantity), 0) FROM inventory_sales_order_items WHERE product_id = p.id AND is_deleted = 0), 0)) as remaining_quantity
                 FROM inventory_stock s
                 INNER JOIN inventory_products p
                     ON p.id=s.product_id
@@ -509,19 +511,7 @@ class StockController extends Controller
                     ON u.id=p.unit_id
                 INNER JOIN inventory_warehouses w
                     ON w.id=s.warehouse_id
-                LEFT JOIN inventory_sales_order_items soi
-                    ON soi.product_id=p.id
-                    AND soi.is_deleted=0
-                    AND soi.sales_order_id IN (
-                        SELECT so.id FROM inventory_sales_orders so
-                        WHERE so.is_deleted=0 AND so.warehouse_id=s.warehouse_id
-                    )
-                    AND soi.sales_order_id IN (
-                        SELECT si.sales_order_id FROM inventory_sales_invoices si
-                        WHERE si.is_deleted=0
-                    )
                 $where
-                GROUP BY s.id, s.product_id, s.warehouse_id
                 ORDER BY p.product_name ASC
                 LIMIT $offset,$perPage
             ", $params)->queryAll();
@@ -675,9 +665,9 @@ class StockController extends Controller
                         u.short_name unit_name,
                         w.warehouse_name,
                         w.warehouse_code,
-                        COALESCE(SUM(sii.quantity), 0) as sold_quantity,
-                        COALESCE(SUM(sii.quantity * sii.unit_price), 0) as sold_amount,
-                        COALESCE(SUM(COALESCE(pi.grand_total, 0) - COALESCE(pi.paid_amount, 0)), 0) as remaining_amount
+                        (SELECT COALESCE(SUM(quantity), 0) FROM inventory_sales_order_items WHERE product_id = p.id AND is_deleted = 0) as sold_quantity,
+                        (SELECT COALESCE(SUM(quantity * unit_price), 0) FROM inventory_sales_order_items WHERE product_id = p.id AND is_deleted = 0) as sold_amount,
+                        (COALESCE(s.quantity, 0) - COALESCE((SELECT COALESCE(SUM(quantity), 0) FROM inventory_sales_order_items WHERE product_id = p.id AND is_deleted = 0), 0)) as remaining_quantity
                     FROM inventory_stock s
                     INNER JOIN inventory_products p
                         ON p.id=s.product_id
@@ -689,16 +679,7 @@ class StockController extends Controller
                         ON u.id=p.unit_id
                     INNER JOIN inventory_warehouses w
                         ON w.id=s.warehouse_id
-                    LEFT JOIN inventory_sales_invoice_items sii
-                        ON sii.product_id=p.id AND sii.is_deleted=0
-                    LEFT JOIN inventory_sales_invoices si
-                        ON si.id=sii.sales_invoice_id AND si.status IN ('Paid', 'Partially Paid', 'Issued')  AND si.is_deleted=0
-                    LEFT JOIN inventory_purchase_invoice_items pii
-                        ON pii.product_id=p.id 
-                    LEFT JOIN inventory_purchase_invoices pi
-                        ON pi.id=pii.purchase_invoice_id AND pi.status IN ('Paid', 'Partially Paid', 'Issued') AND pi.is_deleted = 0
                     $where
-                    GROUP BY s.id, p.id
                     ORDER BY p.product_name ASC
                     LIMIT $offset,$perPage
                 ", $params)->queryAll();
